@@ -11,28 +11,7 @@ import {
 } from '@domain/events/ports/event-repository.port';
 import { STORAGE_PORT, StoragePort } from '@domain/shared/ports/storage.port';
 import { EventEntity, EventStatus } from '@domain/events/entities/event.entity';
-import { PrismaService } from '@database/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
-
-const FIXED_FIELDS = [
-  { label: 'Nome', type: 'text' as const, required: true, isFixed: true, order: 0 },
-  { label: 'Telefone', type: 'phone' as const, required: true, isFixed: true, order: 1 },
-  { label: 'E-mail', type: 'email' as const, required: true, isFixed: true, order: 2 },
-  { label: 'Endereço', type: 'text' as const, required: false, isFixed: true, order: 3 },
-];
-
-const LANDING_SECTIONS = [
-  { type: 'hero', order: 0, enabled: true },
-  { type: 'about', order: 1, enabled: true },
-  { type: 'registration', order: 2, enabled: true },
-  { type: 'speakers', order: 3, enabled: false },
-  { type: 'schedule', order: 4, enabled: false },
-  { type: 'venue', order: 5, enabled: false },
-  { type: 'faq', order: 6, enabled: false },
-  { type: 'gallery', order: 7, enabled: false },
-  { type: 'testimonials', order: 8, enabled: false },
-  { type: 'sponsors', order: 9, enabled: false },
-];
 
 export interface CreateEventInput {
   title: string;
@@ -61,25 +40,11 @@ export class EventsService {
   constructor(
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
     @Inject(STORAGE_PORT) private readonly storage: StoragePort,
-    private readonly prisma: PrismaService,
     private readonly config: ConfigService,
   ) {}
 
   async create(ownerId: string, input: CreateEventInput): Promise<EventEntity> {
-    const event = await this.eventRepo.create({ ...input, ownerId });
-
-    await this.prisma.formField.createMany({
-      data: FIXED_FIELDS.map((f) => ({ ...f, eventId: event.id })),
-    });
-
-    await this.prisma.landingPage.create({
-      data: {
-        eventId: event.id,
-        sections: { create: LANDING_SECTIONS },
-      },
-    });
-
-    return event;
+    return this.eventRepo.create({ ...input, ownerId });
   }
 
   async findAll(ownerId: string): Promise<EventEntity[]> {

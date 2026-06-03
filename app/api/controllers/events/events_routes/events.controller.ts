@@ -9,6 +9,10 @@ import {
   UseGuards,
   UploadedFile,
   UseInterceptors,
+  HttpCode,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
@@ -55,7 +59,7 @@ export class EventsController {
   @Patch(':id/status')
   @UseGuards(OwnershipGuard)
   updateStatus(@Param('id') id: string, @Body() dto: UpdateEventStatusDto) {
-    return this.eventsService.updateStatus(id, dto.status as any);
+    return this.eventsService.updateStatus(id, dto.status);
   }
 
   @Post(':id/cover')
@@ -63,13 +67,22 @@ export class EventsController {
   @UseInterceptors(FileInterceptor('file'))
   uploadCover(
     @Param('id') id: string,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
+          new FileTypeValidator({ fileType: /image\/(jpeg|png|webp)/ }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
   ) {
     return this.eventsService.uploadCover(id, file.buffer, file.mimetype);
   }
 
   @Delete(':id')
   @UseGuards(OwnershipGuard)
+  @HttpCode(204)
   delete(@Param('id') id: string) {
     return this.eventsService.delete(id);
   }
