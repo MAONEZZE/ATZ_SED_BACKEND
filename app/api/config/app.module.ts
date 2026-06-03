@@ -11,6 +11,7 @@ import { GuardsModule } from './guards/guards.module';
 import { EventsModule } from '../controllers/events/events.module';
 import { RegistrationsModule } from '../controllers/registrations/registrations.module';
 import { WorkersModule } from '../workers/workers.module';
+import { AutomationsModule } from '../controllers/automations/automations.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { WorkersModule } from '../workers/workers.module';
     EventsModule,
     RegistrationsModule,
     WorkersModule,
+    AutomationsModule,
   ],
 })
 export class AppModule implements NestModule {
