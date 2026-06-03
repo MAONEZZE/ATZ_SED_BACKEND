@@ -7,6 +7,8 @@ import { validateEnv } from './env.validation';
 // import { PrismaModule } from '@database/prisma/prisma.module';
 import { HealthModule } from './health/health.module';
 import { RequestIdMiddleware } from './middleware/request-id.middleware';
+import { AuthModule } from '@database/auth/auth.module';
+import { GuardsModule } from './guards/guards.module';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { RequestIdMiddleware } from './middleware/request-id.middleware';
     // TODO: Uncomment after Task 3 (Prisma setup) is complete
     // PrismaModule,
     HealthModule,
+    AuthModule,
+    GuardsModule,
   ],
 })
 export class AppModule implements NestModule {
