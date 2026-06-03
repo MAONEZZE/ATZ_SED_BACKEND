@@ -20,13 +20,17 @@ import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { CurrentUser } from '@api/config/decorators/current-user.decorator';
 import { AuthenticatedUser } from '@domain/users/entities/authenticated-user.entity';
 import { EventsService } from '@services/events/events.service';
+import { EventLifecycleService } from '@services/events/event-lifecycle.service';
 import { CreateEventDto } from '../events_dto/create-event.dto';
 import { UpdateEventDto, UpdateEventStatusDto } from '../events_dto/update-event.dto';
 
 @Controller('events')
 @UseGuards(JwtAuthGuard)
 export class EventsController {
-  constructor(private readonly eventsService: EventsService) {}
+  constructor(
+    private readonly eventsService: EventsService,
+    private readonly lifecycleService: EventLifecycleService,
+  ) {}
 
   @Post()
   create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateEventDto) {
@@ -85,5 +89,20 @@ export class EventsController {
   @HttpCode(204)
   delete(@Param('id') id: string) {
     return this.eventsService.delete(id);
+  }
+
+  @Post(':id/cancel')
+  @UseGuards(OwnershipGuard)
+  cancel(
+    @Param('id') id: string,
+    @Body('notifyParticipants') notify: boolean,
+  ) {
+    return this.lifecycleService.cancel(id, notify ?? false);
+  }
+
+  @Post(':id/duplicate')
+  @UseGuards(OwnershipGuard)
+  duplicate(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.lifecycleService.duplicate(id, user.id);
   }
 }

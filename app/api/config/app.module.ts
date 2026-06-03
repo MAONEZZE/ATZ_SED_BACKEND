@@ -2,6 +2,8 @@ import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { LoggerModule } from 'nestjs-pino';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { validateEnv } from './env.validation';
 import { PrismaModule } from '@database/prisma/prisma.module';
 import { HealthModule } from './health/health.module';
@@ -13,6 +15,7 @@ import { RegistrationsModule } from '../controllers/registrations/registrations.
 import { WorkersModule } from '../workers/workers.module';
 import { AutomationsModule } from '../controllers/automations/automations.module';
 import { AiFeatureModule } from '../controllers/ai/ai.module';
+import { MessagingModule } from '../controllers/messaging/messaging.module';
 
 @Module({
   imports: [
@@ -29,6 +32,7 @@ import { AiFeatureModule } from '../controllers/ai/ai.module';
       },
     }),
     EventEmitterModule.forRoot(),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     PrismaModule,
     HealthModule,
     AuthModule,
@@ -38,6 +42,10 @@ import { AiFeatureModule } from '../controllers/ai/ai.module';
     WorkersModule,
     AutomationsModule,
     AiFeatureModule,
+    MessagingModule,
+  ],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule implements NestModule {
