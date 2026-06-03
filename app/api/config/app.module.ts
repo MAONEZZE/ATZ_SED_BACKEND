@@ -9,6 +9,7 @@ import { RequestIdMiddleware } from './middleware/request-id.middleware';
 import { AuthModule } from '@database/auth/auth.module';
 import { GuardsModule } from './guards/guards.module';
 import { EventsModule } from '../controllers/events/events.module';
+import { RegistrationsModule } from '../controllers/registrations/registrations.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { EventsModule } from '../controllers/events/events.module';
     AuthModule,
     GuardsModule,
     EventsModule,
+    RegistrationsModule,
   ],
 })
 export class AppModule implements NestModule {
