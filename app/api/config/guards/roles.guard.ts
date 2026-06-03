@@ -3,6 +3,7 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
@@ -23,8 +24,13 @@ export class RolesGuard implements CanActivate {
     if (!roles?.length) return true;
     const user = context
       .switchToHttp()
-      .getRequest<Record<string, unknown>>()['user'] as AuthenticatedUser;
-    if (!user || !roles.includes(user.role)) {
+      .getRequest<Record<string, unknown>>()['user'] as
+      | AuthenticatedUser
+      | undefined;
+    if (!user) {
+      throw new UnauthorizedException('Authentication required');
+    }
+    if (!roles.includes(user.role)) {
       throw new ForbiddenException('Insufficient permissions');
     }
     return true;

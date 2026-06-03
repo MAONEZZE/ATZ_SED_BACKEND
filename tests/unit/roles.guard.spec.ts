@@ -1,11 +1,11 @@
 import { RolesGuard } from '@api/config/guards/roles.guard';
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { AuthenticatedUser } from '@domain/users/entities/authenticated-user.entity';
 
 const mockReflector = { getAllAndOverride: jest.fn() };
 const guard = new RolesGuard(mockReflector as any);
 
-const makeCtx = (user: AuthenticatedUser) => ({
+const makeCtx = (user: AuthenticatedUser | undefined) => ({
   getHandler: () => ({}),
   getClass: () => ({}),
   switchToHttp: () => ({ getRequest: () => ({ user }) }),
@@ -29,5 +29,10 @@ describe('RolesGuard', () => {
     expect(() =>
       guard.canActivate(makeCtx(new AuthenticatedUser('1', 'a@b.com', 'organizer'))),
     ).toThrow(ForbiddenException);
+  });
+
+  it('throws UnauthorizedException when user is missing and roles are required', () => {
+    mockReflector.getAllAndOverride.mockReturnValue(['admin']);
+    expect(() => guard.canActivate(makeCtx(undefined))).toThrow(UnauthorizedException);
   });
 });

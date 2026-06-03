@@ -23,13 +23,25 @@ export class SupabaseAuthAdapter implements AuthPort {
 
   async verifyToken(token: string): Promise<AuthenticatedUser> {
     try {
-      const payload = jwt.verify(token, this.jwtSecret) as jwt.JwtPayload;
-      const userId = payload.sub!;
-      const role = ((payload['user_metadata'] as Record<string, unknown>)?.['role'] ??
-        'organizer') as UserRole;
-      const email = payload['email'] as string;
+      const payload = jwt.verify(token, this.jwtSecret, {
+        algorithms: ['HS256'],
+      }) as jwt.JwtPayload;
+
+      if (!payload.sub) {
+        throw new UnauthorizedException('Token missing subject claim');
+      }
+
+      const userId = payload.sub;
+      const email =
+        typeof payload['email'] === 'string' ? payload['email'] : '';
+      const rawRole = (
+        payload['user_metadata'] as Record<string, unknown> | undefined
+      )?.['role'];
+      const role: UserRole = rawRole === 'admin' ? 'admin' : 'organizer';
+
       return new AuthenticatedUser(userId, email, role);
-    } catch {
+    } catch (err) {
+      if (err instanceof UnauthorizedException) throw err;
       throw new UnauthorizedException('Invalid or expired token');
     }
   }
@@ -37,8 +49,10 @@ export class SupabaseAuthAdapter implements AuthPort {
   async getUser(id: string): Promise<AuthenticatedUser | null> {
     const { data, error } = await this.supabase.auth.admin.getUserById(id);
     if (error || !data.user) return null;
-    const role = ((data.user.user_metadata as Record<string, unknown>)?.['role'] ??
-      'organizer') as UserRole;
-    return new AuthenticatedUser(id, data.user.email!, role);
+    const rawRole = (
+      data.user.user_metadata as Record<string, unknown> | undefined
+    )?.['role'];
+    const role: UserRole = rawRole === 'admin' ? 'admin' : 'organizer';
+    return new AuthenticatedUser(id, data.user.email ?? '', role);
   }
 }
