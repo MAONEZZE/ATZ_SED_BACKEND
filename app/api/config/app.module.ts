@@ -12,6 +12,7 @@ import { EventsModule } from '../controllers/events/events.module';
 import { RegistrationsModule } from '../controllers/registrations/registrations.module';
 import { WorkersModule } from '../workers/workers.module';
 import { AutomationsModule } from '../controllers/automations/automations.module';
+import { AiFeatureModule } from '../controllers/ai/ai.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { AutomationsModule } from '../controllers/automations/automations.module
     RegistrationsModule,
     WorkersModule,
     AutomationsModule,
+    AiFeatureModule,
   ],
 })
 export class AppModule implements NestModule {
