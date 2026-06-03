@@ -3,8 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { LoggerModule } from 'nestjs-pino';
 import { validateEnv } from './env.validation';
-// TODO: Uncomment after Task 3 (Prisma setup) is complete
-// import { PrismaModule } from '@database/prisma/prisma.module';
+import { PrismaModule } from '@database/prisma/prisma.module';
 import { HealthModule } from './health/health.module';
 import { RequestIdMiddleware } from './middleware/request-id.middleware';
 import { AuthModule } from '@database/auth/auth.module';
@@ -25,8 +24,7 @@ import { GuardsModule } from './guards/guards.module';
       },
     }),
     EventEmitterModule.forRoot(),
-    // TODO: Uncomment after Task 3 (Prisma setup) is complete
-    // PrismaModule,
+    PrismaModule,
     HealthModule,
     AuthModule,
     GuardsModule,
