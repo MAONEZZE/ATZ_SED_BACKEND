@@ -1,0 +1,13 @@
+import { Module } from '@nestjs/common';
+import { MessageDispatchWorker } from './message-dispatch.worker';
+import { MessagingDbModule } from '@database/messaging/messaging-db.module';
+import { IntegrationsModule } from '@database/integrations/integrations.module';
+import { BullQueuesModule } from '@database/queue/bull-queues.module';
+import { OutboxService } from '@services/messaging/outbox.service';
+
+@Module({
+  imports: [BullQueuesModule, MessagingDbModule, IntegrationsModule],
+  providers: [MessageDispatchWorker, OutboxService],
+  exports: [OutboxService],
+})
+export class WorkersModule {}
