@@ -18,6 +18,8 @@ import { AiFeatureModule } from '../controllers/ai/ai.module';
 import { MessagingModule } from '../controllers/messaging/messaging.module';
 import { TemplatesModule } from '../controllers/templates/templates.module';
 import { LandingModule } from '../controllers/landing/landing.module';
+import { UsersModule } from '../controllers/users/users.module';
+import { PublicModule } from '../controllers/public/public.module';
 
 @Module({
   imports: [
@@ -47,6 +49,8 @@ import { LandingModule } from '../controllers/landing/landing.module';
     MessagingModule,
     TemplatesModule,
     LandingModule,
+    UsersModule,
+    PublicModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
