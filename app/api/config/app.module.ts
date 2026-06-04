@@ -16,6 +16,7 @@ import { WorkersModule } from '../workers/workers.module';
 import { AutomationsModule } from '../controllers/automations/automations.module';
 import { AiFeatureModule } from '../controllers/ai/ai.module';
 import { MessagingModule } from '../controllers/messaging/messaging.module';
+import { TemplatesModule } from '../controllers/templates/templates.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { MessagingModule } from '../controllers/messaging/messaging.module';
     AutomationsModule,
     AiFeatureModule,
     MessagingModule,
+    TemplatesModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
