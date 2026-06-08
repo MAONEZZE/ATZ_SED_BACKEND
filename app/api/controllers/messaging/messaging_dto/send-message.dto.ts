@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsIn, IsArray, IsEmail, ValidateNested } from 'class-validator';
+import { IsString, IsOptional, IsIn, IsArray, IsEmail, IsUUID, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -19,7 +19,17 @@ export class ManualRecipientDto {
 }
 
 export class SendMessageDto {
-  @ApiProperty({ enum: ['whatsapp', 'email'], example: 'email' })
+  @ApiPropertyOptional({ example: 'uuid-do-evento', description: 'Vincula disparo a um evento. Opcional.' })
+  @IsOptional()
+  @IsUUID()
+  eventId?: string;
+
+  @ApiPropertyOptional({ example: 'minha-instancia', description: 'Instância Evolution. Obrigatório se channel=whatsapp e sem eventId.' })
+  @IsOptional()
+  @IsString()
+  instancia?: string;
+
+  @ApiProperty({ enum: ['whatsapp', 'email'], example: 'whatsapp' })
   @IsIn(['whatsapp', 'email'])
   channel!: 'whatsapp' | 'email';
 
@@ -33,12 +43,12 @@ export class SendMessageDto {
   @IsString()
   subject?: string;
 
-  @ApiPropertyOptional({ example: 'Conteúdo da mensagem' })
+  @ApiPropertyOptional({ example: 'Conteúdo da mensagem. Suporta {{name}}, {{event.title}}.' })
   @IsOptional()
   @IsString()
   body?: string;
 
-  @ApiPropertyOptional({ example: ['uuid-inscricao-1', 'uuid-inscricao-2'] })
+  @ApiPropertyOptional({ example: ['uuid-inscricao-1', 'uuid-inscricao-2'], description: 'Só válido com eventId.' })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
