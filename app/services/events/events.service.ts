@@ -21,6 +21,8 @@ export interface CreateEventInput {
   dressCode?: string;
   groupLink?: string;
   eventDate?: Date;
+  endDate?: Date;
+  postRegistrationMessage?: string;
 }
 
 export interface UpdateEventInput {
@@ -31,6 +33,8 @@ export interface UpdateEventInput {
   dressCode?: string;
   groupLink?: string;
   eventDate?: Date;
+  endDate?: Date;
+  postRegistrationMessage?: string;
   evolutionInstance?: string;
   evolutionToken?: string;
 }
@@ -44,6 +48,7 @@ export class EventsService {
   ) {}
 
   async create(ownerId: string, input: CreateEventInput): Promise<EventEntity> {
+    this.assertValidPeriod(input.eventDate, input.endDate);
     return this.eventRepo.create({ ...input, ownerId });
   }
 
@@ -68,30 +73,48 @@ export class EventsService {
     if (!event.isEditable()) {
       throw new ForbiddenException('Cancelled events cannot be edited');
     }
+    // Validate against the merged period (patch value wins over stored value)
+    this.assertValidPeriod(input.eventDate ?? event.eventDate, input.endDate ?? event.endDate);
     return this.eventRepo.update(id, input);
+  }
+
+  private assertValidPeriod(eventDate?: Date, endDate?: Date): void {
+    if (eventDate && endDate && endDate.getTime() <= eventDate.getTime()) {
+      throw new BadRequestException('endDate must be after eventDate');
+    }
   }
 
   async updateStatus(id: string, status: EventStatus): Promise<EventEntity> {
     const event = await this.findById(id);
     if (!event.canTransitionTo(status)) {
-      throw new BadRequestException(
-        `Cannot transition from '${event.status}' to '${status}'`,
-      );
+      throw new BadRequestException(`Cannot transition from '${event.status}' to '${status}'`);
     }
     return this.eventRepo.updateStatus(id, status);
   }
 
-  async uploadCover(
-    id: string,
-    file: Buffer,
-    mimeType: string,
-  ): Promise<EventEntity> {
+  async uploadCover(id: string, file: Buffer, mimeType: string): Promise<EventEntity> {
     await this.findById(id);
-    const bucket =
-      this.config.get<string>('SUPABASE_STORAGE_BUCKET_COVERS') ?? 'event-covers';
-    const path = `${id}/cover`;
+    const bucket = this.config.get<string>('SUPABASE_STORAGE_BUCKET') ?? 'ATZ_SED';
+    const folder = this.config.get<string>('SUPABASE_STORAGE_BUCKET_COVERS') ?? 'event-covers';
+    const path = `${folder}/${id}/cover`;
     const { url } = await this.storage.upload(bucket, path, file, mimeType);
     return this.eventRepo.update(id, { coverUrl: url });
+  }
+
+  async deleteCover(id: string): Promise<EventEntity> {
+    const event = await this.findById(id);
+    if (event.coverUrl) {
+      const bucket = this.config.get<string>('SUPABASE_STORAGE_BUCKET') ?? 'ATZ_SED';
+      const folder = this.config.get<string>('SUPABASE_STORAGE_BUCKET_COVERS') ?? 'event-covers';
+      // Same path convention as uploadCover — don't parse the public URL
+      const path = `${folder}/${id}/cover`;
+      try {
+        await this.storage.delete(bucket, path);
+      } catch {
+        // Missing object must not block clearing the URL
+      }
+    }
+    return this.eventRepo.update(id, { coverUrl: null });
   }
 
   async delete(id: string): Promise<void> {

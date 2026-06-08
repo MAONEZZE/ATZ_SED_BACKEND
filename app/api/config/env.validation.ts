@@ -7,8 +7,10 @@ const envSchema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_JWT_SECRET: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  SUPABASE_STORAGE_BUCKET: z.string().default('ATZ_SED'),
   SUPABASE_STORAGE_BUCKET_COVERS: z.string().default('event-covers'),
   SUPABASE_STORAGE_BUCKET_UPLOADS: z.string().default('registration-uploads'),
+  SUPABASE_STORAGE_BUCKET_PROFILE_PHOTOS: z.string().default('profile-photo'),
   EVOLUTION_API_URL: z.string().url(),
   EVOLUTION_API_KEY: z.string().min(1),
   RESEND_API_KEY: z.string().min(1),
@@ -16,6 +18,8 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().min(1),
   PORT: z.coerce.number().default(3000),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  // Gate de features de desenvolvimento (ex.: Swagger em /docs)
+  ENVIROMENT: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

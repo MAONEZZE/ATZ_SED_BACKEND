@@ -18,3 +18,9 @@ logs/
 # IDE
 .vscode/
 .idea/
+graphify-out/
+
+.env
+.env.example
+
+*.md

@@ -1,27 +1,66 @@
 import {
-  Controller, Get, Post, Patch, Delete,
-  Param, Body, UseGuards, HttpCode,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  HttpCode,
+  Query,
   NotFoundException,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { PrismaService } from '@database/prisma/prisma.service';
 import { CreateTemplateDto, UpdateTemplateDto } from '../templates_dto/template.dto';
 
+@ApiTags('Templates')
+@ApiBearerAuth()
 @Controller('events/:eventId/templates')
 @UseGuards(JwtAuthGuard, OwnershipGuard)
 export class TemplatesController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
-  findAll(@Param('eventId') eventId: string) {
-    return this.prisma.messageTemplate.findMany({
+  @ApiOperation({ summary: 'Listar templates do evento' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiQuery({ name: 'include', required: false, enum: ['automation'], description: 'Incluir regras de automação' })
+  @ApiResponse({ status: 200, description: 'Lista de templates' })
+  async findAll(@Param('eventId') eventId: string, @Query('include') include?: string) {
+    if (include !== 'automation') {
+      return this.prisma.messageTemplate.findMany({
+        where: { eventId },
+        orderBy: { createdAt: 'asc' },
+      });
+    }
+    const templates = await this.prisma.messageTemplate.findMany({
       where: { eventId },
       orderBy: { createdAt: 'asc' },
+      include: { automationRules: true },
     });
+    // Relation is 1:N but the UI assumes at most one rule per template
+    return templates.map(({ automationRules, ...template }) => ({
+      ...template,
+      automation: automationRules[0]
+        ? {
+            id: automationRules[0].id,
+            trigger: automationRules[0].trigger,
+            delayMinutes: automationRules[0].delayMinutes,
+            active: automationRules[0].active,
+          }
+        : null,
+    }));
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Buscar template por ID' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiParam({ name: 'id', description: 'UUID do template' })
+  @ApiResponse({ status: 200, description: 'Template encontrado' })
+  @ApiResponse({ status: 404, description: 'Template não encontrado' })
   async findOne(@Param('eventId') eventId: string, @Param('id') id: string) {
     const template = await this.prisma.messageTemplate.findFirst({
       where: { id, eventId },
@@ -31,6 +70,9 @@ export class TemplatesController {
   }
 
   @Post()
+  @ApiOperation({ summary: 'Criar template' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiResponse({ status: 201, description: 'Template criado' })
   create(@Param('eventId') eventId: string, @Body() dto: CreateTemplateDto) {
     return this.prisma.messageTemplate.create({
       data: {
@@ -44,6 +86,11 @@ export class TemplatesController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Atualizar template' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiParam({ name: 'id', description: 'UUID do template' })
+  @ApiResponse({ status: 200, description: 'Template atualizado' })
+  @ApiResponse({ status: 404, description: 'Template não encontrado' })
   async update(
     @Param('eventId') eventId: string,
     @Param('id') id: string,
@@ -64,6 +111,10 @@ export class TemplatesController {
 
   @Delete(':id')
   @HttpCode(204)
+  @ApiOperation({ summary: 'Deletar template' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiParam({ name: 'id', description: 'UUID do template' })
+  @ApiResponse({ status: 204, description: 'Template deletado' })
   async delete(@Param('eventId') eventId: string, @Param('id') id: string) {
     const existing = await this.prisma.messageTemplate.findFirst({ where: { id, eventId } });
     if (!existing) throw new NotFoundException('Template not found');

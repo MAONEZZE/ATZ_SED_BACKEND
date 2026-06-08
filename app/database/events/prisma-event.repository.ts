@@ -25,6 +25,8 @@ export class PrismaEventRepository implements EventRepositoryPort {
     dressCode: string | null;
     groupLink: string | null;
     eventDate: Date | null;
+    endDate: Date | null;
+    postRegistrationMessage: string | null;
     evolutionInstance: string | null;
     evolutionToken: string | null;
     createdAt: Date;
@@ -47,6 +49,8 @@ export class PrismaEventRepository implements EventRepositoryPort {
       row.evolutionToken ?? undefined,
       row.createdAt,
       row.updatedAt,
+      row.endDate ?? undefined,
+      row.postRegistrationMessage ?? undefined,
     );
   }
 

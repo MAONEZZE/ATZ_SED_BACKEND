@@ -11,17 +11,21 @@ export interface CreateEventData {
   dressCode?: string;
   groupLink?: string;
   eventDate?: Date;
+  endDate?: Date;
+  postRegistrationMessage?: string;
 }
 
 export interface UpdateEventData {
   title?: string;
   description?: string;
-  coverUrl?: string;
+  coverUrl?: string | null;
   location?: string;
   capacity?: number;
   dressCode?: string;
   groupLink?: string;
   eventDate?: Date;
+  endDate?: Date;
+  postRegistrationMessage?: string;
   evolutionInstance?: string;
   evolutionToken?: string;
 }

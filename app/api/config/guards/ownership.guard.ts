@@ -19,16 +19,12 @@ export class OwnershipGuard implements CanActivate {
   constructor(private readonly prisma: PrismaService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context
-      .switchToHttp()
-      .getRequest<Record<string, unknown>>();
+    const request = context.switchToHttp().getRequest<Record<string, unknown>>();
     const user = request['user'] as AuthenticatedUser | undefined;
 
     if (!user) {
       throw new UnauthorizedException('Authentication required');
     }
-
-    if (user.role === 'admin') return true;
 
     const params = request['params'] as Record<string, string>;
     const eventId = params['eventId'] ?? params['id'];
@@ -38,7 +34,9 @@ export class OwnershipGuard implements CanActivate {
     // Once available, this guard fully enforces event ownership.
     const prismaEvent = (this.prisma as any)['event'];
     if (!prismaEvent?.findUnique) {
-      this.logger.warn('OwnershipGuard: Prisma event model not available — skipping ownership check');
+      this.logger.warn(
+        'OwnershipGuard: Prisma event model not available — skipping ownership check',
+      );
       return true;
     }
 

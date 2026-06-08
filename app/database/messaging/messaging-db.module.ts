@@ -3,9 +3,7 @@ import { OUTBOX_REPOSITORY_PORT } from '@domain/messaging/ports/outbox-repositor
 import { PrismaOutboxRepository } from './prisma-outbox.repository';
 
 @Module({
-  providers: [
-    { provide: OUTBOX_REPOSITORY_PORT, useClass: PrismaOutboxRepository },
-  ],
+  providers: [{ provide: OUTBOX_REPOSITORY_PORT, useClass: PrismaOutboxRepository }],
   exports: [OUTBOX_REPOSITORY_PORT],
 })
 export class MessagingDbModule {}

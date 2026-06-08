@@ -20,24 +20,28 @@ export class MessageDispatchWorker extends WorkerHost {
   }
 
   async process(job: Job): Promise<void> {
-    const { registrationId, templateId, trigger } = job.data as {
-      registrationId: string;
-      templateId: string;
-      trigger: string;
+    const { outboxId, registrationId, templateId, trigger } = job.data as {
+      outboxId?: string;
+      registrationId?: string;
+      templateId?: string;
+      trigger?: string;
     };
 
-    const outbox = await this.prisma.outboxMessage.findFirst({
-      where: {
-        registrationId,
-        templateId,
-        trigger,
-        status: { in: ['pending', 'processing'] },
-      },
-    });
+    const outbox = outboxId
+      ? await this.prisma.outboxMessage.findUnique({ where: { id: outboxId } })
+      : // Legacy jobs enqueued before outboxId existed in the payload
+        await this.prisma.outboxMessage.findFirst({
+          where: {
+            registrationId,
+            templateId,
+            trigger,
+            status: { in: ['pending', 'processing'] },
+          },
+        });
 
     if (!outbox) {
       this.logger.warn(
-        { registrationId, templateId, trigger },
+        { outboxId, registrationId, templateId, trigger },
         'Outbox message not found — skipping',
       );
       return;
@@ -62,15 +66,9 @@ export class MessageDispatchWorker extends WorkerHost {
         );
       } else {
         if (!outbox.instancia) {
-          throw new UnrecoverableError(
-            'WhatsApp message has no instancia configured',
-          );
+          throw new UnrecoverableError('WhatsApp message has no instancia configured');
         }
-        await this.evolution.sendWhatsApp(
-          outbox.instancia,
-          outbox.recipient,
-          outbox.renderedBody,
-        );
+        await this.evolution.sendWhatsApp(outbox.instancia, outbox.recipient, outbox.renderedBody);
       }
 
       await this.prisma.outboxMessage.update({
@@ -80,7 +78,8 @@ export class MessageDispatchWorker extends WorkerHost {
 
       await this.prisma.messageLog.create({
         data: {
-          registrationId,
+          eventId: outbox.eventId ?? null,
+          registrationId: outbox.registrationId ?? null,
           channel: outbox.channel,
           recipient: outbox.recipient,
           body: outbox.renderedBody,
@@ -89,10 +88,7 @@ export class MessageDispatchWorker extends WorkerHost {
         },
       });
 
-      this.logger.log(
-        { id: outbox.id, channel: outbox.channel },
-        'Message dispatched',
-      );
+      this.logger.log({ id: outbox.id, channel: outbox.channel }, 'Message dispatched');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       await this.prisma.outboxMessage.update({
@@ -101,7 +97,8 @@ export class MessageDispatchWorker extends WorkerHost {
       });
       await this.prisma.messageLog.create({
         data: {
-          registrationId,
+          eventId: outbox.eventId ?? null,
+          registrationId: outbox.registrationId ?? null,
           channel: outbox.channel,
           recipient: outbox.recipient,
           body: outbox.renderedBody,

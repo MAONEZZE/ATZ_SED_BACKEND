@@ -11,12 +11,7 @@ import { GuardsModule } from '@api/config/guards/guards.module';
 @Module({
   imports: [BullQueuesModule, WorkersModule, GuardsModule],
   controllers: [AutomationsController],
-  providers: [
-    AutomationEngine,
-    TemplateRenderer,
-    IcsGeneratorService,
-    ScheduledAutomationsWorker,
-  ],
+  providers: [AutomationEngine, TemplateRenderer, IcsGeneratorService, ScheduledAutomationsWorker],
   exports: [AutomationEngine, TemplateRenderer],
 })
 export class AutomationsModule {}

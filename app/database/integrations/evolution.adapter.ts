@@ -30,9 +30,7 @@ export class EvolutionAdapter {
         { instancia, status: response.status, error: errorText },
         'Evolution API error',
       );
-      throw new Error(
-        `Evolution API error (${response.status}): ${errorText}`,
-      );
+      throw new Error(`Evolution API error (${response.status}): ${errorText}`);
     }
   }
 }

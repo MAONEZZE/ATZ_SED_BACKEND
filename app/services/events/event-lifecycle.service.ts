@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  Inject,
-  NotFoundException,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import {
   EVENT_REPOSITORY_PORT,
@@ -83,13 +77,7 @@ export class EventLifecycleService {
     });
 
     this.logger.log({ sourceId: eventId, newId: newEvent.id }, 'Event duplicated');
-    return new EventEntity(
-      newEvent.id,
-      newEvent.ownerId,
-      newEvent.title,
-      newEvent.slug,
-      'draft',
-    );
+    return new EventEntity(newEvent.id, newEvent.ownerId, newEvent.title, newEvent.slug, 'draft');
   }
 
   private async notifyCancellation(event: EventEntity): Promise<void> {
@@ -109,16 +97,20 @@ export class EventLifecycleService {
     for (const reg of registrations) {
       try {
         await this.outbox.enqueue({
+          eventId: event.id,
           registrationId: reg.id,
           templateId: template.id,
           trigger: 'on_cancellation',
-          channel: template.channel as 'whatsapp' | 'email',
+          channel: template.channel,
           recipient: template.channel === 'email' ? reg.email : reg.phone,
           renderedBody: `O evento "${event.title}" foi cancelado. Lamentamos o inconveniente.`,
           renderedSubject: `Evento cancelado: ${event.title}`,
         });
       } catch (err) {
-        this.logger.error({ err, registrationId: reg.id }, 'Failed to enqueue cancellation notification');
+        this.logger.error(
+          { err, registrationId: reg.id },
+          'Failed to enqueue cancellation notification',
+        );
       }
     }
   }

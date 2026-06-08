@@ -83,24 +83,14 @@ model Profile {
   userId           String    @unique @map("user_id")
   name             String
   email            String
+  photoUrl         String?   @map("photo_url")
   evolutionInstance String?  @map("evolution_instance")
   evolutionToken   String?   @map("evolution_token")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   events           Event[]
-  roles            UserRole[]
 
   @@map("profiles")
-  @@schema("ATZ_SED")
-}
-
-model UserRole {
-  id        String   @id @default(uuid())
-  profileId String   @map("profile_id")
-  role      String
-  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-
-  @@map("user_roles")
   @@schema("ATZ_SED")
 }
 
@@ -116,6 +106,8 @@ model Event {
   dressCode         String?         @map("dress_code")
   groupLink         String?         @map("group_link")
   eventDate         DateTime?       @map("event_date")
+  endDate           DateTime?       @map("end_date")
+  postRegistrationMessage String?   @map("post_registration_message")
   status            EventStatus     @default(draft)
   evolutionInstance String?         @map("evolution_instance")
   evolutionToken    String?         @map("evolution_token")
@@ -127,6 +119,8 @@ model Event {
   landingPage       LandingPage?
   templates         MessageTemplate[]
   automationRules   AutomationRule[]
+  outboxMessages    OutboxMessage[]
+  messageLogs       MessageLog[]
 
   @@index([ownerId])
   @@map("events")
@@ -204,9 +198,11 @@ model AutomationRule {
 
 model OutboxMessage {
   id              String         @id @default(uuid())
-  registrationId  String         @map("registration_id")
-  templateId      String         @map("template_id")
+  eventId         String?        @map("event_id")
+  registrationId  String?        @map("registration_id")
+  templateId      String?        @map("template_id")
   trigger         String
+  dedupKey        String         @unique @map("dedup_key")
   channel         MessageChannel
   recipient       String
   instancia       String?
@@ -218,19 +214,21 @@ model OutboxMessage {
   processedAt     DateTime?      @map("processed_at")
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
-  registration    Registration   @relation(fields: [registrationId], references: [id], onDelete: Cascade)
-  template        MessageTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  registration    Registration?  @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  template        MessageTemplate? @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  event           Event?         @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@unique([registrationId, templateId, trigger])
   @@index([instancia, status])
   @@index([status, createdAt])
+  @@index([eventId])
   @@map("outbox_messages")
   @@schema("ATZ_SED")
 }
 
 model MessageLog {
   id             String         @id @default(uuid())
-  registrationId String         @map("registration_id")
+  eventId        String?        @map("event_id")
+  registrationId String?        @map("registration_id")
   channel        MessageChannel
   recipient      String
   body           String
@@ -238,9 +236,11 @@ model MessageLog {
   errorMessage   String?        @map("error_message")
   sentAt         DateTime?      @map("sent_at")
   createdAt      DateTime       @default(now()) @map("created_at")
-  registration   Registration   @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  registration   Registration?  @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  event          Event?         @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([registrationId])
+  @@index([eventId])
   @@map("message_logs")
   @@schema("ATZ_SED")
 }

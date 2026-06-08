@@ -11,9 +11,6 @@ async function main() {
       userId: 'test-user-id-000001',
       name: 'Organizador Teste',
       email: 'organizador@teste.com',
-      roles: {
-        create: [{ role: 'organizer' }],
-      },
     },
   });
 

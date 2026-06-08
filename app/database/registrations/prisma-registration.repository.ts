@@ -46,9 +46,22 @@ export class PrismaRegistrationRepository implements RegistrationRepositoryPort 
   async findAllByEvent(
     eventId: string,
     status?: FunnelStatus,
+    search?: string,
   ): Promise<RegistrationEntity[]> {
     const rows = await this.prisma.registration.findMany({
-      where: { eventId, ...(status ? { status } : {}) },
+      where: {
+        eventId,
+        ...(status ? { status } : {}),
+        ...(search
+          ? {
+              OR: [
+                { name: { contains: search, mode: 'insensitive' as const } },
+                { email: { contains: search, mode: 'insensitive' as const } },
+                { phone: { contains: search, mode: 'insensitive' as const } },
+              ],
+            }
+          : {}),
+      },
       orderBy: { createdAt: 'desc' },
     });
     return rows.map((r) => this.map(r));
@@ -65,10 +78,7 @@ export class PrismaRegistrationRepository implements RegistrationRepositoryPort 
     return this.map(row);
   }
 
-  async updateStatus(
-    id: string,
-    status: FunnelStatus,
-  ): Promise<RegistrationEntity> {
+  async updateStatus(id: string, status: FunnelStatus): Promise<RegistrationEntity> {
     const row = await this.prisma.registration.update({
       where: { id },
       data: { status },

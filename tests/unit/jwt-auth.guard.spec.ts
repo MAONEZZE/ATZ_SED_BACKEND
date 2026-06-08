@@ -7,7 +7,7 @@ const mockAuth = {
   getUser: jest.fn(),
 };
 
-const guard = new JwtAuthGuard(mockAuth as any);
+const guard = new JwtAuthGuard(mockAuth);
 
 const makeCtx = (authHeader?: string) => {
   const req: Record<string, unknown> = { headers: { authorization: authHeader } };
@@ -24,13 +24,11 @@ describe('JwtAuthGuard', () => {
   });
 
   it('throws UnauthorizedException when header is not Bearer', async () => {
-    await expect(guard.canActivate(makeCtx('Basic abc123'))).rejects.toThrow(
-      UnauthorizedException,
-    );
+    await expect(guard.canActivate(makeCtx('Basic abc123'))).rejects.toThrow(UnauthorizedException);
   });
 
   it('attaches user to request and returns true on valid token', async () => {
-    const user = new AuthenticatedUser('u1', 'a@b.com', 'organizer');
+    const user = new AuthenticatedUser('u1', 'a@b.com');
     mockAuth.verifyToken.mockResolvedValue(user);
     const req: Record<string, unknown> = {
       headers: { authorization: 'Bearer valid-token' },
@@ -43,8 +41,6 @@ describe('JwtAuthGuard', () => {
 
   it('propagates error from auth.verifyToken', async () => {
     mockAuth.verifyToken.mockRejectedValue(new UnauthorizedException('bad token'));
-    await expect(guard.canActivate(makeCtx('Bearer bad'))).rejects.toThrow(
-      UnauthorizedException,
-    );
+    await expect(guard.canActivate(makeCtx('Bearer bad'))).rejects.toThrow(UnauthorizedException);
   });
 });

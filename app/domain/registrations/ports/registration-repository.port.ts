@@ -12,7 +12,11 @@ export interface CreateRegistrationData {
 
 export interface RegistrationRepositoryPort {
   findById(id: string): Promise<RegistrationEntity | null>;
-  findAllByEvent(eventId: string, status?: FunnelStatus): Promise<RegistrationEntity[]>;
+  findAllByEvent(
+    eventId: string,
+    status?: FunnelStatus,
+    search?: string,
+  ): Promise<RegistrationEntity[]>;
   create(data: CreateRegistrationData): Promise<RegistrationEntity>;
   updateStatus(id: string, status: FunnelStatus): Promise<RegistrationEntity>;
 }

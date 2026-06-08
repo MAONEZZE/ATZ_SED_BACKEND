@@ -19,14 +19,18 @@ export class OutboxService {
   ) {}
 
   async enqueue(data: EnqueueMessageData): Promise<void> {
-    await this.outboxRepo.enqueue(data);
+    // Legacy (automation) callers don't pass dedupKey — compute the historical tuple
+    const dedupKey = data.dedupKey ?? `${data.registrationId}:${data.templateId}:${data.trigger}`;
+    const { id } = await this.outboxRepo.enqueue({ ...data, dedupKey });
 
-    // Use deterministic jobId to deduplicate in BullMQ as well
-    const jobId = `${data.registrationId}:${data.templateId}:${data.trigger}`;
+    // jobId determinístico para dedup no BullMQ. BullMQ 5.x proíbe ":" em
+    // custom jobIds (Job.addJob lança "Custom Id cannot contain :") — sanitiza.
+    const jobId = dedupKey.replace(/:/g, '_');
     try {
       await this.dispatchQueue.add(
         'dispatch',
         {
+          outboxId: id,
           registrationId: data.registrationId,
           templateId: data.templateId,
           trigger: data.trigger,
@@ -34,8 +38,11 @@ export class OutboxService {
         { jobId },
       );
     } catch (err) {
-      // Job already exists in queue (dedup) — not an error
-      this.logger.debug(`Job ${jobId} already queued`);
+      // add() com jobId duplicado NÃO lança (retorna o job existente) — chegar
+      // aqui é falha real. Não relança para não abortar lotes no meio; a linha
+      // do outbox fica pending e o erro fica visível no log.
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Failed to enqueue dispatch job ${jobId}: ${msg}`);
     }
   }
 }

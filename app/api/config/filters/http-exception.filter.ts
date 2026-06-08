@@ -18,18 +18,15 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const req = ctx.getRequest<Request>();
 
     const status =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+      exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    const rawResponse =
-      exception instanceof HttpException ? exception.getResponse() : null;
+    const rawResponse = exception instanceof HttpException ? exception.getResponse() : null;
     const message =
       rawResponse === null
         ? 'Internal server error'
         : typeof rawResponse === 'string'
           ? rawResponse
-          : (rawResponse as Record<string, unknown>).message ?? 'Error';
+          : ((rawResponse as Record<string, unknown>).message ?? 'Error');
 
     if (status >= 500) {
       this.logger.error({ err: exception, path: req.url }, 'Unhandled error');

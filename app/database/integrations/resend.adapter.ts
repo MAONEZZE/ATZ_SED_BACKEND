@@ -9,16 +9,11 @@ export class ResendAdapter {
   private readonly logger = new Logger(ResendAdapter.name);
 
   constructor(config: ConfigService) {
-    this.client = new Resend(config.get<string>('RESEND_API_KEY')!);
+    this.client = new Resend(config.get<string>('RESEND_API_KEY'));
     this.from = config.get<string>('RESEND_FROM_EMAIL')!;
   }
 
-  async sendEmail(
-    to: string,
-    subject: string,
-    html: string,
-    icsContent?: string,
-  ): Promise<void> {
+  async sendEmail(to: string, subject: string, html: string, icsContent?: string): Promise<void> {
     const attachments = icsContent
       ? [
           {

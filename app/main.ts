@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import { AppModule } from './api/config/app.module';
@@ -7,10 +8,17 @@ import { GlobalExceptionFilter } from './api/config/filters/http-exception.filte
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
-
+  
+  console.info(`http://localhost:${process.env.PORT}/docs`);
+  
   app.useLogger(app.get(Logger));
 
-  app.use(helmet());
+  // CSP do helmet bloqueia os scripts inline do Swagger UI — relaxar só em dev
+  app.use(
+    helmet({
+      contentSecurityPolicy: process.env.ENVIROMENT === 'dev' ? false : undefined,
+    }),
+  );
   app.enableCors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') ?? '*',
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
@@ -27,6 +35,28 @@ async function bootstrap() {
   );
 
   app.useGlobalFilters(new GlobalExceptionFilter());
+
+  // Swagger disponível apenas em ambiente de desenvolvimento
+  if (process.env.ENVIROMENT === 'dev') {
+    const config = new DocumentBuilder()
+      .setTitle('SED API')
+      .setDescription('Save Event Date — API de gerenciamento de eventos')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .addTag('Events', 'CRUD e ciclo de vida dos eventos')
+      .addTag('Form Fields', 'Campos do formulário de inscrição')
+      .addTag('Templates', 'Templates de mensagens WhatsApp/Email')
+      .addTag('Automations', 'Regras de automação de disparo')
+      .addTag('Registrations', 'Inscrições e funil de aprovação')
+      .addTag('Landing', 'Landing page e seções')
+      .addTag('Messaging', 'Envio manual e logs de mensagens')
+      .addTag('Profile', 'Perfil do usuário autenticado')
+      .addTag('AI', 'Geração de conteúdo com Gemini')
+      .addTag('Public', 'Endpoints públicos — sem autenticação')
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('docs', app, document);
+  }
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);

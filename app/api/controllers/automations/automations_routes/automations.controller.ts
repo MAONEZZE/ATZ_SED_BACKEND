@@ -1,18 +1,32 @@
 import {
-  Controller, Get, Post, Patch, Delete,
-  Param, Body, UseGuards, HttpCode, NotFoundException,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  HttpCode,
+  NotFoundException,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { PrismaService } from '@database/prisma/prisma.service';
 import { CreateAutomationDto, UpdateAutomationDto } from '../automations_dto/automation.dto';
 
+@ApiTags('Automations')
+@ApiBearerAuth()
 @Controller('events/:eventId/automations')
 @UseGuards(JwtAuthGuard, OwnershipGuard)
 export class AutomationsController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
+  @ApiOperation({ summary: 'Listar automações do evento' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiResponse({ status: 200, description: 'Lista de automações' })
   findAll(@Param('eventId') eventId: string) {
     return this.prisma.automationRule.findMany({
       where: { eventId },
@@ -22,6 +36,11 @@ export class AutomationsController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Buscar automação por ID' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiParam({ name: 'id', description: 'UUID da automação' })
+  @ApiResponse({ status: 200, description: 'Automação encontrada' })
+  @ApiResponse({ status: 404, description: 'Automação não encontrada' })
   async findOne(@Param('eventId') eventId: string, @Param('id') id: string) {
     const rule = await this.prisma.automationRule.findFirst({
       where: { id, eventId },
@@ -32,6 +51,10 @@ export class AutomationsController {
   }
 
   @Post()
+  @ApiOperation({ summary: 'Criar automação' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiResponse({ status: 201, description: 'Automação criada' })
+  @ApiResponse({ status: 404, description: 'Template não encontrado no evento' })
   async create(@Param('eventId') eventId: string, @Body() dto: CreateAutomationDto) {
     // Verify template belongs to this event
     const template = await this.prisma.messageTemplate.findFirst({
@@ -52,6 +75,11 @@ export class AutomationsController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Atualizar automação' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiParam({ name: 'id', description: 'UUID da automação' })
+  @ApiResponse({ status: 200, description: 'Automação atualizada' })
+  @ApiResponse({ status: 404, description: 'Automação não encontrada' })
   async update(
     @Param('eventId') eventId: string,
     @Param('id') id: string,
@@ -81,6 +109,10 @@ export class AutomationsController {
 
   @Delete(':id')
   @HttpCode(204)
+  @ApiOperation({ summary: 'Deletar automação' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiParam({ name: 'id', description: 'UUID da automação' })
+  @ApiResponse({ status: 204, description: 'Automação deletada' })
   async delete(@Param('eventId') eventId: string, @Param('id') id: string) {
     const existing = await this.prisma.automationRule.findFirst({ where: { id, eventId } });
     if (!existing) throw new NotFoundException('Automation rule not found');

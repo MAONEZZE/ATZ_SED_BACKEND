@@ -20,8 +20,28 @@ describe('Outbox dedup via upsert', () => {
 
     // Call twice with same key
     const key = { registrationId: 'r1', templateId: 't1', trigger: 'on_registration' };
-    upsertFn({ where: { registrationId_templateId_trigger: key }, update: {}, create: { ...key, status: 'pending', channel: 'email', recipient: 'a@b.com', renderedBody: 'hi' } });
-    upsertFn({ where: { registrationId_templateId_trigger: key }, update: {}, create: { ...key, status: 'pending', channel: 'email', recipient: 'a@b.com', renderedBody: 'hi' } });
+    upsertFn({
+      where: { registrationId_templateId_trigger: key },
+      update: {},
+      create: {
+        ...key,
+        status: 'pending',
+        channel: 'email',
+        recipient: 'a@b.com',
+        renderedBody: 'hi',
+      },
+    });
+    upsertFn({
+      where: { registrationId_templateId_trigger: key },
+      update: {},
+      create: {
+        ...key,
+        status: 'pending',
+        channel: 'email',
+        recipient: 'a@b.com',
+        renderedBody: 'hi',
+      },
+    });
 
     expect(upsertFn).toHaveBeenCalledTimes(2);
     // Both calls use update:{} — DB ensures only 1 row exists

@@ -41,15 +41,11 @@ export class AutomationEngine {
     }
   }
 
-  async fireAutomations(
-    registrationId: string,
-    eventId: string,
-    trigger: string,
-  ): Promise<void> {
+  async fireAutomations(registrationId: string, eventId: string, trigger: string): Promise<void> {
     const rules = await this.prisma.automationRule.findMany({
       where: {
         eventId,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         trigger: trigger as any,
         active: true,
         delayMinutes: null, // non-scheduled rules only
@@ -68,12 +64,14 @@ export class AutomationEngine {
     ]);
 
     if (!registration || !event) {
-      this.logger.warn({ registrationId, eventId }, 'Registration or event not found for automation');
+      this.logger.warn(
+        { registrationId, eventId },
+        'Registration or event not found for automation',
+      );
       return;
     }
 
-    const instancia =
-      event.evolutionInstance ?? event.owner.evolutionInstance ?? undefined;
+    const instancia = event.evolutionInstance ?? event.owner.evolutionInstance ?? undefined;
 
     for (const rule of rules) {
       const vars = this.renderer.buildVariables({
@@ -100,11 +98,7 @@ export class AutomationEngine {
       let renderedBodyFinal = renderedBody;
       let icsContent: string | undefined;
 
-      if (
-        trigger === 'on_approval' &&
-        rule.template.channel === 'email' &&
-        event.eventDate
-      ) {
+      if (trigger === 'on_approval' && rule.template.channel === 'email' && event.eventDate) {
         icsContent = this.ics.generate({
           title: event.title,
           start: event.eventDate,
@@ -114,14 +108,12 @@ export class AutomationEngine {
       }
 
       await this.outbox.enqueue({
+        eventId: event.id,
         registrationId,
         templateId: rule.templateId,
         trigger,
-        channel: rule.template.channel as 'whatsapp' | 'email',
-        recipient:
-          rule.template.channel === 'email'
-            ? registration.email
-            : registration.phone,
+        channel: rule.template.channel,
+        recipient: rule.template.channel === 'email' ? registration.email : registration.phone,
         instancia: instancia ?? undefined,
         renderedBody: renderedBodyFinal,
         renderedSubject,

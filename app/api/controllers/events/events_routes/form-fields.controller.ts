@@ -1,20 +1,34 @@
 import {
-  Controller, Get, Post, Patch, Delete,
-  Param, Body, UseGuards, HttpCode,
-  NotFoundException, BadRequestException,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  HttpCode,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { PrismaService } from '@database/prisma/prisma.service';
 import { CreateFormFieldDto, UpdateFormFieldDto } from '../events_dto/form-field.dto';
 
+@ApiTags('Form Fields')
+@ApiBearerAuth()
 @Controller('events/:eventId/form-fields')
 @UseGuards(JwtAuthGuard, OwnershipGuard)
 export class FormFieldsController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
+  @ApiOperation({ summary: 'Listar campos do formulário' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiResponse({ status: 200, description: 'Lista de campos' })
   findAll(@Param('eventId') eventId: string) {
     return this.prisma.formField.findMany({
       where: { eventId },
@@ -23,6 +37,9 @@ export class FormFieldsController {
   }
 
   @Post()
+  @ApiOperation({ summary: 'Criar campo do formulário' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiResponse({ status: 201, description: 'Campo criado' })
   create(@Param('eventId') eventId: string, @Body() dto: CreateFormFieldDto) {
     return this.prisma.formField.create({
       data: {
@@ -38,6 +55,11 @@ export class FormFieldsController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Atualizar campo do formulário' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiParam({ name: 'id', description: 'UUID do campo' })
+  @ApiResponse({ status: 200, description: 'Campo atualizado' })
+  @ApiResponse({ status: 404, description: 'Campo não encontrado' })
   async update(
     @Param('eventId') eventId: string,
     @Param('id') id: string,
@@ -51,7 +73,9 @@ export class FormFieldsController {
       data: {
         ...(dto.label !== undefined && { label: dto.label }),
         ...(dto.required !== undefined && { required: dto.required }),
-        ...(dto.options !== undefined && { options: dto.options != null ? (dto.options as Prisma.InputJsonValue) : Prisma.JsonNull }),
+        ...(dto.options !== undefined && {
+          options: dto.options != null ? (dto.options as Prisma.InputJsonValue) : Prisma.JsonNull,
+        }),
         ...(dto.order !== undefined && { order: dto.order }),
       },
     });
@@ -59,6 +83,11 @@ export class FormFieldsController {
 
   @Delete(':id')
   @HttpCode(204)
+  @ApiOperation({ summary: 'Deletar campo do formulário' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiParam({ name: 'id', description: 'UUID do campo' })
+  @ApiResponse({ status: 204, description: 'Campo deletado' })
+  @ApiResponse({ status: 400, description: 'Campo fixo não pode ser deletado' })
   async delete(@Param('eventId') eventId: string, @Param('id') id: string) {
     const field = await this.prisma.formField.findFirst({ where: { id, eventId } });
     if (!field) throw new NotFoundException('Form field not found');

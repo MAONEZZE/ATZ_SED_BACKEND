@@ -3,9 +3,7 @@ import { EVENT_REPOSITORY_PORT } from '@domain/events/ports/event-repository.por
 import { PrismaEventRepository } from './prisma-event.repository';
 
 @Module({
-  providers: [
-    { provide: EVENT_REPOSITORY_PORT, useClass: PrismaEventRepository },
-  ],
+  providers: [{ provide: EVENT_REPOSITORY_PORT, useClass: PrismaEventRepository }],
   exports: [EVENT_REPOSITORY_PORT],
 })
 export class EventsDbModule {}

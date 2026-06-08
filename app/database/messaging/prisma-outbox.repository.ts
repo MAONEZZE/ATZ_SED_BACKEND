@@ -5,24 +5,19 @@ import {
   EnqueueMessageData,
   PendingOutboxMessage,
 } from '@domain/messaging/ports/outbox-repository.port';
-import type { MessageChannel } from '@domain/messaging/types/message-channel.type';
 
 @Injectable()
 export class PrismaOutboxRepository implements OutboxRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
 
-  async enqueue(data: EnqueueMessageData): Promise<void> {
-    await this.prisma.outboxMessage.upsert({
-      where: {
-        registrationId_templateId_trigger: {
-          registrationId: data.registrationId,
-          templateId: data.templateId,
-          trigger: data.trigger,
-        },
-      },
+  async enqueue(data: EnqueueMessageData & { dedupKey: string }): Promise<{ id: string }> {
+    const row = await this.prisma.outboxMessage.upsert({
+      where: { dedupKey: data.dedupKey },
       update: {},
       create: { ...data, status: 'pending' },
+      select: { id: true },
     });
+    return { id: row.id };
   }
 
   async claimStuck(olderThanMinutes: number): Promise<number> {
@@ -74,7 +69,7 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
     });
     return rows.map((r) => ({
       ...r,
-      channel: r.channel as MessageChannel,
+      channel: r.channel,
     }));
   }
 }

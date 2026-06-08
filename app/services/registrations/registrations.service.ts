@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Inject,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   REGISTRATION_REPOSITORY_PORT,
@@ -25,10 +20,7 @@ export class RegistrationsService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async createPublic(
-    slug: string,
-    answers: Record<string, unknown>,
-  ): Promise<RegistrationEntity> {
+  async createPublic(slug: string, answers: Record<string, unknown>): Promise<RegistrationEntity> {
     const event = await this.eventsService.findBySlug(slug);
     if (event.status !== 'published') {
       throw new BadRequestException('Event is not accepting registrations');
@@ -54,8 +46,12 @@ export class RegistrationsService {
     return reg;
   }
 
-  async findAll(eventId: string, status?: FunnelStatus): Promise<RegistrationEntity[]> {
-    return this.regRepo.findAllByEvent(eventId, status);
+  async findAll(
+    eventId: string,
+    status?: FunnelStatus,
+    search?: string,
+  ): Promise<RegistrationEntity[]> {
+    return this.regRepo.findAllByEvent(eventId, status, search);
   }
 
   async findById(id: string): Promise<RegistrationEntity> {
@@ -71,9 +67,7 @@ export class RegistrationsService {
   ): Promise<RegistrationEntity> {
     const reg = await this.findById(id);
     if (!reg.canTransitionTo(newStatus)) {
-      throw new BadRequestException(
-        `Cannot transition from '${reg.status}' to '${newStatus}'`,
-      );
+      throw new BadRequestException(`Cannot transition from '${reg.status}' to '${newStatus}'`);
     }
     const previousStatus = reg.status;
     const updated = await this.regRepo.updateStatus(id, newStatus);
@@ -87,10 +81,7 @@ export class RegistrationsService {
     return updated;
   }
 
-  private extractString(
-    answers: Record<string, unknown>,
-    keys: string[],
-  ): string {
+  private extractString(answers: Record<string, unknown>, keys: string[]): string {
     for (const key of keys) {
       const val = answers[key];
       if (typeof val === 'string' && val.trim()) return val.trim();

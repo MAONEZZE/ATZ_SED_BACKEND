@@ -33,10 +33,7 @@ Conteúdo do evento: ${content}`;
     }
   }
 
-  async *streamLandingChat(
-    message: string,
-    currentLanding: unknown,
-  ): AsyncIterable<string> {
+  async *streamLandingChat(message: string, currentLanding: unknown): AsyncIterable<string> {
     const prompt = `Você é um assistente de edição de landing pages de eventos.
 Landing atual (JSON): ${JSON.stringify(currentLanding)}
 Instrução: ${message}

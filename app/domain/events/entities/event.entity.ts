@@ -25,6 +25,9 @@ export class EventEntity {
     public evolutionToken?: string,
     public readonly createdAt?: Date,
     public readonly updatedAt?: Date,
+    // Appended at the end to keep existing positional call sites valid
+    public endDate?: Date,
+    public postRegistrationMessage?: string,
   ) {}
 
   isEditable(): boolean {

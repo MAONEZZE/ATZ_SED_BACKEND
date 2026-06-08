@@ -6,8 +6,8 @@ import { PrismaService } from '@database/prisma/prisma.service';
 import { AutomationEngine } from '@services/automations/automation-engine.service';
 import { QUEUE_SCHEDULED_AUTOMATIONS } from '@database/queue/bull-queues.module';
 
-const TOLERANCE_BEFORE_MS = 2 * 60 * 60 * 1000;  // 2h window
-const TOLERANCE_AFTER_MS = 24 * 60 * 60 * 1000;   // 24h window
+const TOLERANCE_BEFORE_MS = 2 * 60 * 60 * 1000; // 2h window
+const TOLERANCE_AFTER_MS = 24 * 60 * 60 * 1000; // 24h window
 
 @Processor(QUEUE_SCHEDULED_AUTOMATIONS)
 @Injectable()
@@ -46,7 +46,6 @@ export class ScheduledAutomationsWorker extends WorkerHost implements OnModuleIn
   private async processScheduledTrigger(trigger: string): Promise<void> {
     const rules = await this.prisma.automationRule.findMany({
       where: {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         trigger: trigger as any,
         active: true,
         delayMinutes: { not: null },

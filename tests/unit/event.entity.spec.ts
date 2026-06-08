@@ -1,7 +1,6 @@
 import { EventEntity } from '@domain/events/entities/event.entity';
 
-const makeEvent = (status: any) =>
-  new EventEntity('id', 'owner', 'Title', 'slug', status);
+const makeEvent = (status: any) => new EventEntity('id', 'owner', 'Title', 'slug', status);
 
 describe('EventEntity', () => {
   describe('canTransitionTo', () => {

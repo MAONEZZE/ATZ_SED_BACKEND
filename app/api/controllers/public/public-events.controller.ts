@@ -1,16 +1,17 @@
-import {
-  Controller,
-  Get,
-  Param,
-  NotFoundException,
-} from '@nestjs/common';
+import { Controller, Get, Param, NotFoundException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { PrismaService } from '@database/prisma/prisma.service';
 
+@ApiTags('Public')
 @Controller('public/events')
 export class PublicEventsController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get(':slug')
+  @ApiOperation({ summary: 'Buscar evento público por slug' })
+  @ApiParam({ name: 'slug', description: 'Slug do evento' })
+  @ApiResponse({ status: 200, description: 'Evento publicado com landing page' })
+  @ApiResponse({ status: 404, description: 'Evento não encontrado ou não publicado' })
   async getPublicEvent(@Param('slug') slug: string) {
     const event = await this.prisma.event.findUnique({
       where: { slug },
@@ -24,6 +25,8 @@ export class PublicEventsController {
         capacity: true,
         dressCode: true,
         eventDate: true,
+        endDate: true,
+        postRegistrationMessage: true,
         status: true,
         landingPage: {
           include: {
@@ -43,6 +46,10 @@ export class PublicEventsController {
   }
 
   @Get(':slug/form-fields')
+  @ApiOperation({ summary: 'Buscar campos do formulário de inscrição (público)' })
+  @ApiParam({ name: 'slug', description: 'Slug do evento' })
+  @ApiResponse({ status: 200, description: 'Campos do formulário' })
+  @ApiResponse({ status: 404, description: 'Evento não encontrado ou não publicado' })
   async getFormFields(@Param('slug') slug: string) {
     const event = await this.prisma.event.findUnique({
       where: { slug },
