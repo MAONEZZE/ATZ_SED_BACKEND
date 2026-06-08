@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ManualSendService } from '@services/messaging/manual-send.service';
 import { TemplateRenderer } from '@services/automations/template-renderer.service';
 
@@ -249,5 +249,85 @@ describe('ManualSendService.send', () => {
     );
     expect(result.queued).toBe(1);
     expect(outbox.enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws ForbiddenException when userId does not own event', async () => {
+    const { service } = makeService();
+    await expect(
+      service.send({ eventId: 'evt-1', channel: 'email', body: 'oi', registrationIds: ['reg-1'] }, 'other-user'),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('throws BadRequestException when registrationIds provided without eventId', async () => {
+    const { service } = makeService();
+    await expect(
+      service.send({ channel: 'email', body: 'oi', registrationIds: ['reg-1'] }, 'user-1'),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('throws BadRequestException when channel=whatsapp, no eventId and no instancia', async () => {
+    const { service } = makeService();
+    await expect(
+      service.send(
+        { channel: 'whatsapp', body: 'oi', manualRecipients: [{ name: 'Zap', phone: '+5511999999999' }] },
+        'user-1',
+      ),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('enqueues whatsapp without eventId using instancia from body', async () => {
+    const { service, eventsService, outbox } = makeService({ registrations: [] });
+    const result = await service.send(
+      {
+        channel: 'whatsapp',
+        instancia: 'instancia-avulsa',
+        body: 'oi {{nome}}',
+        manualRecipients: [{ name: 'Zap', phone: '+5511999999999' }],
+      },
+      'user-1',
+    );
+    expect(eventsService.findById).not.toHaveBeenCalled();
+    expect(result.queued).toBe(1);
+    expect(outbox.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        instancia: 'instancia-avulsa',
+        recipient: '+5511999999999',
+        channel: 'whatsapp',
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it('dedupKey uses "global" prefix when no eventId', async () => {
+    const { service, outbox } = makeService({ registrations: [] });
+    await service.send(
+      {
+        channel: 'whatsapp',
+        instancia: 'instancia-avulsa',
+        body: 'oi',
+        manualRecipients: [{ name: 'Zap', phone: '+5511999999999' }],
+      },
+      'user-1',
+    );
+    expect(outbox.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dedupKey: expect.stringMatching(/^manual:global:\+5511999999999:[0-9a-f]+$/),
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it('does not call eventsService.findById when no eventId', async () => {
+    const { service, eventsService } = makeService({ registrations: [] });
+    await service.send(
+      {
+        channel: 'whatsapp',
+        instancia: 'instancia-avulsa',
+        body: 'oi',
+        manualRecipients: [{ name: 'Zap', phone: '+5511999999999' }],
+      },
+      'user-1',
+    );
+    expect(eventsService.findById).not.toHaveBeenCalled();
   });
 });
