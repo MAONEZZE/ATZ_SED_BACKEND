@@ -15,6 +15,8 @@ import { switchMap, map } from 'rxjs/operators';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
+import { CurrentUser } from '@api/config/decorators/current-user.decorator';
+import { AuthenticatedUser } from '@domain/users/entities/authenticated-user.entity';
 import { PrismaService } from '@database/prisma/prisma.service';
 import { ManualSendService } from '@services/messaging/manual-send.service';
 import { SendMessageDto } from './messaging_dto/send-message.dto';
@@ -34,8 +36,12 @@ export class MessagingController {
   @ApiOperation({ summary: 'Enviar mensagem manual' })
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiResponse({ status: 202, description: 'Mensagem enfileirada para envio' })
-  send(@Param('eventId') eventId: string, @Body() dto: SendMessageDto) {
-    return this.manualSend.send(eventId, dto);
+  send(
+    @Param('eventId') eventId: string,
+    @Body() dto: SendMessageDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.manualSend.send({ ...dto, eventId }, user.id);
   }
 
   @Get('logs')
