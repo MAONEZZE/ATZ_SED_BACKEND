@@ -3,7 +3,7 @@ import type { MessageChannel } from '@domain/messaging/types/message-channel.typ
 export const OUTBOX_REPOSITORY_PORT = Symbol('OUTBOX_REPOSITORY_PORT');
 
 export interface EnqueueMessageData {
-  eventId: string;
+  eventId?: string;
   registrationId?: string;
   templateId?: string;
   trigger: string;
