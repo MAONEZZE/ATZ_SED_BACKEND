@@ -9,12 +9,14 @@ import {
   UseGuards,
   HttpCode,
   NotFoundException,
+  Query,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { PrismaService } from '@database/prisma/prisma.service';
 import { CreateAutomationDto, UpdateAutomationDto } from '../automations_dto/automation.dto';
+import { PaginationQueryDto, Paginated, paginationToSkip } from '@api/common/pagination';
 
 @ApiTags('Automations')
 @ApiBearerAuth()
@@ -26,13 +28,28 @@ export class AutomationsController {
   @Get()
   @ApiOperation({ summary: 'Listar automações do evento' })
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
-  @ApiResponse({ status: 200, description: 'Lista de automações' })
-  findAll(@Param('eventId') eventId: string) {
-    return this.prisma.automationRule.findMany({
-      where: { eventId },
-      include: { template: { select: { id: true, name: true, channel: true } } },
-      orderBy: { createdAt: 'asc' },
-    });
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Lista paginada de automações' })
+  async findAll(
+    @Param('eventId') eventId: string,
+    @Query() pagination: PaginationQueryDto,
+  ): Promise<Paginated<object>> {
+    const page = pagination.page ?? 1;
+    const limit = pagination.limit ?? 20;
+    const skip = paginationToSkip(page, limit);
+    const where = { eventId };
+    const [data, total] = await Promise.all([
+      this.prisma.automationRule.findMany({
+        where,
+        include: { template: { select: { id: true, name: true, channel: true } } },
+        orderBy: { createdAt: 'asc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.automationRule.count({ where }),
+    ]);
+    return { data, total, page, limit };
   }
 
   @Get(':id')

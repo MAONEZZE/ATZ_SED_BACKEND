@@ -109,6 +109,7 @@ export class AutomationEngine {
 
       await this.outbox.enqueue({
         eventId: event.id,
+        ownerId: event.ownerId,
         registrationId,
         templateId: rule.templateId,
         trigger,

@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { PrismaService } from '@database/prisma/prisma.service';
 import { CreateTemplateDto, UpdateTemplateDto } from '../templates_dto/template.dto';
+import { PaginationQueryDto, Paginated, paginationToSkip } from '@api/common/pagination';
 
 @ApiTags('Templates')
 @ApiBearerAuth()
@@ -28,21 +29,39 @@ export class TemplatesController {
   @ApiOperation({ summary: 'Listar templates do evento' })
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiQuery({ name: 'include', required: false, enum: ['automation'], description: 'Incluir regras de automação' })
-  @ApiResponse({ status: 200, description: 'Lista de templates' })
-  async findAll(@Param('eventId') eventId: string, @Query('include') include?: string) {
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Lista paginada de templates' })
+  async findAll(
+    @Param('eventId') eventId: string,
+    @Query('include') include?: string,
+    @Query() pagination?: PaginationQueryDto,
+  ): Promise<Paginated<object>> {
+    const page = pagination?.page ?? 1;
+    const limit = pagination?.limit ?? 20;
+    const skip = paginationToSkip(page, limit);
+    const where = { eventId };
+    const total = await this.prisma.messageTemplate.count({ where });
+
     if (include !== 'automation') {
-      return this.prisma.messageTemplate.findMany({
-        where: { eventId },
+      const data = await this.prisma.messageTemplate.findMany({
+        where,
         orderBy: { createdAt: 'asc' },
+        skip,
+        take: limit,
       });
+      return { data, total, page, limit };
     }
+
     const templates = await this.prisma.messageTemplate.findMany({
-      where: { eventId },
+      where,
       orderBy: { createdAt: 'asc' },
       include: { automationRules: true },
+      skip,
+      take: limit,
     });
     // Relation is 1:N but the UI assumes at most one rule per template
-    return templates.map(({ automationRules, ...template }) => ({
+    const data = templates.map(({ automationRules, ...template }) => ({
       ...template,
       automation: automationRules[0]
         ? {
@@ -53,6 +72,7 @@ export class TemplatesController {
           }
         : null,
     }));
+    return { data, total, page, limit };
   }
 
   @Get(':id')

@@ -10,7 +10,7 @@ export class PublicEventsController {
   @Get(':slug')
   @ApiOperation({ summary: 'Buscar evento público por slug' })
   @ApiParam({ name: 'slug', description: 'Slug do evento' })
-  @ApiResponse({ status: 200, description: 'Evento publicado com landing page' })
+  @ApiResponse({ status: 200, description: 'Evento publicado' })
   @ApiResponse({ status: 404, description: 'Evento não encontrado ou não publicado' })
   async getPublicEvent(@Param('slug') slug: string) {
     const event = await this.prisma.event.findUnique({
@@ -28,14 +28,6 @@ export class PublicEventsController {
         endDate: true,
         postRegistrationMessage: true,
         status: true,
-        landingPage: {
-          include: {
-            sections: {
-              where: { enabled: true },
-              orderBy: { order: 'asc' },
-            },
-          },
-        },
       },
     });
 

@@ -67,6 +67,37 @@ export class PrismaRegistrationRepository implements RegistrationRepositoryPort 
     return rows.map((r) => this.map(r));
   }
 
+  async findAllByEventPaginated(
+    eventId: string,
+    pagination: { skip: number; take: number },
+    status?: FunnelStatus,
+    search?: string,
+  ): Promise<{ data: RegistrationEntity[]; total: number }> {
+    const where = {
+      eventId,
+      ...(status ? { status } : {}),
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' as const } },
+              { email: { contains: search, mode: 'insensitive' as const } },
+              { phone: { contains: search, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.registration.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: pagination.skip,
+        take: pagination.take,
+      }),
+      this.prisma.registration.count({ where }),
+    ]);
+    return { data: rows.map((r) => this.map(r)), total };
+  }
+
   async create(data: CreateRegistrationData): Promise<RegistrationEntity> {
     const row = await this.prisma.registration.create({
       data: {

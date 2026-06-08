@@ -72,4 +72,23 @@ describe('MessageDispatchWorker.process', () => {
       data: expect.objectContaining({ registrationId: null, status: 'sent' }),
     });
   });
+
+  it('saves ownerId on MessageLog for global sends (no eventId)', async () => {
+    const globalRow = {
+      ...outboxRow,
+      id: 'msg-3',
+      eventId: null,
+      ownerId: 'user-1',
+      registrationId: null,
+      templateId: null,
+      trigger: 'manual',
+      channel: 'email',
+    };
+    const { prisma, resend, evolution } = makeMocks(globalRow);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any);
+    await worker.process({ data: { outboxId: 'msg-3' } } as any);
+    expect(prisma.messageLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ ownerId: 'user-1', eventId: null }),
+    });
+  });
 });

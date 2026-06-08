@@ -9,14 +9,15 @@ import {
   UseGuards,
   HttpCode,
   NotFoundException,
-  BadRequestException,
+  Query,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { PrismaService } from '@database/prisma/prisma.service';
 import { CreateFormFieldDto, UpdateFormFieldDto } from '../events_dto/form-field.dto';
+import { PaginationQueryDto, Paginated, paginationToSkip } from '@api/common/pagination';
 
 @ApiTags('Form Fields')
 @ApiBearerAuth()
@@ -28,12 +29,27 @@ export class FormFieldsController {
   @Get()
   @ApiOperation({ summary: 'Listar campos do formulário' })
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
-  @ApiResponse({ status: 200, description: 'Lista de campos' })
-  findAll(@Param('eventId') eventId: string) {
-    return this.prisma.formField.findMany({
-      where: { eventId },
-      orderBy: { order: 'asc' },
-    });
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Lista paginada de campos' })
+  async findAll(
+    @Param('eventId') eventId: string,
+    @Query() pagination: PaginationQueryDto,
+  ): Promise<Paginated<object>> {
+    const page = pagination.page ?? 1;
+    const limit = pagination.limit ?? 20;
+    const skip = paginationToSkip(page, limit);
+    const where = { eventId };
+    const [data, total] = await Promise.all([
+      this.prisma.formField.findMany({
+        where,
+        orderBy: { order: 'asc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.formField.count({ where }),
+    ]);
+    return { data, total, page, limit };
   }
 
   @Post()
@@ -87,11 +103,9 @@ export class FormFieldsController {
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiParam({ name: 'id', description: 'UUID do campo' })
   @ApiResponse({ status: 204, description: 'Campo deletado' })
-  @ApiResponse({ status: 400, description: 'Campo fixo não pode ser deletado' })
   async delete(@Param('eventId') eventId: string, @Param('id') id: string) {
     const field = await this.prisma.formField.findFirst({ where: { id, eventId } });
     if (!field) throw new NotFoundException('Form field not found');
-    if (field.isFixed) throw new BadRequestException('Fixed form fields cannot be deleted');
     await this.prisma.formField.delete({ where: { id } });
   }
 }

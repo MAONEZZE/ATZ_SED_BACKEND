@@ -16,16 +16,21 @@ export const QUEUE_SCHEDULED_AUTOMATIONS = 'scheduled-automations';
     BullModule.registerQueue(
       {
         name: QUEUE_MESSAGE_DISPATCH,
+        streams: { events: { maxLen: 500 } },
         defaultJobOptions: {
           attempts: 5,
           backoff: { type: 'exponential', delay: 2000 },
-          removeOnComplete: 100,
-          removeOnFail: 500,
+          removeOnComplete: { age: 3600, count: 100 },
+          removeOnFail: { age: 86400, count: 500 },
         },
       },
       {
         name: QUEUE_SCHEDULED_AUTOMATIONS,
-        defaultJobOptions: { removeOnComplete: 10, removeOnFail: 50 },
+        streams: { events: { maxLen: 200 } },
+        defaultJobOptions: {
+          removeOnComplete: { age: 3600, count: 10 },
+          removeOnFail: { age: 86400, count: 50 },
+        },
       },
     ),
   ],

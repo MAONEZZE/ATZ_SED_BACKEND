@@ -17,7 +17,7 @@ import { AutomationsModule } from '../controllers/automations/automations.module
 import { AiFeatureModule } from '../controllers/ai/ai.module';
 import { MessagingModule } from '../controllers/messaging/messaging.module';
 import { TemplatesModule } from '../controllers/templates/templates.module';
-import { LandingModule } from '../controllers/landing/landing.module';
+import { GlobalMessagingModule } from '../controllers/global-messaging/global-messaging.module';
 import { UsersModule } from '../controllers/users/users.module';
 import { PublicModule } from '../controllers/public/public.module';
 
@@ -48,7 +48,7 @@ import { PublicModule } from '../controllers/public/public.module';
     AiFeatureModule,
     MessagingModule,
     TemplatesModule,
-    LandingModule,
+    GlobalMessagingModule,
     UsersModule,
     PublicModule,
   ],

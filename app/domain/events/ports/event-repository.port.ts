@@ -34,6 +34,10 @@ export interface EventRepositoryPort {
   findById(id: string): Promise<EventEntity | null>;
   findBySlug(slug: string): Promise<EventEntity | null>;
   findAllByOwner(ownerId: string): Promise<EventEntity[]>;
+  findAllByOwnerPaginated(
+    ownerId: string,
+    pagination: { skip: number; take: number },
+  ): Promise<{ data: EventEntity[]; total: number }>;
   create(data: CreateEventData): Promise<EventEntity>;
   update(id: string, data: UpdateEventData): Promise<EventEntity>;
   updateStatus(id: string, status: EventStatus): Promise<EventEntity>;

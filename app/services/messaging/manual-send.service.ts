@@ -15,7 +15,6 @@ export interface ManualRecipientInput {
 
 export interface SendMessageInput {
   eventId?: string;
-  instancia?: string;
   channel: MessageChannel;
   templateId?: string;
   subject?: string;
@@ -28,6 +27,7 @@ export interface SendMessageResult {
   queued: number;
   skipped: number;
   skippedReason: string[];
+  batches: number;
 }
 
 interface ResolvedRecipient {
@@ -35,6 +35,12 @@ interface ResolvedRecipient {
   name: string;
   email: string;
   phone: string;
+}
+
+function chunk<T>(arr: T[], size: number): T[][] {
+  return Array.from({ length: Math.ceil(arr.length / size) }, (_, i) =>
+    arr.slice(i * size, i * size + size),
+  );
 }
 
 @Injectable()
@@ -48,17 +54,10 @@ export class ManualSendService {
   ) {}
 
   async send(input: SendMessageInput, userId: string): Promise<SendMessageResult> {
-    // Guard: registrationIds só com eventId
     if (input.registrationIds?.length && !input.eventId) {
       throw new BadRequestException('registrationIds require an eventId');
     }
-    // Guard: WhatsApp sem evento exige instancia no body
-    if (input.channel === 'whatsapp' && !input.eventId && !input.instancia) {
-      throw new BadRequestException('instancia is required for WhatsApp when no eventId is provided');
-    }
 
-    // Resolve evento (ownership) ou instancia avulsa
-    let resolvedInstancia: string | undefined;
     let eventContext: {
       id: string;
       title: string;
@@ -67,7 +66,6 @@ export class ManualSendService {
       capacity: number | null;
       dressCode: string | null;
       groupLink: string | null;
-      evolutionInstance?: string;
     } | null = null;
 
     if (input.eventId) {
@@ -75,7 +73,6 @@ export class ManualSendService {
       if (event.ownerId !== userId) {
         throw new ForbiddenException('You do not own this event');
       }
-      resolvedInstancia = event.evolutionInstance ?? undefined;
       eventContext = {
         id: event.id,
         title: event.title,
@@ -84,13 +81,9 @@ export class ManualSendService {
         capacity: event.capacity ?? null,
         dressCode: event.dressCode ?? null,
         groupLink: event.groupLink ?? null,
-        evolutionInstance: event.evolutionInstance,
       };
-    } else {
-      resolvedInstancia = input.instancia;
     }
 
-    // Resolve template (opcional)
     let template: {
       id: string;
       channel: string;
@@ -118,14 +111,14 @@ export class ManualSendService {
     }
     const subjectSource = input.subject ?? template?.subject ?? undefined;
 
-    // Resolve destinatários
     const registrations =
       input.registrationIds?.length && input.eventId
         ? await this.prisma.registration.findMany({
             where: { id: { in: input.registrationIds }, eventId: input.eventId },
           })
         : [];
-    const recipients: ResolvedRecipient[] = [
+
+    const allRecipients: ResolvedRecipient[] = [
       ...registrations.map((r) => ({
         registrationId: r.id,
         name: r.name,
@@ -138,21 +131,17 @@ export class ManualSendService {
         phone: m.phone ?? '',
       })),
     ];
-    if (recipients.length === 0) {
+
+    if (allRecipients.length === 0) {
       throw new BadRequestException('At least one recipient is required');
     }
 
     const skippedReason: string[] = [];
-    let queued = 0;
     let skipped = 0;
     const seenTargets = new Set<string>();
+    const validRecipients: Array<{ recipient: ResolvedRecipient; target: string }> = [];
 
-    const isWhatsapp = input.channel === 'whatsapp';
-    const minDelay = this.config.get<number>('WA_MIN_DELAY_MS') ?? 8000;
-    const maxDelay = this.config.get<number>('WA_MAX_DELAY_MS') ?? 30000;
-    let delayCursor = 0;
-
-    for (const recipient of recipients) {
+    for (const recipient of allRecipients) {
       const target = input.channel === 'email' ? recipient.email : recipient.phone;
       if (!target) {
         skipped++;
@@ -169,43 +158,66 @@ export class ManualSendService {
         continue;
       }
       seenTargets.add(target);
-
-      const variables = this.renderer.buildVariables({
-        registration: {
-          name: recipient.name,
-          email: recipient.email,
-          phone: recipient.phone,
-        },
-        event: eventContext ?? undefined,
-      });
-      const renderedBody = this.renderer.render(bodySource, variables);
-      const renderedSubject = subjectSource
-        ? this.renderer.render(subjectSource, variables)
-        : undefined;
-
-      const hash = createHash('sha1').update(renderedBody).digest('hex');
-      const eventPrefix = input.eventId ?? 'global';
-      const dedupKey = `manual:${eventPrefix}:${target}:${hash}`;
-
-      if (isWhatsapp) delayCursor += randomInt(minDelay, maxDelay + 1);
-      await this.outbox.enqueue(
-        {
-          eventId: input.eventId,
-          registrationId: recipient.registrationId,
-          templateId: template?.id,
-          trigger: 'manual',
-          dedupKey,
-          channel: input.channel,
-          recipient: target,
-          instancia: resolvedInstancia,
-          renderedBody,
-          renderedSubject,
-        },
-        { delayMs: isWhatsapp ? delayCursor : 0 },
-      );
-      queued++;
+      validRecipients.push({ recipient, target });
     }
 
-    return { queued, skipped, skippedReason };
+    const isWhatsapp = input.channel === 'whatsapp';
+    const minDelay = this.config.get<number>('WA_MIN_DELAY_MS') ?? 8000;
+    const maxDelay = this.config.get<number>('WA_MAX_DELAY_MS') ?? 30000;
+    const batchSize = this.config.get<number>('MANUAL_BATCH_SIZE') ?? 10;
+    const batchMinDelay = this.config.get<number>('MANUAL_BATCH_MIN_DELAY_MS') ?? 3_600_000;
+    const batchMaxDelay = this.config.get<number>('MANUAL_BATCH_MAX_DELAY_MS') ?? 7_200_000;
+
+    const batches = chunk(validRecipients, batchSize);
+    let batchDelayCursor = 0;
+    let queued = 0;
+
+    for (let bi = 0; bi < batches.length; bi++) {
+      // Each wave beyond the first waits a random 1–2h window (WhatsApp only)
+      if (isWhatsapp && bi > 0) {
+        batchDelayCursor += randomInt(batchMinDelay, batchMaxDelay + 1);
+      }
+
+      let innerDelayCursor = 0;
+      for (const { recipient, target } of batches[bi]) {
+        if (isWhatsapp) innerDelayCursor += randomInt(minDelay, maxDelay + 1);
+
+        const variables = this.renderer.buildVariables({
+          registration: {
+            name: recipient.name,
+            email: recipient.email,
+            phone: recipient.phone,
+          },
+          event: eventContext ?? undefined,
+        });
+        const renderedBody = this.renderer.render(bodySource, variables);
+        const renderedSubject = subjectSource
+          ? this.renderer.render(subjectSource, variables)
+          : undefined;
+
+        const hash = createHash('sha1').update(renderedBody).digest('hex');
+        const eventPrefix = input.eventId ?? 'global';
+        const dedupKey = `manual:${eventPrefix}:${target}:${hash}`;
+
+        await this.outbox.enqueue(
+          {
+            eventId: input.eventId,
+            ownerId: userId,
+            registrationId: recipient.registrationId!,
+            templateId: template?.id,
+            trigger: 'manual',
+            dedupKey,
+            channel: input.channel,
+            recipient: target,
+            renderedBody,
+            renderedSubject,
+          },
+          { delayMs: isWhatsapp ? batchDelayCursor + innerDelayCursor : 0 },
+        );
+        queued++;
+      }
+    }
+
+    return { queued, skipped, skippedReason, batches: batches.length };
   }
 }

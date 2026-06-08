@@ -4,6 +4,7 @@ export const OUTBOX_REPOSITORY_PORT = Symbol('OUTBOX_REPOSITORY_PORT');
 
 export interface EnqueueMessageData {
   eventId?: string;
+  ownerId?: string;
   registrationId?: string;
   templateId?: string;
   trigger: string;

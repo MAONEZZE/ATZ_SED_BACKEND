@@ -10,6 +10,7 @@ import { buildRegistrationsCsv } from '@services/registrations/registrations-csv
 import { FunnelStatus } from '@domain/registrations/entities/registration.entity';
 import { UpdateRegistrationStatusDto } from '../registrations_dto/update-registration-status.dto';
 import { PrismaService } from '@database/prisma/prisma.service';
+import { PaginationQueryDto, Paginated } from '@api/common/pagination';
 
 @ApiTags('Registrations')
 @ApiBearerAuth()
@@ -26,13 +27,25 @@ export class RegistrationsController {
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiQuery({ name: 'status', required: false, enum: ['pending', 'screening', 'qualification', 'approved', 'rejected', 'waitlist'] })
   @ApiQuery({ name: 'search', required: false, description: 'Busca por nome ou email' })
-  @ApiResponse({ status: 200, description: 'Lista de inscrições' })
-  findAll(
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Lista paginada de inscrições' })
+  async findAll(
     @Param('eventId') eventId: string,
+    @Query() pagination: PaginationQueryDto,
     @Query('status') status?: FunnelStatus,
     @Query('search') search?: string,
-  ) {
-    return this.registrations.findAll(eventId, status, search);
+  ): Promise<Paginated<object>> {
+    const page = pagination.page ?? 1;
+    const limit = pagination.limit ?? 20;
+    const { data, total } = await this.registrations.findAllPaginated(
+      eventId,
+      page,
+      limit,
+      status,
+      search,
+    );
+    return { data, total, page, limit };
   }
 
   @Get('export')

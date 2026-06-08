@@ -34,6 +34,9 @@ const template = {
 const pacing: Record<string, number> = {
   WA_MIN_DELAY_MS: 1000,
   WA_MAX_DELAY_MS: 1000,
+  MANUAL_BATCH_SIZE: 3,
+  MANUAL_BATCH_MIN_DELAY_MS: 100_000,
+  MANUAL_BATCH_MAX_DELAY_MS: 100_000,
 };
 
 function makeService(overrides?: { registrations?: unknown[]; template?: unknown }) {
@@ -194,7 +197,6 @@ describe('ManualSendService.send', () => {
         recipient: '+5511888888888',
         registrationId: undefined,
         templateId: undefined,
-        instancia: 'inst-1',
       }),
       expect.any(Object),
     );
@@ -265,22 +267,11 @@ describe('ManualSendService.send', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
-  it('throws BadRequestException when channel=whatsapp, no eventId and no instancia', async () => {
-    const { service } = makeService();
-    await expect(
-      service.send(
-        { channel: 'whatsapp', body: 'oi', manualRecipients: [{ name: 'Zap', phone: '+5511999999999' }] },
-        'user-1',
-      ),
-    ).rejects.toThrow(BadRequestException);
-  });
-
-  it('enqueues whatsapp without eventId using instancia from body', async () => {
+  it('enqueues whatsapp without eventId (instancia resolved from DB at dispatch time)', async () => {
     const { service, eventsService, outbox } = makeService({ registrations: [] });
     const result = await service.send(
       {
         channel: 'whatsapp',
-        instancia: 'instancia-avulsa',
         body: 'oi {{nome}}',
         manualRecipients: [{ name: 'Zap', phone: '+5511999999999' }],
       },
@@ -290,7 +281,6 @@ describe('ManualSendService.send', () => {
     expect(result.queued).toBe(1);
     expect(outbox.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
-        instancia: 'instancia-avulsa',
         recipient: '+5511999999999',
         channel: 'whatsapp',
       }),
@@ -303,7 +293,6 @@ describe('ManualSendService.send', () => {
     await service.send(
       {
         channel: 'whatsapp',
-        instancia: 'instancia-avulsa',
         body: 'oi',
         manualRecipients: [{ name: 'Zap', phone: '+5511999999999' }],
       },
@@ -322,12 +311,77 @@ describe('ManualSendService.send', () => {
     await service.send(
       {
         channel: 'whatsapp',
-        instancia: 'instancia-avulsa',
         body: 'oi',
         manualRecipients: [{ name: 'Zap', phone: '+5511999999999' }],
       },
       'user-1',
     );
     expect(eventsService.findById).not.toHaveBeenCalled();
+  });
+
+  it('result.batches === 1 quando ≤ MANUAL_BATCH_SIZE destinatários', async () => {
+    const { service } = makeService({
+      registrations: [
+        { ...regJoao, id: 'r1', phone: '+5511000000001' },
+        { ...regJoao, id: 'r2', phone: '+5511000000002' },
+      ],
+    });
+    const result = await service.send(
+      { eventId: 'evt-1', channel: 'whatsapp', body: 'oi', registrationIds: ['r1', 'r2'] },
+      'user-1',
+    );
+    expect(result.batches).toBe(1);
+    expect(result.queued).toBe(2);
+  });
+
+  it('whatsapp: segundo batch recebe delay base de batchDelayCursor', async () => {
+    // MANUAL_BATCH_SIZE=3, batchMin=max=100000, WA min=max=1000
+    // r1,r2,r3 → batch 0 (delays: 1000, 2000, 3000)
+    // r4        → batch 1 (batchDelay=100000 + inner=1000 = 101000)
+    const { service, outbox } = makeService({
+      registrations: [
+        { ...regJoao, id: 'r1', phone: '+5511000000001' },
+        { ...regJoao, id: 'r2', phone: '+5511000000002' },
+        { ...regJoao, id: 'r3', phone: '+5511000000003' },
+        { ...regJoao, id: 'r4', phone: '+5511000000004' },
+      ],
+    });
+    const result = await service.send(
+      {
+        eventId: 'evt-1',
+        channel: 'whatsapp',
+        body: 'oi',
+        registrationIds: ['r1', 'r2', 'r3', 'r4'],
+      },
+      'user-1',
+    );
+    expect(result.queued).toBe(4);
+    expect(result.batches).toBe(2);
+    const delays = (outbox.enqueue as jest.Mock).mock.calls.map((c: any[]) => c[1]?.delayMs);
+    expect(delays).toEqual([1000, 2000, 3000, 101000]);
+  });
+
+  it('email: todos os contatos sem batch delay mesmo com >MANUAL_BATCH_SIZE', async () => {
+    const { service, outbox } = makeService({
+      registrations: [
+        { ...regJoao, id: 'r1', email: 'a@test.com', phone: '' },
+        { ...regJoao, id: 'r2', email: 'b@test.com', phone: '' },
+        { ...regJoao, id: 'r3', email: 'c@test.com', phone: '' },
+        { ...regJoao, id: 'r4', email: 'd@test.com', phone: '' },
+      ],
+    });
+    const result = await service.send(
+      {
+        eventId: 'evt-1',
+        channel: 'email',
+        body: 'oi',
+        registrationIds: ['r1', 'r2', 'r3', 'r4'],
+      },
+      'user-1',
+    );
+    expect(result.queued).toBe(4);
+    // Email não aplica batch delay — todos delayMs === 0
+    const delays = (outbox.enqueue as jest.Mock).mock.calls.map((c: any[]) => c[1]?.delayMs);
+    expect(delays).toEqual([0, 0, 0, 0]);
   });
 });

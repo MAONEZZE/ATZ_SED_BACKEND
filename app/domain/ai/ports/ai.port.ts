@@ -9,5 +9,4 @@ export interface GenerateEmailStyleResult {
 
 export interface AiPort {
   generateEmailStyles(content: string): Promise<GenerateEmailStyleResult>;
-  streamLandingChat(message: string, currentLanding: unknown): AsyncIterable<string>;
 }

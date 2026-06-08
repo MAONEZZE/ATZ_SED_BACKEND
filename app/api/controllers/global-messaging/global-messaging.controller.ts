@@ -6,6 +6,7 @@ import { AuthenticatedUser } from '@domain/users/entities/authenticated-user.ent
 import { PrismaService } from '@database/prisma/prisma.service';
 import { ManualSendService } from '@services/messaging/manual-send.service';
 import { SendMessageDto } from '../messaging/messaging_dto/send-message.dto';
+import { PaginationQueryDto, Paginated, paginationToSkip } from '@api/common/pagination';
 
 @ApiTags('Messaging (global)')
 @ApiBearerAuth()
@@ -27,39 +28,85 @@ export class GlobalMessagingController {
 
   @Get('templates')
   @ApiOperation({ summary: 'Listar templates de todos os eventos do usuário' })
-  @ApiResponse({ status: 200, description: 'Lista de templates com evento' })
-  findTemplates(@CurrentUser() user: AuthenticatedUser) {
-    return this.prisma.messageTemplate.findMany({
-      where: { event: { ownerId: user.id } },
-      include: { event: { select: { id: true, title: true } } },
-      orderBy: { createdAt: 'desc' },
-    });
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Lista paginada de templates com evento' })
+  async findTemplates(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() pagination: PaginationQueryDto,
+  ): Promise<Paginated<object>> {
+    const page = pagination.page ?? 1;
+    const limit = pagination.limit ?? 20;
+    const skip = paginationToSkip(page, limit);
+    const where = { event: { ownerId: user.id } };
+    const [data, total] = await Promise.all([
+      this.prisma.messageTemplate.findMany({
+        where,
+        include: { event: { select: { id: true, title: true } } },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.messageTemplate.count({ where }),
+    ]);
+    return { data, total, page, limit };
   }
 
   @Get('automations')
   @ApiOperation({ summary: 'Listar automações de todos os eventos do usuário' })
-  @ApiResponse({ status: 200, description: 'Lista de automações com evento e template' })
-  findAutomations(@CurrentUser() user: AuthenticatedUser) {
-    return this.prisma.automationRule.findMany({
-      where: { event: { ownerId: user.id } },
-      include: {
-        event: { select: { id: true, title: true } },
-        template: { select: { id: true, name: true, channel: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Lista paginada de automações com evento e template' })
+  async findAutomations(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() pagination: PaginationQueryDto,
+  ): Promise<Paginated<object>> {
+    const page = pagination.page ?? 1;
+    const limit = pagination.limit ?? 20;
+    const skip = paginationToSkip(page, limit);
+    const where = { event: { ownerId: user.id } };
+    const [data, total] = await Promise.all([
+      this.prisma.automationRule.findMany({
+        where,
+        include: {
+          event: { select: { id: true, title: true } },
+          template: { select: { id: true, name: true, channel: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.automationRule.count({ where }),
+    ]);
+    return { data, total, page, limit };
   }
 
   @Get('messaging/logs')
   @ApiOperation({ summary: 'Listar logs de mensagens de todos os eventos do usuário' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Máximo de registros (padrão: 200)' })
-  @ApiResponse({ status: 200, description: 'Lista de logs com evento' })
-  findLogs(@CurrentUser() user: AuthenticatedUser, @Query('limit') limit?: string) {
-    return this.prisma.messageLog.findMany({
-      where: { event: { ownerId: user.id } },
-      include: { event: { select: { id: true, title: true } } },
-      orderBy: { createdAt: 'desc' },
-      take: limit ? parseInt(limit, 10) : 200,
-    });
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Lista paginada de logs com evento' })
+  async findLogs(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() pagination: PaginationQueryDto,
+  ): Promise<Paginated<object>> {
+    const page = pagination.page ?? 1;
+    const limit = pagination.limit ?? 20;
+    const skip = paginationToSkip(page, limit);
+    // OR: logs tied to user's events + global sends (ownerId set, no eventId)
+    const where = {
+      OR: [{ event: { ownerId: user.id } }, { ownerId: user.id }],
+    };
+    const [data, total] = await Promise.all([
+      this.prisma.messageLog.findMany({
+        where,
+        include: { event: { select: { id: true, title: true } } },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.messageLog.count({ where }),
+    ]);
+    return { data, total, page, limit };
   }
 }

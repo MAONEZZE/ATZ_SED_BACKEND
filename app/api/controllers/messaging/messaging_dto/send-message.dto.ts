@@ -24,11 +24,6 @@ export class SendMessageDto {
   @IsUUID()
   eventId?: string;
 
-  @ApiPropertyOptional({ example: 'minha-instancia', description: 'Instância Evolution. Obrigatório se channel=whatsapp e sem eventId.' })
-  @IsOptional()
-  @IsString()
-  instancia?: string;
-
   @ApiProperty({ enum: ['whatsapp', 'email'], example: 'whatsapp' })
   @IsIn(['whatsapp', 'email'])
   channel!: 'whatsapp' | 'email';

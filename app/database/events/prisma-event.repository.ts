@@ -72,45 +72,30 @@ export class PrismaEventRepository implements EventRepositoryPort {
     return rows.map((r) => this.map(r));
   }
 
+  async findAllByOwnerPaginated(
+    ownerId: string,
+    pagination: { skip: number; take: number },
+  ): Promise<{ data: EventEntity[]; total: number }> {
+    const where = { ownerId };
+    const [rows, total] = await Promise.all([
+      this.prisma.event.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: pagination.skip,
+        take: pagination.take,
+      }),
+      this.prisma.event.count({ where }),
+    ]);
+    return { data: rows.map((r) => this.map(r)), total };
+  }
+
   async create(data: CreateEventData): Promise<EventEntity> {
-    const FIXED_FIELDS = [
-      { label: 'Nome', type: 'text' as const, required: true, isFixed: true, order: 0 },
-      { label: 'Telefone', type: 'phone' as const, required: true, isFixed: true, order: 1 },
-      { label: 'E-mail', type: 'email' as const, required: true, isFixed: true, order: 2 },
-      { label: 'Endereço', type: 'text' as const, required: false, isFixed: true, order: 3 },
-    ] as const;
-
-    const LANDING_SECTIONS = [
-      { type: 'hero', order: 0, enabled: true },
-      { type: 'about', order: 1, enabled: true },
-      { type: 'registration', order: 2, enabled: true },
-      { type: 'speakers', order: 3, enabled: false },
-      { type: 'schedule', order: 4, enabled: false },
-      { type: 'venue', order: 5, enabled: false },
-      { type: 'faq', order: 6, enabled: false },
-      { type: 'gallery', order: 7, enabled: false },
-      { type: 'testimonials', order: 8, enabled: false },
-      { type: 'sponsors', order: 9, enabled: false },
-    ];
-
     const MAX_RETRIES = 3;
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       const suffix = randomBytes(3).toString('hex').toUpperCase();
       const slug = EventEntity.generateSlug(data.title, suffix);
       try {
-        const row = await this.prisma.$transaction(async (tx) => {
-          const event = await tx.event.create({ data: { ...data, slug } });
-          await tx.formField.createMany({
-            data: FIXED_FIELDS.map((f) => ({ ...f, eventId: event.id })),
-          });
-          await tx.landingPage.create({
-            data: {
-              eventId: event.id,
-              sections: { create: LANDING_SECTIONS },
-            },
-          });
-          return event;
-        });
+        const row = await this.prisma.event.create({ data: { ...data, slug } });
         return this.map(row);
       } catch (err: any) {
         // P2002: unique constraint violation — slug collision, retry

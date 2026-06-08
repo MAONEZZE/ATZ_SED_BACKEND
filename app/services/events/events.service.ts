@@ -56,6 +56,17 @@ export class EventsService {
     return this.eventRepo.findAllByOwner(ownerId);
   }
 
+  async findAllPaginated(
+    ownerId: string,
+    page: number,
+    limit: number,
+  ): Promise<{ data: EventEntity[]; total: number }> {
+    return this.eventRepo.findAllByOwnerPaginated(ownerId, {
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+  }
+
   async findById(id: string): Promise<EventEntity> {
     const event = await this.eventRepo.findById(id);
     if (!event) throw new NotFoundException('Event not found');

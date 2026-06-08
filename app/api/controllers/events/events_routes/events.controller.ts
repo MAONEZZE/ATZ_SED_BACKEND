@@ -13,6 +13,7 @@ import {
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -23,6 +24,7 @@ import {
   ApiParam,
   ApiConsumes,
   ApiBody,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
@@ -32,6 +34,7 @@ import { EventsService } from '@services/events/events.service';
 import { EventLifecycleService } from '@services/events/event-lifecycle.service';
 import { CreateEventDto } from '../events_dto/create-event.dto';
 import { UpdateEventDto, UpdateEventStatusDto } from '../events_dto/update-event.dto';
+import { PaginationQueryDto, Paginated } from '@api/common/pagination';
 
 @ApiTags('Events')
 @ApiBearerAuth()
@@ -56,9 +59,17 @@ export class EventsController {
 
   @Get()
   @ApiOperation({ summary: 'Listar eventos do usuário' })
-  @ApiResponse({ status: 200, description: 'Lista de eventos' })
-  findAll(@CurrentUser() user: AuthenticatedUser) {
-    return this.eventsService.findAll(user.id);
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Lista paginada de eventos' })
+  async findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() pagination: PaginationQueryDto,
+  ): Promise<Paginated<object>> {
+    const page = pagination.page ?? 1;
+    const limit = pagination.limit ?? 20;
+    const { data, total } = await this.eventsService.findAllPaginated(user.id, page, limit);
+    return { data, total, page, limit };
   }
 
   @Get(':id')

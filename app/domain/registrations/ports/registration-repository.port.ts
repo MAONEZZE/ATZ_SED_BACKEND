@@ -17,6 +17,12 @@ export interface RegistrationRepositoryPort {
     status?: FunnelStatus,
     search?: string,
   ): Promise<RegistrationEntity[]>;
+  findAllByEventPaginated(
+    eventId: string,
+    pagination: { skip: number; take: number },
+    status?: FunnelStatus,
+    search?: string,
+  ): Promise<{ data: RegistrationEntity[]; total: number }>;
   create(data: CreateRegistrationData): Promise<RegistrationEntity>;
   updateStatus(id: string, status: FunnelStatus): Promise<RegistrationEntity>;
 }

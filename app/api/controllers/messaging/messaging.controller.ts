@@ -13,6 +13,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery }
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { PrismaService } from '@database/prisma/prisma.service';
+import { PaginationQueryDto, Paginated, paginationToSkip } from '@api/common/pagination';
 
 @ApiTags('Messaging')
 @ApiBearerAuth()
@@ -24,14 +25,27 @@ export class MessagingController {
   @Get('logs')
   @ApiOperation({ summary: 'Listar logs de mensagens do evento' })
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Máximo de registros (padrão: 100)' })
-  @ApiResponse({ status: 200, description: 'Lista de logs' })
-  async getLogs(@Param('eventId') eventId: string, @Query('limit') limit?: string) {
-    return this.prisma.messageLog.findMany({
-      where: { OR: [{ eventId }, { eventId: null, registration: { eventId } }] },
-      orderBy: { createdAt: 'desc' },
-      take: limit ? parseInt(limit, 10) : 100,
-    });
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Lista paginada de logs' })
+  async getLogs(
+    @Param('eventId') eventId: string,
+    @Query() pagination: PaginationQueryDto,
+  ): Promise<Paginated<object>> {
+    const page = pagination.page ?? 1;
+    const limit = pagination.limit ?? 20;
+    const skip = paginationToSkip(page, limit);
+    const where = { OR: [{ eventId }, { eventId: null, registration: { eventId } }] };
+    const [data, total] = await Promise.all([
+      this.prisma.messageLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.messageLog.count({ where }),
+    ]);
+    return { data, total, page, limit };
   }
 
   @Sse('logs/stream')

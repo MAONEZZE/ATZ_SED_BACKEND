@@ -40,30 +40,6 @@ async function main() {
     ],
   });
 
-  // Seed landing page
-  const existingLanding = await prisma.landingPage.findUnique({ where: { eventId: event.id } });
-  if (!existingLanding) {
-    await prisma.landingPage.create({
-      data: {
-        eventId: event.id,
-        sections: {
-          create: [
-            { type: 'hero', order: 0, enabled: true },
-            { type: 'about', order: 1, enabled: true },
-            { type: 'registration', order: 2, enabled: true },
-            { type: 'speakers', order: 3, enabled: false },
-            { type: 'schedule', order: 4, enabled: false },
-            { type: 'venue', order: 5, enabled: false },
-            { type: 'faq', order: 6, enabled: false },
-            { type: 'gallery', order: 7, enabled: false },
-            { type: 'testimonials', order: 8, enabled: false },
-            { type: 'sponsors', order: 9, enabled: false },
-          ],
-        },
-      },
-    });
-  }
-
   // Seed a message template
   await prisma.messageTemplate.upsert({
     where: { id: 'seed-template-001' },

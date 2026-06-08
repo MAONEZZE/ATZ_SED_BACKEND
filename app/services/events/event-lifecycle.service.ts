@@ -98,6 +98,7 @@ export class EventLifecycleService {
       try {
         await this.outbox.enqueue({
           eventId: event.id,
+          ownerId: event.ownerId,
           registrationId: reg.id,
           templateId: template.id,
           trigger: 'on_cancellation',

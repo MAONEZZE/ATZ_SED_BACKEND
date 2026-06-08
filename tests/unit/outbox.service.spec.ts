@@ -75,6 +75,24 @@ describe('OutboxService.enqueue', () => {
     expect(jobId).not.toContain(':');
   });
 
+  it('passa delay para queue.add quando opts.delayMs informado (pacing WhatsApp)', async () => {
+    await service.enqueue(baseData, { delayMs: 15000 });
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      'dispatch',
+      expect.any(Object),
+      expect.objectContaining({ delay: 15000 }),
+    );
+  });
+
+  it('usa delay 0 quando opts ausente', async () => {
+    await service.enqueue(baseData);
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      'dispatch',
+      expect.any(Object),
+      expect.objectContaining({ delay: 0 }),
+    );
+  });
+
   it('não lança se queue.add falhar, mas loga erro real (não engole como dedup)', async () => {
     const errorSpy = jest.spyOn(service['logger'], 'error').mockImplementation();
     mockQueue.add.mockRejectedValueOnce(new Error('Custom Id cannot contain :'));

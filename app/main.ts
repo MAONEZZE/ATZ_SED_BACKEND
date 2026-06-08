@@ -48,7 +48,6 @@ async function bootstrap() {
       .addTag('Templates', 'Templates de mensagens WhatsApp/Email')
       .addTag('Automations', 'Regras de automação de disparo')
       .addTag('Registrations', 'Inscrições e funil de aprovação')
-      .addTag('Landing', 'Landing page e seções')
       .addTag('Messaging', 'Envio manual e logs de mensagens')
       .addTag('Profile', 'Perfil do usuário autenticado')
       .addTag('AI', 'Geração de conteúdo com Gemini')

@@ -1,19 +1,45 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomInt } from 'crypto';
 
 @Injectable()
 export class EvolutionAdapter {
   private readonly baseUrl: string;
   private readonly apiKey: string;
+  private readonly typingEnabled: boolean;
+  private readonly typingMin: number;
+  private readonly typingMax: number;
+  private readonly typingPerChar: number;
+  private readonly typingMaxTotal: number;
   private readonly logger = new Logger(EvolutionAdapter.name);
 
   constructor(config: ConfigService) {
     this.baseUrl = config.get<string>('EVOLUTION_API_URL')!;
     this.apiKey = config.get<string>('EVOLUTION_API_KEY')!;
+    this.typingEnabled = config.get<boolean>('WA_TYPING_ENABLED') ?? true;
+    this.typingMin = config.get<number>('WA_TYPING_MIN_MS') ?? 1500;
+    this.typingMax = config.get<number>('WA_TYPING_MAX_MS') ?? 4000;
+    this.typingPerChar = config.get<number>('WA_TYPING_MS_PER_CHAR') ?? 40;
+    this.typingMaxTotal = config.get<number>('WA_TYPING_MAX_TOTAL_MS') ?? 15000;
+  }
+
+  /**
+   * Atraso de "digitando..." simulado. Evolution v2 mostra presença 'composing'
+   * pelo tempo de `delay` antes de enviar — reduz padrão robótico (anti-ban).
+   * Aleatório dentro da janela + proporcional ao texto, limitado por um teto.
+   */
+  private typingDelay(textLength: number): number {
+    if (!this.typingEnabled) return 0;
+    const base = randomInt(this.typingMin, this.typingMax + 1);
+    return Math.min(base + textLength * this.typingPerChar, this.typingMaxTotal);
   }
 
   async sendWhatsApp(instancia: string, to: string, body: string): Promise<void> {
     const url = `${this.baseUrl}/message/sendText/${instancia}`;
+
+    const delay = this.typingDelay(body.length);
+    const payload: { number: string; text: string; delay?: number } = { number: to, text: body };
+    if (delay > 0) payload.delay = delay;
 
     const response = await fetch(url, {
       method: 'POST',
@@ -21,7 +47,7 @@ export class EvolutionAdapter {
         'Content-Type': 'application/json',
         apikey: this.apiKey,
       },
-      body: JSON.stringify({ number: to, text: body }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {

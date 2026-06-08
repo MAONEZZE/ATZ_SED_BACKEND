@@ -6,7 +6,11 @@ import { ResendAdapter } from '@database/integrations/resend.adapter';
 import { EvolutionAdapter } from '@database/integrations/evolution.adapter';
 import { QUEUE_MESSAGE_DISPATCH } from '@database/queue/bull-queues.module';
 
-@Processor(QUEUE_MESSAGE_DISPATCH)
+// Concurrency anti-ban: 1 = serial (uma conta WhatsApp não dispara em paralelo).
+// Configurável via env; lido no carregamento do módulo (decorator).
+@Processor(QUEUE_MESSAGE_DISPATCH, {
+  concurrency: Number(process.env.WA_DISPATCH_CONCURRENCY) || 1,
+})
 @Injectable()
 export class MessageDispatchWorker extends WorkerHost {
   private readonly logger = new Logger(MessageDispatchWorker.name);
@@ -65,10 +69,11 @@ export class MessageDispatchWorker extends WorkerHost {
           outbox.renderedBody,
         );
       } else {
-        if (!outbox.instancia) {
+        const instancia = await this.resolveWhatsAppInstance(outbox.eventId, outbox.ownerId, outbox.instancia);
+        if (!instancia) {
           throw new UnrecoverableError('WhatsApp message has no instancia configured');
         }
-        await this.evolution.sendWhatsApp(outbox.instancia, outbox.recipient, outbox.renderedBody);
+        await this.evolution.sendWhatsApp(instancia, outbox.recipient, outbox.renderedBody);
       }
 
       await this.prisma.outboxMessage.update({
@@ -79,6 +84,7 @@ export class MessageDispatchWorker extends WorkerHost {
       await this.prisma.messageLog.create({
         data: {
           eventId: outbox.eventId ?? null,
+          ownerId: outbox.ownerId ?? null,
           registrationId: outbox.registrationId ?? null,
           channel: outbox.channel,
           recipient: outbox.recipient,
@@ -98,6 +104,7 @@ export class MessageDispatchWorker extends WorkerHost {
       await this.prisma.messageLog.create({
         data: {
           eventId: outbox.eventId ?? null,
+          ownerId: outbox.ownerId ?? null,
           registrationId: outbox.registrationId ?? null,
           channel: outbox.channel,
           recipient: outbox.recipient,
@@ -109,5 +116,27 @@ export class MessageDispatchWorker extends WorkerHost {
       if (err instanceof UnrecoverableError) throw err;
       throw new Error(msg);
     }
+  }
+
+  private async resolveWhatsAppInstance(
+    eventId: string | null,
+    ownerId: string | null,
+    fallback: string | null,
+  ): Promise<string | null> {
+    if (eventId) {
+      const event = await this.prisma.event.findUnique({
+        where: { id: eventId },
+        select: { evolutionInstance: true, owner: { select: { evolutionInstance: true } } },
+      });
+      return event?.evolutionInstance ?? event?.owner?.evolutionInstance ?? null;
+    }
+    if (ownerId) {
+      const profile = await this.prisma.profile.findUnique({
+        where: { id: ownerId },
+        select: { evolutionInstance: true },
+      });
+      return profile?.evolutionInstance ?? null;
+    }
+    return fallback ?? null;
   }
 }

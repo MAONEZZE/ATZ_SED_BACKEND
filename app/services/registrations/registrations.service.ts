@@ -26,15 +26,11 @@ export class RegistrationsService {
       throw new BadRequestException('Event is not accepting registrations');
     }
 
+    // Sem campos fixos obrigatórios: extrai nome/email/telefone das respostas
+    // por chave canônica quando presentes (best-effort), mas não bloqueia.
     const name = this.extractString(answers, ['nome', 'name']);
     const email = this.extractString(answers, ['email']);
     const phone = this.extractString(answers, ['telefone', 'phone']);
-
-    if (!name || !email || !phone) {
-      throw new BadRequestException(
-        'Required fields missing: nome (name), email, telefone (phone)',
-      );
-    }
 
     const reg = await this.regRepo.create({ eventId: event.id, answers, name, email, phone });
 
@@ -52,6 +48,21 @@ export class RegistrationsService {
     search?: string,
   ): Promise<RegistrationEntity[]> {
     return this.regRepo.findAllByEvent(eventId, status, search);
+  }
+
+  async findAllPaginated(
+    eventId: string,
+    page: number,
+    limit: number,
+    status?: FunnelStatus,
+    search?: string,
+  ): Promise<{ data: RegistrationEntity[]; total: number }> {
+    return this.regRepo.findAllByEventPaginated(
+      eventId,
+      { skip: (page - 1) * limit, take: limit },
+      status,
+      search,
+    );
   }
 
   async findById(id: string): Promise<RegistrationEntity> {

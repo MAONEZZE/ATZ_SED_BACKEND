@@ -32,21 +32,4 @@ Conteúdo do evento: ${content}`;
       throw new Error('AI returned invalid JSON for email styles');
     }
   }
-
-  async *streamLandingChat(message: string, currentLanding: unknown): AsyncIterable<string> {
-    const prompt = `Você é um assistente de edição de landing pages de eventos.
-Landing atual (JSON): ${JSON.stringify(currentLanding)}
-Instrução: ${message}
-Responda com as alterações a aplicar, em JSON.`;
-
-    const stream = await this.ai.models.generateContentStream({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
-
-    for await (const chunk of stream) {
-      const text = chunk.text;
-      if (text) yield text;
-    }
-  }
 }

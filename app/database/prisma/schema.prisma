@@ -89,6 +89,8 @@ model Profile {
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   events           Event[]
+  outboxMessages   OutboxMessage[]
+  messageLogs      MessageLog[]   @relation("MessageLogOwner")
 
   @@map("profiles")
   @@schema("ATZ_SED")
@@ -116,7 +118,6 @@ model Event {
   owner             Profile         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   formFields        FormField[]
   registrations     Registration[]
-  landingPage       LandingPage?
   templates         MessageTemplate[]
   automationRules   AutomationRule[]
   outboxMessages    OutboxMessage[]
@@ -199,6 +200,7 @@ model AutomationRule {
 model OutboxMessage {
   id              String         @id @default(uuid())
   eventId         String?        @map("event_id")
+  ownerId         String?        @map("owner_id")
   registrationId  String?        @map("registration_id")
   templateId      String?        @map("template_id")
   trigger         String
@@ -217,10 +219,12 @@ model OutboxMessage {
   registration    Registration?  @relation(fields: [registrationId], references: [id], onDelete: Cascade)
   template        MessageTemplate? @relation(fields: [templateId], references: [id], onDelete: Cascade)
   event           Event?         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  owner           Profile?       @relation(fields: [ownerId], references: [id], onDelete: SetNull)
 
   @@index([instancia, status])
   @@index([status, createdAt])
   @@index([eventId])
+  @@index([ownerId])
   @@map("outbox_messages")
   @@schema("ATZ_SED")
 }
@@ -228,6 +232,7 @@ model OutboxMessage {
 model MessageLog {
   id             String         @id @default(uuid())
   eventId        String?        @map("event_id")
+  ownerId        String?        @map("owner_id")
   registrationId String?        @map("registration_id")
   channel        MessageChannel
   recipient      String
@@ -238,37 +243,12 @@ model MessageLog {
   createdAt      DateTime       @default(now()) @map("created_at")
   registration   Registration?  @relation(fields: [registrationId], references: [id], onDelete: Cascade)
   event          Event?         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  owner          Profile?       @relation("MessageLogOwner", fields: [ownerId], references: [id], onDelete: SetNull)
 
   @@index([registrationId])
   @@index([eventId])
+  @@index([ownerId])
   @@map("message_logs")
   @@schema("ATZ_SED")
 }
 
-model LandingPage {
-  id        String           @id @default(uuid())
-  eventId   String           @unique @map("event_id")
-  createdAt DateTime         @default(now()) @map("created_at")
-  updatedAt DateTime         @updatedAt @map("updated_at")
-  event     Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  sections  LandingSection[]
-
-  @@map("landing_pages")
-  @@schema("ATZ_SED")
-}
-
-model LandingSection {
-  id            String      @id @default(uuid())
-  landingPageId String      @map("landing_page_id")
-  type          String
-  order         Int         @default(0)
-  enabled       Boolean     @default(false)
-  content       Json?
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @updatedAt @map("updated_at")
-  landingPage   LandingPage @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
-
-  @@index([landingPageId])
-  @@map("landing_sections")
-  @@schema("ATZ_SED")
-}
