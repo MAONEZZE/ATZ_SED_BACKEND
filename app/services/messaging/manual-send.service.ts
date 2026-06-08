@@ -170,23 +170,14 @@ export class ManualSendService {
       }
       seenTargets.add(target);
 
-      const variables = eventContext
-        ? this.renderer.buildVariables({
-            registration: {
-              name: recipient.name,
-              email: recipient.email,
-              phone: recipient.phone,
-            },
-            event: eventContext,
-          })
-        : this.renderer.buildVariables({
-            registration: {
-              name: recipient.name,
-              email: recipient.email,
-              phone: recipient.phone,
-            },
-            event: { title: '' },
-          });
+      const variables = this.renderer.buildVariables({
+        registration: {
+          name: recipient.name,
+          email: recipient.email,
+          phone: recipient.phone,
+        },
+        event: eventContext ?? undefined,
+      });
       const renderedBody = this.renderer.render(bodySource, variables);
       const renderedSubject = subjectSource
         ? this.renderer.render(subjectSource, variables)

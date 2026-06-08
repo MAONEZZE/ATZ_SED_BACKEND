@@ -14,8 +14,8 @@ export class TemplateRenderer {
       email: string;
       phone: string;
     };
-    event: {
-      title: string;
+    event?: {
+      title?: string;
       eventDate?: Date | null;
       location?: string | null;
       capacity?: number | null;
@@ -24,15 +24,15 @@ export class TemplateRenderer {
     };
     extra?: Record<string, string>;
   }): Record<string, string> {
-    const { registration, event, extra = {} } = params;
+    const { registration, event = {}, extra = {} } = params;
     return {
       nome: registration.name,
       name: registration.name,
       email: registration.email,
       telefone: registration.phone,
       phone: registration.phone,
-      evento: event.title,
-      event: event.title,
+      evento: event.title ?? '',
+      event: event.title ?? '',
       data: event.eventDate
         ? event.eventDate.toLocaleDateString('pt-BR', {
             day: '2-digit',
