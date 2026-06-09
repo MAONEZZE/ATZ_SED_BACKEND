@@ -4,6 +4,7 @@ import { PrismaService } from '@database/prisma/prisma.service';
 import {
   RegistrationRepositoryPort,
   CreateRegistrationData,
+  UpdateAnswersData,
 } from '@domain/registrations/ports/registration-repository.port';
 import {
   RegistrationEntity,
@@ -113,6 +114,22 @@ export class PrismaRegistrationRepository implements RegistrationRepositoryPort 
     const row = await this.prisma.registration.update({
       where: { id },
       data: { status },
+    });
+    return this.map(row);
+  }
+
+  async updateAnswers(
+    id: string,
+    data: UpdateAnswersData,
+  ): Promise<RegistrationEntity> {
+    const row = await this.prisma.registration.update({
+      where: { id },
+      data: {
+        answers: data.answers as Prisma.InputJsonValue,
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.email !== undefined ? { email: data.email } : {}),
+        ...(data.phone !== undefined ? { phone: data.phone } : {}),
+      },
     });
     return this.map(row);
   }

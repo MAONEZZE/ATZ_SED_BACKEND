@@ -10,6 +10,13 @@ export interface CreateRegistrationData {
   phone: string;
 }
 
+export interface UpdateAnswersData {
+  answers: Record<string, unknown>;
+  name?: string;
+  email?: string;
+  phone?: string;
+}
+
 export interface RegistrationRepositoryPort {
   findById(id: string): Promise<RegistrationEntity | null>;
   findAllByEvent(
@@ -25,4 +32,5 @@ export interface RegistrationRepositoryPort {
   ): Promise<{ data: RegistrationEntity[]; total: number }>;
   create(data: CreateRegistrationData): Promise<RegistrationEntity>;
   updateStatus(id: string, status: FunnelStatus): Promise<RegistrationEntity>;
+  updateAnswers(id: string, data: UpdateAnswersData): Promise<RegistrationEntity>;
 }
