@@ -9,6 +9,7 @@ import { RegistrationsService } from '@services/registrations/registrations.serv
 import { buildRegistrationsCsv } from '@services/registrations/registrations-csv';
 import { FunnelStatus } from '@domain/registrations/entities/registration.entity';
 import { UpdateRegistrationStatusDto } from '../registrations_dto/update-registration-status.dto';
+import { UpdateRegistrationAnswersDto } from '../registrations_dto/update-registration-answers.dto';
 import { PrismaService } from '@database/prisma/prisma.service';
 import { PaginationQueryDto, Paginated } from '@api/common/pagination';
 
@@ -84,6 +85,25 @@ export class RegistrationsController {
   @ApiResponse({ status: 200, description: 'Inscrição encontrada' })
   findOne(@Param('id') id: string) {
     return this.registrations.findById(id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Editar respostas da inscrição' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiParam({ name: 'id', description: 'UUID da inscrição' })
+  @ApiResponse({ status: 200, description: 'Inscrição atualizada' })
+  @ApiResponse({ status: 400, description: 'Campo obrigatório ausente' })
+  @ApiResponse({ status: 404, description: 'Inscrição não encontrada' })
+  async updateAnswers(
+    @Param('eventId') eventId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateRegistrationAnswersDto,
+  ) {
+    const formFields = await this.prisma.formField.findMany({
+      where: { eventId },
+      select: { label: true, type: true, required: true, isFixed: true },
+    });
+    return this.registrations.updateAnswers(id, eventId, dto.answers, formFields);
   }
 
   @Patch(':id/status')
