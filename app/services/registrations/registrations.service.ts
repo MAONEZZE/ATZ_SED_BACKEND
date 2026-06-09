@@ -92,6 +92,40 @@ export class RegistrationsService {
     return updated;
   }
 
+  async updateAnswers(
+    id: string,
+    eventId: string,
+    answers: Record<string, unknown>,
+    formFields: Array<{ label: string; type: string; required: boolean; isFixed: boolean }>,
+  ): Promise<RegistrationEntity> {
+    const reg = await this.regRepo.findById(id);
+    if (!reg || reg.eventId !== eventId) {
+      throw new NotFoundException('Registration not found');
+    }
+
+    for (const field of formFields) {
+      if (field.required) {
+        const val = answers[field.label];
+        if (val === undefined || val === null || String(val).trim() === '') {
+          throw new BadRequestException(`Campo obrigatório ausente: "${field.label}"`);
+        }
+      }
+    }
+
+    const updateData: { answers: Record<string, unknown>; name?: string; email?: string; phone?: string } =
+      { answers };
+
+    for (const f of formFields.filter((f) => f.isFixed)) {
+      const raw = answers[f.label];
+      const val = typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
+      if (f.type === 'text' && val !== undefined) updateData.name = val;
+      else if (f.type === 'email' && val !== undefined) updateData.email = val;
+      else if (f.type === 'phone' && val !== undefined) updateData.phone = val;
+    }
+
+    return this.regRepo.updateAnswers(id, updateData);
+  }
+
   private extractString(answers: Record<string, unknown>, keys: string[]): string {
     for (const key of keys) {
       const val = answers[key];
