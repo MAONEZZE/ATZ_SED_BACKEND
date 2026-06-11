@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import * as ws from 'ws';
 import { AuthPort } from '@domain/users/ports/auth.port';
 import { AuthenticatedUser } from '@domain/users/entities/authenticated-user.entity';
 
@@ -12,6 +13,7 @@ export class SupabaseAuthAdapter implements AuthPort {
     this.supabase = createClient(
       config.get<string>('SUPABASE_URL')!,
       config.get<string>('SUPABASE_SERVICE_ROLE_KEY')!,
+      { realtime: { transport: ws as any } },
     );
   }
 
