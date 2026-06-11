@@ -9,7 +9,12 @@ import { QUEUE_SCHEDULED_AUTOMATIONS } from '@database/queue/bull-queues.module'
 const TOLERANCE_BEFORE_MS = 2 * 60 * 60 * 1000; // 2h window
 const TOLERANCE_AFTER_MS = 24 * 60 * 60 * 1000; // 24h window
 
-@Processor(QUEUE_SCHEDULED_AUTOMATIONS)
+@Processor(QUEUE_SCHEDULED_AUTOMATIONS, {
+  stalledInterval: 300_000,
+  lockDuration: 60_000,
+  lockRenewTime: 30_000,
+  drainDelay: 5_000,
+})
 @Injectable()
 export class ScheduledAutomationsWorker extends WorkerHost implements OnModuleInit {
   private readonly logger = new Logger(ScheduledAutomationsWorker.name);

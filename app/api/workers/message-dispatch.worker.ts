@@ -13,6 +13,10 @@ const ICS_MARKER = '[[[ICS_INVITE]]]';
 // Configurável via env; lido no carregamento do módulo (decorator).
 @Processor(QUEUE_MESSAGE_DISPATCH, {
   concurrency: Number(process.env.WA_DISPATCH_CONCURRENCY) || 1,
+  stalledInterval: 300_000,
+  lockDuration: 60_000,
+  lockRenewTime: 30_000,
+  drainDelay: 5_000,
 })
 @Injectable()
 export class MessageDispatchWorker extends WorkerHost {
