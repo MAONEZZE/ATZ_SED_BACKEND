@@ -1,5 +1,7 @@
 import { Controller, Get, Post, Body, HttpCode, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { IsString, IsEnum, IsOptional, MinLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { CurrentUser } from '@api/config/decorators/current-user.decorator';
 import { AuthenticatedUser } from '@domain/users/entities/authenticated-user.entity';
@@ -7,6 +9,32 @@ import { PrismaService } from '@database/prisma/prisma.service';
 import { ManualSendService } from '@services/messaging/manual-send.service';
 import { SendMessageDto } from '../messaging/messaging_dto/send-message.dto';
 import { PaginationQueryDto, Paginated, paginationToSkip } from '@api/common/pagination';
+
+class CreateGlobalTemplateDto {
+  @ApiPropertyOptional({ example: 'uuid-do-evento' })
+  @IsOptional()
+  @IsString()
+  eventId?: string;
+
+  @ApiProperty({ example: 'Confirmação de inscrição' })
+  @IsString()
+  @MinLength(1)
+  name!: string;
+
+  @ApiProperty({ enum: ['whatsapp', 'email'], example: 'email' })
+  @IsEnum(['whatsapp', 'email'])
+  channel!: string;
+
+  @ApiPropertyOptional({ example: 'Sua inscrição foi confirmada!' })
+  @IsOptional()
+  @IsString()
+  subject?: string;
+
+  @ApiProperty({ example: 'Olá {{name}}, sua inscrição foi confirmada.' })
+  @IsString()
+  @MinLength(1)
+  body!: string;
+}
 
 @ApiTags('Messaging (global)')
 @ApiBearerAuth()
@@ -24,6 +52,22 @@ export class GlobalMessagingController {
   @ApiResponse({ status: 202, description: 'Mensagem(ns) enfileirada(s)' })
   send(@Body() dto: SendMessageDto, @CurrentUser() user: AuthenticatedUser) {
     return this.manualSend.send(dto, user.id);
+  }
+
+  @Post('messaging/templates')
+  @HttpCode(201)
+  @ApiOperation({ summary: 'Criar template — eventId opcional' })
+  @ApiResponse({ status: 201, description: 'Template criado' })
+  createTemplate(@Body() dto: CreateGlobalTemplateDto) {
+    return this.prisma.messageTemplate.create({
+      data: {
+        eventId: dto.eventId ?? undefined,
+        name: dto.name,
+        channel: dto.channel as any,
+        subject: dto.subject,
+        body: dto.body,
+      },
+    });
   }
 
   @Get('templates')

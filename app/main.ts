@@ -50,7 +50,6 @@ async function bootstrap() {
       .addTag('Registrations', 'Inscrições e funil de aprovação')
       .addTag('Messaging', 'Envio manual e logs de mensagens')
       .addTag('Profile', 'Perfil do usuário autenticado')
-      .addTag('AI', 'Geração de conteúdo com Gemini')
       .addTag('Public', 'Endpoints públicos — sem autenticação')
       .build();
     const document = SwaggerModule.createDocument(app, config);
