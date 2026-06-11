@@ -6,9 +6,10 @@ const mockOutboxRepo = {
 
 const mockQueue = {
   add: jest.fn().mockResolvedValue({ id: 'job-1' }),
+  clean: jest.fn().mockResolvedValue([]),
 };
 
-const service = new OutboxService(mockOutboxRepo as any, mockQueue as any);
+const service = new OutboxService(mockOutboxRepo as any, mockQueue as any, mockQueue as any);
 
 const baseData = {
   eventId: 'evt-1',

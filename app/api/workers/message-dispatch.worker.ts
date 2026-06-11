@@ -5,6 +5,9 @@ import { PrismaService } from '@database/prisma/prisma.service';
 import { ResendAdapter } from '@database/integrations/resend.adapter';
 import { EvolutionAdapter } from '@database/integrations/evolution.adapter';
 import { QUEUE_MESSAGE_DISPATCH } from '@database/queue/bull-queues.module';
+import { IcsGeneratorService } from '@services/automations/ics-generator.service';
+
+const ICS_MARKER = '[[[ICS_INVITE]]]';
 
 // Concurrency anti-ban: 1 = serial (uma conta WhatsApp não dispara em paralelo).
 // Configurável via env; lido no carregamento do módulo (decorator).
@@ -19,6 +22,7 @@ export class MessageDispatchWorker extends WorkerHost {
     private readonly prisma: PrismaService,
     private readonly resend: ResendAdapter,
     private readonly evolution: EvolutionAdapter,
+    private readonly ics: IcsGeneratorService,
   ) {
     super();
   }
@@ -63,13 +67,37 @@ export class MessageDispatchWorker extends WorkerHost {
 
     try {
       if (outbox.channel === 'email') {
+        let body = outbox.renderedBody;
+        let icsContent: string | undefined;
+
+        if (body.includes(ICS_MARKER) && outbox.eventId) {
+          const event = await this.prisma.event.findUnique({
+            where: { id: outbox.eventId },
+            select: { title: true, eventDate: true, endDate: true, location: true },
+          });
+          if (event?.eventDate) {
+            icsContent = this.ics.generate({
+              title: event.title,
+              start: event.eventDate,
+              end: event.endDate ?? undefined,
+              location: event.location ?? undefined,
+            });
+          }
+          body = body.replace(ICS_MARKER, '');
+        }
+
         await this.resend.sendEmail(
           outbox.recipient,
           outbox.renderedSubject ?? 'Mensagem do evento',
-          outbox.renderedBody,
+          body,
+          icsContent,
         );
       } else {
-        const instancia = await this.resolveWhatsAppInstance(outbox.eventId, outbox.ownerId, outbox.instancia);
+        const instancia = await this.resolveWhatsAppInstance(
+          outbox.eventId,
+          outbox.ownerId,
+          outbox.instancia,
+        );
         if (!instancia) {
           throw new UnrecoverableError('WhatsApp message has no instancia configured');
         }

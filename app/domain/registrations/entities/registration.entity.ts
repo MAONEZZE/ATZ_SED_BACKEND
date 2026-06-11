@@ -7,11 +7,11 @@ export type FunnelStatus =
   | 'waitlist';
 
 const TRANSITIONS: Record<FunnelStatus, FunnelStatus[]> = {
-  pending: ['screening', 'approved', 'rejected', 'waitlist'],
-  screening: ['qualification', 'approved', 'rejected', 'waitlist'],
-  qualification: ['approved', 'rejected', 'waitlist'],
-  approved: [],
-  rejected: [],
+  pending: ['approved', 'rejected'],
+  screening: ['approved', 'rejected'],
+  qualification: ['approved', 'rejected'],
+  approved: ['pending', 'rejected'],
+  rejected: ['pending', 'approved'],
   waitlist: ['approved', 'rejected'],
 };
 

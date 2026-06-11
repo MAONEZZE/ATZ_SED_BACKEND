@@ -10,7 +10,13 @@ export class PublicRegistrationsController {
   @Post(':slug/registrations')
   @ApiOperation({ summary: 'Realizar inscrição em evento público' })
   @ApiParam({ name: 'slug', description: 'Slug do evento' })
-  @ApiBody({ schema: { type: 'object', additionalProperties: true, example: { name: 'João Silva', email: 'joao@email.com' } } })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      additionalProperties: true,
+      example: { name: 'João Silva', email: 'joao@email.com' },
+    },
+  })
   @ApiResponse({ status: 201, description: 'Inscrição criada' })
   @ApiResponse({ status: 404, description: 'Evento não encontrado ou não publicado' })
   create(@Param('slug') slug: string, @Body() answers: Record<string, unknown>) {

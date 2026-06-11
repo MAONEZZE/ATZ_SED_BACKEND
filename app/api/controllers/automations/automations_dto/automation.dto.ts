@@ -7,10 +7,22 @@ export class CreateAutomationDto {
   templateId!: string;
 
   @ApiProperty({
-    enum: ['on_registration', 'on_screening', 'on_qualification', 'on_approval', 'on_rejection', 'on_waitlist', 'before_event', 'after_event', 'after_approval'],
+    enum: [
+      'on_registration',
+      'on_approval',
+      'on_rejection',
+      'before_event',
+      'after_event',
+    ],
     example: 'on_registration',
   })
-  @IsEnum(['on_registration', 'on_screening', 'on_qualification', 'on_approval', 'on_rejection', 'on_waitlist', 'before_event', 'after_event', 'after_approval'])
+  @IsEnum([
+    'on_registration',
+    'on_approval',
+    'on_rejection',
+    'before_event',
+    'after_event',
+  ])
   trigger!: string;
 
   @ApiPropertyOptional({ example: 0, description: 'Minutos de delay após o trigger' })

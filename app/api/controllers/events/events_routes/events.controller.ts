@@ -110,7 +110,9 @@ export class EventsController {
   @ApiOperation({ summary: 'Upload de capa do evento' })
   @ApiParam({ name: 'id', description: 'UUID do evento' })
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiBody({
+    schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } },
+  })
   @ApiResponse({ status: 201, description: 'Capa enviada' })
   uploadCover(
     @Param('id') id: string,

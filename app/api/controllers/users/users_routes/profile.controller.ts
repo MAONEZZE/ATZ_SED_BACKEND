@@ -98,7 +98,9 @@ export class ProfileController {
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Upload de foto de perfil' })
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiBody({
+    schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } },
+  })
   @ApiResponse({ status: 201, description: 'Foto enviada' })
   async uploadPhoto(
     @CurrentUser() user: AuthenticatedUser,

@@ -44,7 +44,11 @@ describe('EvolutionAdapter.sendWhatsApp', () => {
   it('respeita o teto WA_TYPING_MAX_TOTAL_MS', async () => {
     const fetchFn = mockFetchOk();
     const adapter = new EvolutionAdapter(
-      makeConfig({ WA_TYPING_MIN_MS: 5000, WA_TYPING_MAX_MS: 5000, WA_TYPING_MAX_TOTAL_MS: 3000 }) as any,
+      makeConfig({
+        WA_TYPING_MIN_MS: 5000,
+        WA_TYPING_MAX_MS: 5000,
+        WA_TYPING_MAX_TOTAL_MS: 3000,
+      }) as any,
     );
     await adapter.sendWhatsApp('inst-1', '+5511999999999', 'oi');
     expect(lastBody(fetchFn).delay).toBe(3000);
@@ -61,6 +65,8 @@ describe('EvolutionAdapter.sendWhatsApp', () => {
     const fn = jest.fn().mockResolvedValue({ ok: false, status: 400, text: async () => 'bad' });
     (global as any).fetch = fn;
     const adapter = new EvolutionAdapter(makeConfig() as any);
-    await expect(adapter.sendWhatsApp('inst-1', '+55', 'oi')).rejects.toThrow('Evolution API error');
+    await expect(adapter.sendWhatsApp('inst-1', '+55', 'oi')).rejects.toThrow(
+      'Evolution API error',
+    );
   });
 });

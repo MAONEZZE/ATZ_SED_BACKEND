@@ -7,10 +7,30 @@ export class CreateFormFieldDto {
   label!: string;
 
   @ApiProperty({
-    enum: ['text', 'textarea', 'email', 'phone', 'select', 'multiselect', 'checkbox', 'image', 'date'],
+    enum: [
+      'text',
+      'textarea',
+      'email',
+      'phone',
+      'select',
+      'multiselect',
+      'checkbox',
+      'image',
+      'date',
+    ],
     example: 'text',
   })
-  @IsEnum(['text', 'textarea', 'email', 'phone', 'select', 'multiselect', 'checkbox', 'image', 'date'])
+  @IsEnum([
+    'text',
+    'textarea',
+    'email',
+    'phone',
+    'select',
+    'multiselect',
+    'checkbox',
+    'image',
+    'date',
+  ])
   type!: string;
 
   @ApiPropertyOptional({ example: true })

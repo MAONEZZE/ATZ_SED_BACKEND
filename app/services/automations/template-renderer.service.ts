@@ -46,6 +46,7 @@ export class TemplateRenderer {
       capacidade: event.capacity?.toString() ?? '',
       dress_code: event.dressCode ?? '',
       link_grupo: event.groupLink ?? '',
+      invite: '[[[ICS_INVITE]]]',
       ...extra,
     };
   }

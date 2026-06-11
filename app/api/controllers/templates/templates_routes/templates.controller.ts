@@ -11,7 +11,14 @@ import {
   Query,
   NotFoundException,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { PrismaService } from '@database/prisma/prisma.service';
@@ -28,7 +35,12 @@ export class TemplatesController {
   @Get()
   @ApiOperation({ summary: 'Listar templates do evento' })
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
-  @ApiQuery({ name: 'include', required: false, enum: ['automation'], description: 'Incluir regras de automação' })
+  @ApiQuery({
+    name: 'include',
+    required: false,
+    enum: ['automation'],
+    description: 'Incluir regras de automação',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Lista paginada de templates' })

@@ -10,6 +10,14 @@ export const QUEUE_SCHEDULED_AUTOMATIONS = 'scheduled-automations';
     BullModule.forRootAsync({
       useFactory: (config: ConfigService) => ({
         connection: { url: config.get<string>('REDIS_URL') },
+        defaultJobOptions: {},
+        settings: {
+          stalledInterval: 300_000,  // 5min (default: 30s)
+          maxStalledCount: 1,
+          lockDuration: 60_000,
+          lockRenewTime: 30_000,
+          drainDelay: 5_000,         // 5s idle poll (default: 5ms)
+        },
       }),
       inject: [ConfigService],
     }),

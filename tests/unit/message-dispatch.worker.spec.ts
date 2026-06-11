@@ -23,18 +23,22 @@ function makeMocks(row: unknown) {
     messageLog: {
       create: jest.fn().mockResolvedValue({}),
     },
+    event: {
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
   };
   const resend = { sendEmail: jest.fn().mockResolvedValue(undefined) };
   const evolution = { sendWhatsApp: jest.fn().mockResolvedValue(undefined) };
-  return { prisma, resend, evolution };
+  const ics = { generate: jest.fn().mockReturnValue('BEGIN:VCALENDAR') };
+  return { prisma, resend, evolution, ics };
 }
 
 describe('MessageDispatchWorker.process', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('resolves outbox by outboxId when present in job data', async () => {
-    const { prisma, resend, evolution } = makeMocks(outboxRow);
-    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any);
+    const { prisma, resend, evolution, ics } = makeMocks(outboxRow);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any, ics as any);
     await worker.process({ data: { outboxId: 'msg-1' } } as any);
     expect(prisma.outboxMessage.findUnique).toHaveBeenCalledWith({
       where: { id: 'msg-1' },
@@ -44,8 +48,8 @@ describe('MessageDispatchWorker.process', () => {
   });
 
   it('falls back to tuple lookup for legacy jobs without outboxId', async () => {
-    const { prisma, resend, evolution } = makeMocks(outboxRow);
-    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any);
+    const { prisma, resend, evolution, ics } = makeMocks(outboxRow);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any, ics as any);
     await worker.process({
       data: {
         registrationId: 'reg-1',
@@ -65,8 +69,8 @@ describe('MessageDispatchWorker.process', () => {
       templateId: null,
       trigger: 'manual',
     };
-    const { prisma, resend, evolution } = makeMocks(manualRow);
-    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any);
+    const { prisma, resend, evolution, ics } = makeMocks(manualRow);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any, ics as any);
     await worker.process({ data: { outboxId: 'msg-2' } } as any);
     expect(prisma.messageLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ registrationId: null, status: 'sent' }),
@@ -84,8 +88,8 @@ describe('MessageDispatchWorker.process', () => {
       trigger: 'manual',
       channel: 'email',
     };
-    const { prisma, resend, evolution } = makeMocks(globalRow);
-    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any);
+    const { prisma, resend, evolution, ics } = makeMocks(globalRow);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any, ics as any);
     await worker.process({ data: { outboxId: 'msg-3' } } as any);
     expect(prisma.messageLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ ownerId: 'user-1', eventId: null }),

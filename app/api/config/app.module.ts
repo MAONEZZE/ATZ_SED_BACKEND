@@ -14,7 +14,6 @@ import { EventsModule } from '../controllers/events/events.module';
 import { RegistrationsModule } from '../controllers/registrations/registrations.module';
 import { WorkersModule } from '../workers/workers.module';
 import { AutomationsModule } from '../controllers/automations/automations.module';
-import { AiFeatureModule } from '../controllers/ai/ai.module';
 import { MessagingModule } from '../controllers/messaging/messaging.module';
 import { TemplatesModule } from '../controllers/templates/templates.module';
 import { GlobalMessagingModule } from '../controllers/global-messaging/global-messaging.module';
@@ -45,7 +44,6 @@ import { PublicModule } from '../controllers/public/public.module';
     RegistrationsModule,
     WorkersModule,
     AutomationsModule,
-    AiFeatureModule,
     MessagingModule,
     TemplatesModule,
     GlobalMessagingModule,

@@ -256,7 +256,10 @@ describe('ManualSendService.send', () => {
   it('throws ForbiddenException when userId does not own event', async () => {
     const { service } = makeService();
     await expect(
-      service.send({ eventId: 'evt-1', channel: 'email', body: 'oi', registrationIds: ['reg-1'] }, 'other-user'),
+      service.send(
+        { eventId: 'evt-1', channel: 'email', body: 'oi', registrationIds: ['reg-1'] },
+        'other-user',
+      ),
     ).rejects.toThrow(ForbiddenException);
   });
 
@@ -357,7 +360,7 @@ describe('ManualSendService.send', () => {
     );
     expect(result.queued).toBe(4);
     expect(result.batches).toBe(2);
-    const delays = (outbox.enqueue as jest.Mock).mock.calls.map((c: any[]) => c[1]?.delayMs);
+    const delays = outbox.enqueue.mock.calls.map((c: any[]) => c[1]?.delayMs);
     expect(delays).toEqual([1000, 2000, 3000, 101000]);
   });
 
@@ -381,7 +384,7 @@ describe('ManualSendService.send', () => {
     );
     expect(result.queued).toBe(4);
     // Email não aplica batch delay — todos delayMs === 0
-    const delays = (outbox.enqueue as jest.Mock).mock.calls.map((c: any[]) => c[1]?.delayMs);
+    const delays = outbox.enqueue.mock.calls.map((c: any[]) => c[1]?.delayMs);
     expect(delays).toEqual([0, 0, 0, 0]);
   });
 });

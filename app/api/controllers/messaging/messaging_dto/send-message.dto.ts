@@ -1,4 +1,12 @@
-import { IsString, IsOptional, IsIn, IsArray, IsEmail, IsUUID, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsIn,
+  IsArray,
+  IsEmail,
+  IsUUID,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -19,7 +27,10 @@ export class ManualRecipientDto {
 }
 
 export class SendMessageDto {
-  @ApiPropertyOptional({ example: 'uuid-do-evento', description: 'Vincula disparo a um evento. Opcional.' })
+  @ApiPropertyOptional({
+    example: 'uuid-do-evento',
+    description: 'Vincula disparo a um evento. Opcional.',
+  })
   @IsOptional()
   @IsUUID()
   eventId?: string;
@@ -43,7 +54,10 @@ export class SendMessageDto {
   @IsString()
   body?: string;
 
-  @ApiPropertyOptional({ example: ['uuid-inscricao-1', 'uuid-inscricao-2'], description: 'Só válido com eventId.' })
+  @ApiPropertyOptional({
+    example: ['uuid-inscricao-1', 'uuid-inscricao-2'],
+    description: 'Só válido com eventId.',
+  })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })

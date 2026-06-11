@@ -4,9 +4,9 @@ import { FunnelStatus } from '@domain/registrations/entities/registration.entity
 
 export class UpdateRegistrationStatusDto {
   @ApiProperty({
-    enum: ['pending', 'screening', 'qualification', 'approved', 'rejected', 'waitlist'],
+    enum: ['pending', 'approved', 'rejected'],
     example: 'approved',
   })
-  @IsEnum(['pending', 'screening', 'qualification', 'approved', 'rejected', 'waitlist'])
+  @IsEnum(['pending', 'approved', 'rejected'])
   status!: FunnelStatus;
 }
