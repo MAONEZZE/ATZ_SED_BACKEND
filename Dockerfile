@@ -17,7 +17,8 @@ RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY app/database/prisma/schema.prisma ./app/database/prisma/schema.prisma
 
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=app/database/prisma/schema.prisma && node -r tsconfig-paths/register dist/main"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=app/database/prisma/schema.prisma && node -r tsconfig-paths/register dist/app/main"]
