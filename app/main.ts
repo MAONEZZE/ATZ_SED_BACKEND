@@ -1,3 +1,6 @@
+import { WebSocket } from 'ws';
+(globalThis as any).WebSocket ??= WebSocket;
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
