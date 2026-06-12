@@ -12,9 +12,4 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   evolutionInstance?: string;
-
-  @ApiPropertyOptional({ example: 'token-evolution-api' })
-  @IsOptional()
-  @IsString()
-  evolutionToken?: string;
 }

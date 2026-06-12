@@ -85,7 +85,6 @@ model Profile {
   email            String
   photoUrl         String?   @map("photo_url")
   evolutionInstance String?  @map("evolution_instance")
-  evolutionToken   String?   @map("evolution_token")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   events           Event[]

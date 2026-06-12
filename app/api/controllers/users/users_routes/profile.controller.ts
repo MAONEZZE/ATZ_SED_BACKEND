@@ -68,7 +68,6 @@ export class ProfileController {
       data: {
         ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.evolutionInstance !== undefined && { evolutionInstance: dto.evolutionInstance }),
-        ...(dto.evolutionToken !== undefined && { evolutionToken: dto.evolutionToken }),
       },
     });
   }
