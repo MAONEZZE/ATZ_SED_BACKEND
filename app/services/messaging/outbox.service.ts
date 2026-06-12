@@ -1,4 +1,4 @@
-import { Injectable, Inject, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import {
@@ -6,10 +6,7 @@ import {
   OutboxRepositoryPort,
   EnqueueMessageData,
 } from '@domain/messaging/ports/outbox-repository.port';
-import {
-  QUEUE_MESSAGE_DISPATCH,
-  QUEUE_SCHEDULED_AUTOMATIONS,
-} from '@database/queue/bull-queues.module';
+import { QUEUE_MESSAGE_DISPATCH } from '@database/queue/bull-queues.module';
 
 export interface EnqueueOptions {
   /** Atraso (ms) antes do job ficar disponível para o worker. Pacing anti-ban. */
@@ -17,25 +14,14 @@ export interface EnqueueOptions {
 }
 
 @Injectable()
-export class OutboxService implements OnApplicationBootstrap {
+export class OutboxService {
   private readonly logger = new Logger(OutboxService.name);
 
   constructor(
     @Inject(OUTBOX_REPOSITORY_PORT)
     private readonly outboxRepo: OutboxRepositoryPort,
     @InjectQueue(QUEUE_MESSAGE_DISPATCH) private readonly dispatchQueue: Queue,
-    @InjectQueue(QUEUE_SCHEDULED_AUTOMATIONS) private readonly automationsQueue: Queue,
   ) {}
-
-  async onApplicationBootstrap(): Promise<void> {
-    // Purge accumulated jobs from before removeOnComplete/removeOnFail were configured.
-    // Message status lives in Postgres — safe to clean completed jobs aggressively.
-    await this.dispatchQueue.clean(0, 10_000, 'completed');
-    await this.dispatchQueue.clean(86_400_000, 10_000, 'failed');
-    await this.automationsQueue.clean(0, 10_000, 'completed');
-    await this.automationsQueue.clean(86_400_000, 10_000, 'failed');
-    this.logger.log('Redis queue cleanup on bootstrap complete');
-  }
 
   async enqueue(data: EnqueueMessageData, opts?: EnqueueOptions): Promise<void> {
     // Legacy (automation) callers don't pass dedupKey — compute the historical tuple

@@ -9,7 +9,12 @@ export const QUEUE_SCHEDULED_AUTOMATIONS = 'scheduled-automations';
   imports: [
     BullModule.forRootAsync({
       useFactory: (config: ConfigService) => ({
-        connection: { url: config.get<string>('REDIS_URL') },
+        connection: {
+          url: config.get<string>('REDIS_URL'),
+          // Exigido pelo BullMQ p/ comandos blocking dos workers. Em Upstash evita
+          // retries/reconexões que inflam a contagem de comandos (e o custo).
+          maxRetriesPerRequest: null,
+        },
       }),
       inject: [ConfigService],
     }),
@@ -28,7 +33,9 @@ export const QUEUE_SCHEDULED_AUTOMATIONS = 'scheduled-automations';
         name: QUEUE_SCHEDULED_AUTOMATIONS,
         streams: { events: { maxLen: 200 } },
         defaultJobOptions: {
-          removeOnComplete: { age: 3600, count: 10 },
+          // Recorrente roda a cada 1-2min e não tem histórico útil (estado no Postgres).
+          // true = remove imediatamente ao completar; não acumula registros no Redis.
+          removeOnComplete: true,
           removeOnFail: { age: 86400, count: 50 },
         },
       },

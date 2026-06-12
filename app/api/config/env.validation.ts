@@ -43,6 +43,16 @@ const envSchema = z.object({
   MANUAL_BATCH_SIZE: z.coerce.number().int().positive().default(10),
   MANUAL_BATCH_MIN_DELAY_MS: z.coerce.number().int().nonnegative().default(3_600_000),
   MANUAL_BATCH_MAX_DELAY_MS: z.coerce.number().int().nonnegative().default(7_200_000),
+
+  // --- Redis / BullMQ tuning (custo Upstash = por comando) ---
+  // Intervalo do job recorrente de automações agendadas. Tolerâncias são 2h/24h,
+  // então 60s era exagero — 120s corta ~50% dos comandos de polling.
+  SCHEDULED_AUTOMATIONS_INTERVAL_MS: z.coerce.number().int().positive().default(120_000),
+  // Frequência do stalled-check dos workers. Maior = menos comandos Redis.
+  // Estado real vive no Postgres, então 10min é seguro.
+  QUEUE_STALLED_INTERVAL_MS: z.coerce.number().int().positive().default(600_000),
+  // Cron da limpeza periódica de filas (completed/failed/streams). Default: 04:00 diário.
+  REDIS_CLEANUP_CRON: z.string().default('0 4 * * *'),
 });
 
 export type Env = z.infer<typeof envSchema>;

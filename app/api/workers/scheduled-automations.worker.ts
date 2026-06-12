@@ -9,8 +9,12 @@ import { QUEUE_SCHEDULED_AUTOMATIONS } from '@database/queue/bull-queues.module'
 const TOLERANCE_BEFORE_MS = 2 * 60 * 60 * 1000; // 2h window
 const TOLERANCE_AFTER_MS = 24 * 60 * 60 * 1000; // 24h window
 
+// Id fixo do job scheduler. upsert por este id é idempotente (não duplica entre boots).
+const SCHEDULER_ID = 'scheduled-automations-recurring';
+
 @Processor(QUEUE_SCHEDULED_AUTOMATIONS, {
-  stalledInterval: 300_000,
+  // stalled-check menos frequente = menos comandos Redis (custo Upstash). Postgres é a verdade.
+  stalledInterval: Number(process.env.QUEUE_STALLED_INTERVAL_MS) || 600_000,
   lockDuration: 60_000,
   lockRenewTime: 30_000,
   drainDelay: 5_000,
@@ -28,16 +32,25 @@ export class ScheduledAutomationsWorker extends WorkerHost implements OnModuleIn
   }
 
   async onModuleInit(): Promise<void> {
-    // Register repeatable job: run every 60 seconds
-    await this.queue.add(
-      'check-scheduled',
-      {},
-      {
-        repeat: { every: 60_000 },
-        jobId: 'scheduled-automations-recurring',
-      },
+    const intervalMs = Number(process.env.SCHEDULED_AUTOMATIONS_INTERVAL_MS) || 120_000;
+
+    // Remove schedulers órfãos deixados por deploys antigos ou mudança de intervalo.
+    // Sem isso, cada `every` diferente cria uma key nova e a antiga vira lixo no Redis,
+    // podendo disparar o recorrente em duplicidade.
+    const existing = await this.queue.getJobSchedulers();
+    await Promise.all(
+      existing
+        .filter((s) => s.key !== SCHEDULER_ID)
+        .map((s) => this.queue.removeJobScheduler(s.key)),
     );
-    this.logger.log('Scheduled automations recurring job registered');
+
+    // upsert é idempotente: mesma key atualiza no lugar, sem criar duplicado.
+    await this.queue.upsertJobScheduler(
+      SCHEDULER_ID,
+      { every: intervalMs },
+      { name: 'check-scheduled' },
+    );
+    this.logger.log(`Scheduled automations recurring job registered (every ${intervalMs}ms)`);
   }
 
   async process(_job: Job): Promise<void> {
