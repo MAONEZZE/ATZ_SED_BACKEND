@@ -21,4 +21,4 @@ COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY app/database/prisma/schema.prisma ./app/database/prisma/schema.prisma
 
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=app/database/prisma/schema.prisma && node -r tsconfig-paths/register dist/app/main"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=app/database/prisma/schema.prisma && node dist/main"]
