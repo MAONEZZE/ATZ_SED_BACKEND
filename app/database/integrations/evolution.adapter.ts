@@ -34,11 +34,46 @@ export class EvolutionAdapter {
     return Math.min(base + textLength * this.typingPerChar, this.typingMaxTotal);
   }
 
-  async sendWhatsApp(instancia: string, to: string, body: string): Promise<void> {
+  /**
+   * Quebra o corpo em partes separadas por linha(s) em branco (`\n\n`).
+   * Colapsa múltiplas quebras, faz trim e descarta partes vazias.
+   * Sem `\n\n` → retorna uma única parte (corpo original tratado).
+   */
+  splitParts(body: string): string[] {
+    return body
+      .split(/\n\s*\n+/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+  }
+
+  /**
+   * Envia uma mensagem WhatsApp. Se o corpo contiver `\n\n`, é quebrado em
+   * várias mensagens enviadas em sequência (envio mais humanizado) — cada parte
+   * com seu próprio atraso de "digitando...".
+   *
+   * @param opts.startIndex  índice da primeira parte a enviar (retry pula entregues)
+   * @param opts.onPartSent  callback após cada parte entregue (persistir progresso)
+   */
+  async sendWhatsApp(
+    instancia: string,
+    to: string,
+    body: string,
+    opts?: { startIndex?: number; onPartSent?: (index: number) => void | Promise<void> },
+  ): Promise<void> {
+    const parts = this.splitParts(body);
+    const start = opts?.startIndex ?? 0;
+
+    for (let i = start; i < parts.length; i++) {
+      await this.sendPart(instancia, to, parts[i]);
+      if (opts?.onPartSent) await opts.onPartSent(i);
+    }
+  }
+
+  private async sendPart(instancia: string, to: string, text: string): Promise<void> {
     const url = `${this.baseUrl}/message/sendText/${instancia}`;
 
-    const delay = this.typingDelay(body.length);
-    const payload: { number: string; text: string; delay?: number } = { number: to, text: body };
+    const delay = this.typingDelay(text.length);
+    const payload: { number: string; text: string; delay?: number } = { number: to, text };
     if (delay > 0) payload.delay = delay;
 
     const response = await fetch(url, {

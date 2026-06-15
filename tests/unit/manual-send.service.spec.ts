@@ -24,7 +24,7 @@ const regJoao = {
 
 const template = {
   id: 'tmpl-1',
-  eventId: 'evt-1',
+  ownerId: 'user-1',
   channel: 'email',
   subject: 'Oi {{nome}}',
   body: 'Olá {{nome}}, bem-vindo ao {{evento}}!',

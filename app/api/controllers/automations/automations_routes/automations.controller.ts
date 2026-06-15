@@ -80,11 +80,11 @@ export class AutomationsController {
   @ApiResponse({ status: 201, description: 'Automação criada' })
   @ApiResponse({ status: 404, description: 'Template não encontrado no evento' })
   async create(@Param('eventId') eventId: string, @Body() dto: CreateAutomationDto) {
-    // Verify template belongs to this event
+    // Verify template exists
     const template = await this.prisma.messageTemplate.findFirst({
-      where: { id: dto.templateId, eventId },
+      where: { id: dto.templateId },
     });
-    if (!template) throw new NotFoundException('Template not found in this event');
+    if (!template) throw new NotFoundException('Template not found');
 
     return this.prisma.automationRule.create({
       data: {
@@ -114,9 +114,9 @@ export class AutomationsController {
 
     if (dto.templateId) {
       const template = await this.prisma.messageTemplate.findFirst({
-        where: { id: dto.templateId, eventId },
+        where: { id: dto.templateId },
       });
-      if (!template) throw new NotFoundException('Template not found in this event');
+      if (!template) throw new NotFoundException('Template not found');
     }
 
     return this.prisma.automationRule.update({

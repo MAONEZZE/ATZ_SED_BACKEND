@@ -1,5 +1,24 @@
-import { Controller, Get, Post, Body, HttpCode, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  HttpCode,
+  Query,
+  UseGuards,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiQuery,
+  ApiParam,
+} from '@nestjs/swagger';
 import { IsString, IsEnum, IsOptional, MinLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
@@ -11,11 +30,6 @@ import { SendMessageDto } from '../messaging/messaging_dto/send-message.dto';
 import { PaginationQueryDto, Paginated, paginationToSkip } from '@api/common/pagination';
 
 class CreateGlobalTemplateDto {
-  @ApiPropertyOptional({ example: 'uuid-do-evento' })
-  @IsOptional()
-  @IsString()
-  eventId?: string;
-
   @ApiProperty({ example: 'Confirmação de inscrição' })
   @IsString()
   @MinLength(1)
@@ -34,6 +48,30 @@ class CreateGlobalTemplateDto {
   @IsString()
   @MinLength(1)
   body!: string;
+}
+
+class UpdateGlobalTemplateDto {
+  @ApiPropertyOptional({ example: 'Confirmação de inscrição' })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  name?: string;
+
+  @ApiPropertyOptional({ enum: ['whatsapp', 'email'], example: 'email' })
+  @IsOptional()
+  @IsEnum(['whatsapp', 'email'])
+  channel?: string;
+
+  @ApiPropertyOptional({ example: 'Sua inscrição foi confirmada!' })
+  @IsOptional()
+  @IsString()
+  subject?: string;
+
+  @ApiPropertyOptional({ example: 'Olá {{name}}, sua inscrição foi confirmada.' })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  body?: string;
 }
 
 @ApiTags('Messaging (global)')
@@ -56,12 +94,12 @@ export class GlobalMessagingController {
 
   @Post('messaging/templates')
   @HttpCode(201)
-  @ApiOperation({ summary: 'Criar template — eventId opcional' })
+  @ApiOperation({ summary: 'Criar template' })
   @ApiResponse({ status: 201, description: 'Template criado' })
-  createTemplate(@Body() dto: CreateGlobalTemplateDto) {
+  createTemplate(@Body() dto: CreateGlobalTemplateDto, @CurrentUser() user: AuthenticatedUser) {
     return this.prisma.messageTemplate.create({
       data: {
-        eventId: dto.eventId ?? undefined,
+        ownerId: user.id,
         name: dto.name,
         channel: dto.channel as any,
         subject: dto.subject,
@@ -71,10 +109,10 @@ export class GlobalMessagingController {
   }
 
   @Get('templates')
-  @ApiOperation({ summary: 'Listar templates de todos os eventos do usuário' })
+  @ApiOperation({ summary: 'Listar templates do usuário' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({ status: 200, description: 'Lista paginada de templates com evento' })
+  @ApiResponse({ status: 200, description: 'Lista paginada de templates' })
   async findTemplates(
     @CurrentUser() user: AuthenticatedUser,
     @Query() pagination: PaginationQueryDto,
@@ -82,11 +120,10 @@ export class GlobalMessagingController {
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 20;
     const skip = paginationToSkip(page, limit);
-    const where = { event: { ownerId: user.id } };
+    const where = { ownerId: user.id };
     const [data, total] = await Promise.all([
       this.prisma.messageTemplate.findMany({
         where,
-        include: { event: { select: { id: true, title: true } } },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
@@ -94,6 +131,57 @@ export class GlobalMessagingController {
       this.prisma.messageTemplate.count({ where }),
     ]);
     return { data, total, page, limit };
+  }
+
+  @Get('templates/:id')
+  @ApiOperation({ summary: 'Buscar template por ID' })
+  @ApiParam({ name: 'id', description: 'UUID do template' })
+  @ApiResponse({ status: 200, description: 'Template encontrado' })
+  @ApiResponse({ status: 404, description: 'Template não encontrado' })
+  async findTemplate(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    const template = await this.prisma.messageTemplate.findFirst({
+      where: { id, ownerId: user.id },
+    });
+    if (!template) throw new NotFoundException('Template not found');
+    return template;
+  }
+
+  @Patch('templates/:id')
+  @ApiOperation({ summary: 'Atualizar template' })
+  @ApiParam({ name: 'id', description: 'UUID do template' })
+  @ApiResponse({ status: 200, description: 'Template atualizado' })
+  @ApiResponse({ status: 404, description: 'Template não encontrado' })
+  async updateTemplate(
+    @Param('id') id: string,
+    @Body() dto: UpdateGlobalTemplateDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const existing = await this.prisma.messageTemplate.findFirst({
+      where: { id, ownerId: user.id },
+    });
+    if (!existing) throw new NotFoundException('Template not found');
+    return this.prisma.messageTemplate.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.channel !== undefined && { channel: dto.channel as any }),
+        ...(dto.subject !== undefined && { subject: dto.subject }),
+        ...(dto.body !== undefined && { body: dto.body }),
+      },
+    });
+  }
+
+  @Delete('templates/:id')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Deletar template' })
+  @ApiParam({ name: 'id', description: 'UUID do template' })
+  @ApiResponse({ status: 204, description: 'Template deletado' })
+  async deleteTemplate(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    const existing = await this.prisma.messageTemplate.findFirst({
+      where: { id, ownerId: user.id },
+    });
+    if (!existing) throw new NotFoundException('Template not found');
+    await this.prisma.messageTemplate.delete({ where: { id } });
   }
 
   @Get('automations')

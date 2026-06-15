@@ -106,7 +106,18 @@ export class MessageDispatchWorker extends WorkerHost {
         if (!instancia) {
           throw new UnrecoverableError('WhatsApp message has no instancia configured');
         }
-        await this.evolution.sendWhatsApp(instancia, outbox.recipient, outbox.renderedBody);
+        // renderedBody fica inteiro no banco; o split em \n\n acontece só no envio
+        // (humanização). sentParts persiste o progresso para que um retry após
+        // falha parcial pule as partes já entregues — sem duplicar mensagens.
+        await this.evolution.sendWhatsApp(instancia, outbox.recipient, outbox.renderedBody, {
+          startIndex: outbox.sentParts,
+          onPartSent: async (index) => {
+            await this.prisma.outboxMessage.update({
+              where: { id: outbox.id },
+              data: { sentParts: index + 1 },
+            });
+          },
+        });
       }
 
       await this.prisma.outboxMessage.update({

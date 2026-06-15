@@ -16,7 +16,6 @@ import { RegistrationsModule } from '../controllers/registrations/registrations.
 import { WorkersModule } from '../workers/workers.module';
 import { AutomationsModule } from '../controllers/automations/automations.module';
 import { MessagingModule } from '../controllers/messaging/messaging.module';
-import { TemplatesModule } from '../controllers/templates/templates.module';
 import { GlobalMessagingModule } from '../controllers/global-messaging/global-messaging.module';
 import { UsersModule } from '../controllers/users/users.module';
 import { PublicModule } from '../controllers/public/public.module';
@@ -47,7 +46,6 @@ import { PublicModule } from '../controllers/public/public.module';
     WorkersModule,
     AutomationsModule,
     MessagingModule,
-    TemplatesModule,
     GlobalMessagingModule,
     UsersModule,
     PublicModule,

@@ -97,10 +97,7 @@ export class ManualSendService {
     } | null = null;
     if (input.templateId) {
       template = await this.prisma.messageTemplate.findFirst({
-        where: {
-          id: input.templateId,
-          ...(input.eventId ? { eventId: input.eventId } : {}),
-        },
+        where: { id: input.templateId, ownerId: userId },
       });
       if (!template) throw new NotFoundException('Template not found');
       if (template.channel !== input.channel) {

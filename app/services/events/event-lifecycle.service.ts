@@ -37,7 +37,7 @@ export class EventLifecycleService {
   async duplicate(eventId: string, ownerId: string): Promise<EventEntity> {
     const source = await this.prisma.event.findUnique({
       where: { id: eventId },
-      include: { formFields: true, templates: true, automationRules: true },
+      include: { formFields: true, automationRules: true },
     });
     if (!source) throw new NotFoundException('Event not found');
 
@@ -72,27 +72,12 @@ export class EventLifecycleService {
       },
     });
 
-    // 2. Copy templates one-by-one to capture new IDs for automation remapping
-    const templateMap = new Map<string, string>();
-    for (const t of source.templates) {
-      const newTemplate = await this.prisma.messageTemplate.create({
-        data: {
-          eventId: newEvent.id,
-          name: t.name,
-          channel: t.channel,
-          subject: t.subject,
-          body: t.body,
-        },
-      });
-      templateMap.set(t.id, newTemplate.id);
-    }
-
-    // 3. Copy automations with remapped templateId
+    // 2. Copy automations — templates are owner-global and shared, so reuse templateId
     if (source.automationRules.length > 0) {
       await this.prisma.automationRule.createMany({
         data: source.automationRules.map((a) => ({
           eventId: newEvent.id,
-          templateId: templateMap.get(a.templateId) ?? a.templateId,
+          templateId: a.templateId,
           trigger: a.trigger,
           delayMinutes: a.delayMinutes ?? undefined,
           active: a.active,
@@ -110,7 +95,7 @@ export class EventLifecycleService {
     });
 
     const template = await this.prisma.messageTemplate.findFirst({
-      where: { eventId: event.id },
+      where: { ownerId: event.ownerId },
     });
 
     if (!template) {
