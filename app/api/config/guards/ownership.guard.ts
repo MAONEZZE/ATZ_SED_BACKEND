@@ -10,8 +10,6 @@ import {
 import { PrismaService } from '@database/prisma/prisma.service';
 import { AuthenticatedUser } from '@domain/users/entities/authenticated-user.entity';
 
-// Ensures the authenticated organizer owns the event (:eventId or :id param).
-// Admin role bypasses. Requires JwtAuthGuard to have run first.
 @Injectable()
 export class OwnershipGuard implements CanActivate {
   private readonly logger = new Logger(OwnershipGuard.name);
@@ -30,8 +28,6 @@ export class OwnershipGuard implements CanActivate {
     const eventId = params['eventId'] ?? params['id'];
     if (!eventId) return true;
 
-    // Prisma may not be available until Task 4 (schema migration).
-    // Once available, this guard fully enforces event ownership.
     const prismaEvent = (this.prisma as any)['event'];
     if (!prismaEvent?.findUnique) {
       this.logger.warn(

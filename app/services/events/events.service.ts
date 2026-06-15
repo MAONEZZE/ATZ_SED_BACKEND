@@ -84,7 +84,6 @@ export class EventsService {
     if (!event.isEditable()) {
       throw new ForbiddenException('Cancelled events cannot be edited');
     }
-    // Validate against the merged period (patch value wins over stored value)
     this.assertValidPeriod(input.eventDate ?? event.eventDate, input.endDate ?? event.endDate);
     return this.eventRepo.update(id, input);
   }
@@ -117,13 +116,10 @@ export class EventsService {
     if (event.coverUrl) {
       const bucket = this.config.get<string>('SUPABASE_STORAGE_BUCKET') ?? 'ATZ_SED';
       const folder = this.config.get<string>('SUPABASE_STORAGE_BUCKET_COVERS') ?? 'event-covers';
-      // Same path convention as uploadCover — don't parse the public URL
       const path = `${folder}/${id}/cover`;
       try {
         await this.storage.delete(bucket, path);
-      } catch {
-        // Missing object must not block clearing the URL
-      }
+      } catch {}
     }
     return this.eventRepo.update(id, { coverUrl: null });
   }

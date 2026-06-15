@@ -80,7 +80,6 @@ export class AutomationsController {
   @ApiResponse({ status: 201, description: 'Automação criada' })
   @ApiResponse({ status: 404, description: 'Template não encontrado no evento' })
   async create(@Param('eventId') eventId: string, @Body() dto: CreateAutomationDto) {
-    // Verify template exists
     const template = await this.prisma.messageTemplate.findFirst({
       where: { id: dto.templateId },
     });

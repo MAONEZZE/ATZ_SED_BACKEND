@@ -98,7 +98,6 @@ export class PrismaEventRepository implements EventRepositoryPort {
         const row = await this.prisma.event.create({ data: { ...data, slug } });
         return this.map(row);
       } catch (err: any) {
-        // P2002: unique constraint violation — slug collision, retry
         if (err?.code === 'P2002' && attempt < MAX_RETRIES - 1) continue;
         throw err;
       }

@@ -1,19 +1,6 @@
-export type FunnelStatus =
-  | 'pending'
-  | 'screening'
-  | 'qualification'
-  | 'approved'
-  | 'rejected'
-  | 'waitlist';
+export type FunnelStatus = 'pending' | 'approved' | 'rejected';
 
-const TRANSITIONS: Record<FunnelStatus, FunnelStatus[]> = {
-  pending: ['approved', 'rejected'],
-  screening: ['approved', 'rejected'],
-  qualification: ['approved', 'rejected'],
-  approved: ['pending', 'rejected'],
-  rejected: ['pending', 'approved'],
-  waitlist: ['approved', 'rejected'],
-};
+export const FUNNEL_STATUSES: FunnelStatus[] = ['pending', 'approved', 'rejected'];
 
 export class RegistrationEntity {
   constructor(
@@ -29,6 +16,6 @@ export class RegistrationEntity {
   ) {}
 
   canTransitionTo(next: FunnelStatus): boolean {
-    return TRANSITIONS[this.status].includes(next);
+    return FUNNEL_STATUSES.includes(next);
   }
 }

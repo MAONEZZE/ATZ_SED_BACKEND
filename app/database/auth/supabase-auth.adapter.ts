@@ -16,8 +16,6 @@ export class SupabaseAuthAdapter implements AuthPort {
   }
 
   async verifyToken(token: string): Promise<AuthenticatedUser> {
-    // Valida via API do Supabase — independe do algoritmo de assinatura
-    // (projetos novos emitem ES256; jwt.verify local com HS256 quebrava).
     const { data, error } = await this.supabase.auth.getUser(token);
     if (error || !data.user) {
       throw new UnauthorizedException('Invalid or expired token');

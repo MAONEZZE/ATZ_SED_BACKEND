@@ -225,7 +225,6 @@ export class GlobalMessagingController {
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 20;
     const skip = paginationToSkip(page, limit);
-    // OR: logs tied to user's events + global sends (ownerId set, no eventId)
     const where = {
       OR: [{ event: { ownerId: user.id } }, { ownerId: user.id }],
     };

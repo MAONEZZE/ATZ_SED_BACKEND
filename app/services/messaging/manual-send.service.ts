@@ -175,7 +175,6 @@ export class ManualSendService {
     let queued = 0;
 
     for (let bi = 0; bi < batches.length; bi++) {
-      // Each wave beyond the first waits a random 1–2h window (WhatsApp only)
       if (isWhatsapp && bi > 0) {
         batchDelayCursor += randomInt(batchMinDelay, batchMaxDelay + 1);
       }

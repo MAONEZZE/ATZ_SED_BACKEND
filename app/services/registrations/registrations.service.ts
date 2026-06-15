@@ -26,8 +26,6 @@ export class RegistrationsService {
       throw new BadRequestException('Event is not accepting registrations');
     }
 
-    // Sem campos fixos obrigatórios: extrai nome/email/telefone das respostas
-    // por chave canônica quando presentes (best-effort), mas não bloqueia.
     const name = this.extractString(answers, ['nome', 'name']);
     const email = this.extractString(answers, ['email']);
     const phone = this.extractString(answers, ['telefone', 'phone']);
@@ -112,8 +110,12 @@ export class RegistrationsService {
       }
     }
 
-    const updateData: { answers: Record<string, unknown>; name?: string; email?: string; phone?: string } =
-      { answers };
+    const updateData: {
+      answers: Record<string, unknown>;
+      name?: string;
+      email?: string;
+      phone?: string;
+    } = { answers };
 
     for (const f of formFields.filter((f) => f.isFixed)) {
       const raw = answers[f.label];

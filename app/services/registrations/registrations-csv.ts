@@ -48,6 +48,5 @@ export function buildRegistrationsCsv(
     return [...fixed, ...dynamic].map(escapeCell).join(',');
   });
 
-  // BOM so Excel opens UTF-8 correctly
   return '﻿' + [header.map(escapeCell).join(','), ...rows].join('\n');
 }

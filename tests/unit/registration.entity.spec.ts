@@ -1,6 +1,10 @@
-import { RegistrationEntity } from '@domain/registrations/entities/registration.entity';
+import {
+  RegistrationEntity,
+  FUNNEL_STATUSES,
+  FunnelStatus,
+} from '@domain/registrations/entities/registration.entity';
 
-const make = (status: any) =>
+const make = (status: FunnelStatus) =>
   new RegistrationEntity(
     'id',
     'ev',
@@ -14,33 +18,19 @@ const make = (status: any) =>
   );
 
 describe('RegistrationEntity.canTransitionTo', () => {
-  it('pending → screening: allowed', () =>
-    expect(make('pending').canTransitionTo('screening')).toBe(true));
-  it('pending → approved: allowed', () =>
-    expect(make('pending').canTransitionTo('approved')).toBe(true));
-  it('pending → rejected: allowed', () =>
-    expect(make('pending').canTransitionTo('rejected')).toBe(true));
-  it('pending → waitlist: allowed', () =>
-    expect(make('pending').canTransitionTo('waitlist')).toBe(true));
-  it('screening → qualification: allowed', () =>
-    expect(make('screening').canTransitionTo('qualification')).toBe(true));
-  it('qualification → approved: allowed', () =>
-    expect(make('qualification').canTransitionTo('approved')).toBe(true));
-  it('qualification → pending: NOT allowed', () =>
-    expect(make('qualification').canTransitionTo('pending')).toBe(false));
-  it('approved → anywhere: NOT allowed', () => {
-    expect(make('approved').canTransitionTo('rejected')).toBe(false);
-    expect(make('approved').canTransitionTo('pending')).toBe(false);
-    expect(make('approved').canTransitionTo('waitlist')).toBe(false);
+  it('has exactly 3 statuses', () =>
+    expect(FUNNEL_STATUSES).toEqual(['pending', 'approved', 'rejected']));
+
+  it('allows every transition between the 3 statuses (incl. going back)', () => {
+    for (const from of FUNNEL_STATUSES) {
+      for (const to of FUNNEL_STATUSES) {
+        expect(make(from).canTransitionTo(to)).toBe(true);
+      }
+    }
   });
-  it('rejected → anywhere: NOT allowed', () => {
-    expect(make('rejected').canTransitionTo('approved')).toBe(false);
-    expect(make('rejected').canTransitionTo('pending')).toBe(false);
-  });
-  it('waitlist → approved: allowed', () =>
-    expect(make('waitlist').canTransitionTo('approved')).toBe(true));
-  it('waitlist → rejected: allowed', () =>
-    expect(make('waitlist').canTransitionTo('rejected')).toBe(true));
-  it('waitlist → pending: NOT allowed', () =>
-    expect(make('waitlist').canTransitionTo('pending')).toBe(false));
+
+  it('rejects an unknown status', () =>
+    expect(make('pending').canTransitionTo('screening' as FunnelStatus)).toBe(
+      false,
+    ));
 });

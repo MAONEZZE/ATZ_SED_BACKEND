@@ -44,7 +44,6 @@ export class EventLifecycleService {
     const suffix = randomBytes(3).toString('hex').toUpperCase();
     const newSlug = EventEntity.generateSlug(`${source.title} copia`, suffix);
 
-    // 1. Create event + form fields
     const newEvent = await this.prisma.event.create({
       data: {
         ownerId,
@@ -72,7 +71,6 @@ export class EventLifecycleService {
       },
     });
 
-    // 2. Copy automations — templates are owner-global and shared, so reuse templateId
     if (source.automationRules.length > 0) {
       await this.prisma.automationRule.createMany({
         data: source.automationRules.map((a) => ({
@@ -91,7 +89,7 @@ export class EventLifecycleService {
 
   private async notifyCancellation(event: EventEntity): Promise<void> {
     const registrations = await this.prisma.registration.findMany({
-      where: { eventId: event.id, status: { in: ['approved', 'pending', 'waitlist'] } },
+      where: { eventId: event.id, status: { in: ['approved', 'pending'] } },
     });
 
     const template = await this.prisma.messageTemplate.findFirst({

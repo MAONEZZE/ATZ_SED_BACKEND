@@ -23,11 +23,8 @@ enum EventStatus {
 
 enum FunnelStatus {
   pending
-  screening
-  qualification
   approved
   rejected
-  waitlist
 
   @@schema("ATZ_SED")
 }
@@ -55,11 +52,8 @@ enum MessageChannel {
 
 enum AutomationTrigger {
   on_registration
-  on_screening
-  on_qualification
   on_approval
   on_rejection
-  on_waitlist
   before_event
   after_event
   after_approval

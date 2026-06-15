@@ -26,7 +26,7 @@ export class RegistrationsController {
   @Get()
   @ApiOperation({ summary: 'Listar inscrições do evento' })
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
-  @ApiQuery({ name: 'status', required: false, enum: ['pending', 'screening', 'qualification', 'approved', 'rejected', 'waitlist'] })
+  @ApiQuery({ name: 'status', required: false, enum: ['pending', 'approved', 'rejected'] })
   @ApiQuery({ name: 'search', required: false, description: 'Busca por nome ou email' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -52,7 +52,7 @@ export class RegistrationsController {
   @Get('export')
   @ApiOperation({ summary: 'Exportar inscrições em CSV' })
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
-  @ApiQuery({ name: 'status', required: false, enum: ['pending', 'screening', 'qualification', 'approved', 'rejected', 'waitlist'] })
+  @ApiQuery({ name: 'status', required: false, enum: ['pending', 'approved', 'rejected'] })
   @ApiQuery({ name: 'search', required: false })
   @ApiResponse({ status: 200, description: 'Arquivo CSV', content: { 'text/csv': {} } })
   async exportCsv(

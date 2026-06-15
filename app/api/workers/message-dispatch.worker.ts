@@ -9,11 +9,8 @@ import { IcsGeneratorService } from '@services/automations/ics-generator.service
 
 const ICS_MARKER = '[[[ICS_INVITE]]]';
 
-// Concurrency anti-ban: 1 = serial (uma conta WhatsApp não dispara em paralelo).
-// Configurável via env; lido no carregamento do módulo (decorator).
 @Processor(QUEUE_MESSAGE_DISPATCH, {
   concurrency: Number(process.env.WA_DISPATCH_CONCURRENCY) || 1,
-  // stalled-check menos frequente = menos comandos Redis (custo Upstash). Postgres é a verdade.
   stalledInterval: Number(process.env.QUEUE_STALLED_INTERVAL_MS) || 600_000,
   lockDuration: 60_000,
   lockRenewTime: 30_000,
@@ -42,8 +39,7 @@ export class MessageDispatchWorker extends WorkerHost {
 
     const outbox = outboxId
       ? await this.prisma.outboxMessage.findUnique({ where: { id: outboxId } })
-      : // Legacy jobs enqueued before outboxId existed in the payload
-        await this.prisma.outboxMessage.findFirst({
+      : await this.prisma.outboxMessage.findFirst({
           where: {
             registrationId,
             templateId,
@@ -106,9 +102,6 @@ export class MessageDispatchWorker extends WorkerHost {
         if (!instancia) {
           throw new UnrecoverableError('WhatsApp message has no instancia configured');
         }
-        // renderedBody fica inteiro no banco; o split em \n\n acontece só no envio
-        // (humanização). sentParts persiste o progresso para que um retry após
-        // falha parcial pule as partes já entregues — sem duplicar mensagens.
         await this.evolution.sendWhatsApp(instancia, outbox.recipient, outbox.renderedBody, {
           startIndex: outbox.sentParts,
           onPartSent: async (index) => {

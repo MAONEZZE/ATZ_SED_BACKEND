@@ -16,7 +16,6 @@ async function bootstrap() {
 
   app.useLogger(app.get(Logger));
 
-  // CSP do helmet bloqueia os scripts inline do Swagger UI — relaxar só em dev
   app.use(
     helmet({
       contentSecurityPolicy: process.env.ENVIROMENT === 'dev' ? false : undefined,
@@ -39,7 +38,6 @@ async function bootstrap() {
 
   app.useGlobalFilters(new GlobalExceptionFilter());
 
-  // Swagger disponível apenas em ambiente de desenvolvimento
   if (process.env.ENVIROMENT === 'dev') {
     const config = new DocumentBuilder()
       .setTitle('SED API')

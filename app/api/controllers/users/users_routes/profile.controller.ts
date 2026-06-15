@@ -83,8 +83,6 @@ export class ProfileController {
 
     return this.prisma.profile.create({
       data: {
-        // id = auth uid: Event.ownerId (FK → Profile.id) recebe user.id nos
-        // controllers e o OwnershipGuard compara com user.id — precisam bater.
         id: user.id,
         userId: user.id,
         name: user.email.split('@')[0],
@@ -139,13 +137,10 @@ export class ProfileController {
       const bucket = this.config.get<string>('SUPABASE_STORAGE_BUCKET') ?? 'ATZ_SED';
       const folder =
         this.config.get<string>('SUPABASE_STORAGE_BUCKET_PROFILE_PHOTOS') ?? 'profile-photo';
-      // Mesma convenção de path do upload — não parsear a URL pública
       const path = `${folder}/${profile.id}/photo`;
       try {
         await this.storage.delete(bucket, path);
-      } catch {
-        // Objeto ausente não deve impedir limpar a URL
-      }
+      } catch {}
     }
 
     return this.prisma.profile.update({

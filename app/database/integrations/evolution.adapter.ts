@@ -23,22 +23,12 @@ export class EvolutionAdapter {
     this.typingMaxTotal = config.get<number>('WA_TYPING_MAX_TOTAL_MS') ?? 15000;
   }
 
-  /**
-   * Atraso de "digitando..." simulado. Evolution v2 mostra presença 'composing'
-   * pelo tempo de `delay` antes de enviar — reduz padrão robótico (anti-ban).
-   * Aleatório dentro da janela + proporcional ao texto, limitado por um teto.
-   */
   private typingDelay(textLength: number): number {
     if (!this.typingEnabled) return 0;
     const base = randomInt(this.typingMin, this.typingMax + 1);
     return Math.min(base + textLength * this.typingPerChar, this.typingMaxTotal);
   }
 
-  /**
-   * Quebra o corpo em partes separadas por linha(s) em branco (`\n\n`).
-   * Colapsa múltiplas quebras, faz trim e descarta partes vazias.
-   * Sem `\n\n` → retorna uma única parte (corpo original tratado).
-   */
   splitParts(body: string): string[] {
     return body
       .split(/\n\s*\n+/)
@@ -46,14 +36,6 @@ export class EvolutionAdapter {
       .filter((p) => p.length > 0);
   }
 
-  /**
-   * Envia uma mensagem WhatsApp. Se o corpo contiver `\n\n`, é quebrado em
-   * várias mensagens enviadas em sequência (envio mais humanizado) — cada parte
-   * com seu próprio atraso de "digitando...".
-   *
-   * @param opts.startIndex  índice da primeira parte a enviar (retry pula entregues)
-   * @param opts.onPartSent  callback após cada parte entregue (persistir progresso)
-   */
   async sendWhatsApp(
     instancia: string,
     to: string,

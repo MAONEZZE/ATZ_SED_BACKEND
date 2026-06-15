@@ -8,11 +8,8 @@ import { RegistrationStatusChanged } from '@domain/registrations/entities/regist
 
 const TRIGGER_MAP: Partial<Record<string, string>> = {
   pending: 'on_registration',
-  screening: 'on_screening',
-  qualification: 'on_qualification',
   approved: 'on_approval',
   rejected: 'on_rejection',
-  waitlist: 'on_waitlist',
 };
 
 @Injectable()
@@ -48,7 +45,7 @@ export class AutomationEngine {
 
         trigger: trigger as any,
         active: true,
-        delayMinutes: null, // non-scheduled rules only
+        delayMinutes: null,
       },
       include: { template: true },
     });
@@ -120,7 +117,6 @@ export class AutomationEngine {
         renderedSubject,
       });
 
-      // ICS generation confirmed but attachment handled by ResendAdapter in a future task
       void icsContent;
     }
   }
