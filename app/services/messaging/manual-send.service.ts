@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHash, randomInt } from 'crypto';
+import { randomBytes, randomInt } from 'crypto';
 import { PrismaService } from '@database/prisma/prisma.service';
 import { EventsService } from '@services/events/events.service';
 import { OutboxService } from '@services/messaging/outbox.service';
@@ -196,9 +196,11 @@ export class ManualSendService {
           ? this.renderer.render(subjectSource, variables)
           : undefined;
 
-        const hash = createHash('sha1').update(renderedBody).digest('hex');
+        // Envio manual é sempre único: sufixo aleatório evita que reenvios da
+        // mesma mensagem ao mesmo destinatário sejam deduplicados pela fila
+        // (o jobId do BullMQ é o dedupKey). Automações mantêm idempotência.
         const eventPrefix = input.eventId ?? 'global';
-        const dedupKey = `manual:${eventPrefix}:${target}:${hash}`;
+        const dedupKey = `manual:${eventPrefix}:${target}:${randomBytes(16).toString('hex')}`;
 
         await this.outbox.enqueue(
           {
