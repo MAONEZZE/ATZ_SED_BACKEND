@@ -35,7 +35,11 @@ describe('PrismaRegistrationRepository post-event', () => {
 
   it('upserts the post-event response keyed by registrationId', async () => {
     const { repo, prisma } = makeRepo();
-    await repo.upsertPostEventResponse({ eventId: 'evt-1', registrationId: 'r1', answers: { q: 'a' } });
+    await repo.upsertPostEventResponse({
+      eventId: 'evt-1',
+      registrationId: 'r1',
+      answers: { q: 'a' },
+    });
     expect(prisma.postEventResponse.upsert).toHaveBeenCalledWith({
       where: { registrationId: 'r1' },
       create: { eventId: 'evt-1', registrationId: 'r1', answers: { q: 'a' } },

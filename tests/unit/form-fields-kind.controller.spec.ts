@@ -16,7 +16,7 @@ describe('FormFieldsController kind support', () => {
 
   it('default kind registration on create when omitted', async () => {
     const { ctrl, prisma } = makeController();
-    await ctrl.create('evt-1', { label: 'Nome', type: 'text' } as any);
+    await ctrl.create('evt-1', { label: 'Nome', type: 'text' });
     expect(prisma.formField.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ kind: 'registration' }) }),
     );
@@ -32,7 +32,7 @@ describe('FormFieldsController kind support', () => {
 
   it('filters findAll by kind when given', async () => {
     const { ctrl, prisma } = makeController();
-    await ctrl.findAll('evt-1', {} as any, 'post_event' as any);
+    await ctrl.findAll('evt-1', {}, 'post_event');
     expect(prisma.formField.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { eventId: 'evt-1', kind: 'post_event' } }),
     );

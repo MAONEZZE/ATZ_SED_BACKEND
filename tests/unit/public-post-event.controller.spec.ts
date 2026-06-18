@@ -8,7 +8,11 @@ function make() {
     },
   };
   const registrations = { submitPostEvent: jest.fn().mockResolvedValue(undefined) };
-  return { ctrl: new PublicPostEventController(registrations as any, prisma as any), prisma, registrations };
+  return {
+    ctrl: new PublicPostEventController(registrations as any, prisma as any),
+    prisma,
+    registrations,
+  };
 }
 
 describe('PublicPostEventController.submit', () => {
@@ -16,7 +20,7 @@ describe('PublicPostEventController.submit', () => {
 
   it('loads post_event fields and forwards to the service', async () => {
     const { ctrl, prisma, registrations } = make();
-    await ctrl.submit('slug-1', { identifier: 'a@b.com', answers: { Nota: '10' } } as any);
+    await ctrl.submit('slug-1', { identifier: 'a@b.com', answers: { Nota: '10' } });
     expect(prisma.formField.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { event: { slug: 'slug-1' }, kind: 'post_event' } }),
     );

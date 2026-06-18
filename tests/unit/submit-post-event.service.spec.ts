@@ -43,23 +43,23 @@ describe('RegistrationsService.submitPostEvent', () => {
 
   it('rejects event not published/ended', async () => {
     const { svc } = make('draft');
-    await expect(svc.submitPostEvent('slug-1', 'a@b.com', { Nota: '10' }, FIELDS)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      svc.submitPostEvent('slug-1', 'a@b.com', { Nota: '10' }, FIELDS),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('404 when no matching registration', async () => {
     const { svc } = make('ended', null);
-    await expect(svc.submitPostEvent('slug-1', 'a@b.com', { Nota: '10' }, FIELDS)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      svc.submitPostEvent('slug-1', 'a@b.com', { Nota: '10' }, FIELDS),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('404 when identifier resolves to empty contact', async () => {
     const { svc, regRepo } = make();
-    await expect(svc.submitPostEvent('slug-1', 'abc', { Nota: '10' }, FIELDS)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      svc.submitPostEvent('slug-1', 'abc', { Nota: '10' }, FIELDS),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(regRepo.findByEventAndContact).not.toHaveBeenCalled();
   });
 
