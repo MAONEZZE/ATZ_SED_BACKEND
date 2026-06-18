@@ -29,6 +29,13 @@ enum FunnelStatus {
   @@schema("ATZ_SED")
 }
 
+enum FormFieldKind {
+  registration
+  post_event
+
+  @@schema("ATZ_SED")
+}
+
 enum FieldType {
   text
   textarea
@@ -112,6 +119,7 @@ model Event {
   owner             Profile         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   formFields        FormField[]
   registrations     Registration[]
+  postEventResponses PostEventResponse[]
   automationRules   AutomationRule[]
   outboxMessages    OutboxMessage[]
   messageLogs       MessageLog[]
@@ -130,10 +138,11 @@ model FormField {
   options   Json?
   order     Int       @default(0)
   isFixed   Boolean   @default(false) @map("is_fixed")
+  kind      FormFieldKind @default(registration)
   createdAt DateTime  @default(now()) @map("created_at")
   event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@index([eventId])
+  @@index([eventId, kind])
   @@map("form_fields")
   @@schema("ATZ_SED")
 }
@@ -151,9 +160,26 @@ model Registration {
   event          Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
   outboxMessages OutboxMessage[]
   messageLogs    MessageLog[]
+  postEventResponse PostEventResponse?
 
   @@index([eventId, status])
   @@map("registrations")
+  @@schema("ATZ_SED")
+}
+
+model PostEventResponse {
+  id             String       @id @default(uuid())
+  eventId        String       @map("event_id")
+  registrationId String       @map("registration_id")
+  answers        Json
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  event          Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  registration   Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  @@unique([registrationId])
+  @@index([eventId])
+  @@map("post_event_responses")
   @@schema("ATZ_SED")
 }
 
