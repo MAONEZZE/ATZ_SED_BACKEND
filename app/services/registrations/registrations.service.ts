@@ -144,6 +144,10 @@ export class RegistrationsService {
       ? { email: id.toLowerCase() }
       : { phone: id.replace(/\D/g, '') };
 
+    if (!contact.email && !contact.phone) {
+      throw new NotFoundException('Inscrição não encontrada');
+    }
+
     const reg = await this.regRepo.findByEventAndContact(event.id, contact);
     if (!reg) throw new NotFoundException('Inscrição não encontrada');
 

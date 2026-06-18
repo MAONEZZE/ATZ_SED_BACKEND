@@ -55,6 +55,14 @@ describe('RegistrationsService.submitPostEvent', () => {
     );
   });
 
+  it('404 when identifier resolves to empty contact', async () => {
+    const { svc, regRepo } = make();
+    await expect(svc.submitPostEvent('slug-1', 'abc', { Nota: '10' }, FIELDS)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(regRepo.findByEventAndContact).not.toHaveBeenCalled();
+  });
+
   it('400 when a required post-event field is missing', async () => {
     const { svc } = make();
     await expect(svc.submitPostEvent('slug-1', 'a@b.com', {}, FIELDS)).rejects.toBeInstanceOf(
