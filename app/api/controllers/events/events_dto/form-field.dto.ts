@@ -47,6 +47,11 @@ export class CreateFormFieldDto {
   @IsInt()
   @Min(0)
   order?: number;
+
+  @ApiPropertyOptional({ enum: ['registration', 'post_event'], example: 'registration' })
+  @IsOptional()
+  @IsEnum(['registration', 'post_event'])
+  kind?: 'registration' | 'post_event';
 }
 
 export class UpdateFormFieldDto extends PartialType(

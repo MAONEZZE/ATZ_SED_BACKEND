@@ -73,11 +73,21 @@ export class ManualSendService {
       groupLink: string | null;
     } | null = null;
 
+    // Atribuição da mensagem fica sempre com o dono do evento (resolve a instância
+    // Evolution e os logs). Sem evento, atribui ao próprio remetente.
+    let attributionOwnerId = userId;
     if (input.eventId) {
       const event = await this.eventsService.findById(input.eventId);
-      if (event.ownerId !== userId) {
-        throw new ForbiddenException('You do not own this event');
+      const isOwner = event.ownerId === userId;
+      const isCollaborator = isOwner
+        ? false
+        : (await this.prisma.eventCollaborator.count({
+            where: { eventId: event.id, profileId: userId },
+          })) > 0;
+      if (!isOwner && !isCollaborator) {
+        throw new ForbiddenException('You do not have access to this event');
       }
+      attributionOwnerId = event.ownerId;
       eventContext = {
         id: event.id,
         title: event.title,
@@ -205,7 +215,7 @@ export class ManualSendService {
         await this.outbox.enqueue(
           {
             eventId: input.eventId,
-            ownerId: userId,
+            ownerId: attributionOwnerId,
             registrationId: recipient.registrationId!,
             templateId: template?.id,
             trigger: 'manual',

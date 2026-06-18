@@ -5,6 +5,7 @@ import {
   RegistrationRepositoryPort,
   CreateRegistrationData,
   UpdateAnswersData,
+  PostEventResponseData,
 } from '@domain/registrations/ports/registration-repository.port';
 import {
   RegistrationEntity,
@@ -118,10 +119,7 @@ export class PrismaRegistrationRepository implements RegistrationRepositoryPort 
     return this.map(row);
   }
 
-  async updateAnswers(
-    id: string,
-    data: UpdateAnswersData,
-  ): Promise<RegistrationEntity> {
+  async updateAnswers(id: string, data: UpdateAnswersData): Promise<RegistrationEntity> {
     const row = await this.prisma.registration.update({
       where: { id },
       data: {
@@ -132,5 +130,37 @@ export class PrismaRegistrationRepository implements RegistrationRepositoryPort 
       },
     });
     return this.map(row);
+  }
+
+  async findByEventAndContact(
+    eventId: string,
+    contact: { email?: string; phone?: string },
+  ): Promise<RegistrationEntity | null> {
+    if (contact.email) {
+      const row = await this.prisma.registration.findFirst({
+        where: { eventId, email: { equals: contact.email, mode: 'insensitive' } },
+      });
+      return row ? this.map(row) : null;
+    }
+    if (contact.phone) {
+      const digits = contact.phone.replace(/\D/g, '');
+      if (!digits) return null;
+      const rows = await this.prisma.registration.findMany({ where: { eventId } });
+      const match = rows.find((r) => r.phone.replace(/\D/g, '') === digits);
+      return match ? this.map(match) : null;
+    }
+    return null;
+  }
+
+  async upsertPostEventResponse(data: PostEventResponseData): Promise<void> {
+    await this.prisma.postEventResponse.upsert({
+      where: { registrationId: data.registrationId },
+      create: {
+        eventId: data.eventId,
+        registrationId: data.registrationId,
+        answers: data.answers as Prisma.InputJsonValue,
+      },
+      update: { answers: data.answers as Prisma.InputJsonValue },
+    });
   }
 }

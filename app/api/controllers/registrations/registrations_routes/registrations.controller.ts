@@ -64,7 +64,7 @@ export class RegistrationsController {
     const [regs, formFields] = await Promise.all([
       this.registrations.findAll(eventId, status, search),
       this.prisma.formField.findMany({
-        where: { eventId, isFixed: false },
+        where: { eventId, isFixed: false, kind: 'registration' },
         orderBy: { order: 'asc' },
         select: { label: true },
       }),
@@ -100,7 +100,7 @@ export class RegistrationsController {
     @Body() dto: UpdateRegistrationAnswersDto,
   ) {
     const formFields = await this.prisma.formField.findMany({
-      where: { eventId },
+      where: { eventId, kind: 'registration' },
       select: { label: true, type: true, required: true, isFixed: true },
     });
     return this.registrations.updateAnswers(id, eventId, dto.answers, formFields);
