@@ -128,6 +128,41 @@ export class RegistrationsService {
     return this.regRepo.updateAnswers(id, updateData);
   }
 
+  async submitPostEvent(
+    slug: string,
+    identifier: string,
+    answers: Record<string, unknown>,
+    postEventFields: Array<{ label: string; required: boolean }>,
+  ): Promise<void> {
+    const event = await this.eventsService.findBySlug(slug);
+    if (event.status !== 'published' && event.status !== 'ended') {
+      throw new BadRequestException('Event is not accepting post-event responses');
+    }
+
+    const id = identifier?.trim() ?? '';
+    const contact = id.includes('@')
+      ? { email: id.toLowerCase() }
+      : { phone: id.replace(/\D/g, '') };
+
+    const reg = await this.regRepo.findByEventAndContact(event.id, contact);
+    if (!reg) throw new NotFoundException('Inscrição não encontrada');
+
+    for (const field of postEventFields) {
+      if (field.required) {
+        const val = answers[field.label];
+        if (val === undefined || val === null || String(val).trim() === '') {
+          throw new BadRequestException(`Campo obrigatório ausente: "${field.label}"`);
+        }
+      }
+    }
+
+    await this.regRepo.upsertPostEventResponse({
+      eventId: event.id,
+      registrationId: reg.id,
+      answers,
+    });
+  }
+
   private extractString(answers: Record<string, unknown>, keys: string[]): string {
     for (const key of keys) {
       const val = answers[key];
