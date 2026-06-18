@@ -21,8 +21,11 @@ describe('PublicEventsController.getPostEventFields', () => {
   });
 
   it('returns post_event fields for an ended event', async () => {
-    const { ctrl } = makeController({ id: 'evt-1', status: 'ended' });
+    const { ctrl, prisma } = makeController({ id: 'evt-1', status: 'ended' });
     await expect(ctrl.getPostEventFields('slug-1')).resolves.toBeDefined();
+    expect(prisma.formField.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { eventId: 'evt-1', kind: 'post_event' } }),
+    );
   });
 
   it('throws 404 for a draft event', async () => {

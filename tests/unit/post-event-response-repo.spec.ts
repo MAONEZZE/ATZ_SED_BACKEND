@@ -74,6 +74,20 @@ describe('PrismaRegistrationRepository post-event', () => {
     expect(result!.phone).toBe('(11) 99999-8888');
   });
 
+  it('returns the first registration when two stored phones strip to the same digits', async () => {
+    const { repo, prisma } = makeRepo();
+    const first = makeRow({ id: 'first', phone: '(11) 99999-8888' });
+    const second = makeRow({ id: 'second', phone: '+55 11 99999 8888' });
+    prisma.registration.findMany.mockResolvedValue([first, second]);
+
+    const result = await repo.findByEventAndContact('evt-1', {
+      phone: '11999998888',
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe('first');
+  });
+
   it('returns null when no stored phone matches the queried digits', async () => {
     const { repo, prisma } = makeRepo();
     prisma.registration.findMany.mockResolvedValue([

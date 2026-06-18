@@ -37,4 +37,15 @@ describe('FormFieldsController kind support', () => {
       expect.objectContaining({ where: { eventId: 'evt-1', kind: 'post_event' } }),
     );
   });
+
+  it('findAll without kind uses where with only eventId (no stray kind key)', async () => {
+    const { ctrl, prisma } = makeController();
+    await ctrl.findAll('evt-1', {});
+    expect(prisma.formField.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { eventId: 'evt-1' } }),
+    );
+    expect(prisma.formField.findMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ kind: expect.anything() }) }),
+    );
+  });
 });

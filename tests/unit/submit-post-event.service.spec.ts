@@ -31,6 +31,18 @@ describe('RegistrationsService.submitPostEvent', () => {
     expect(regRepo.findByEventAndContact).toHaveBeenCalledWith('evt-1', { phone: '5511999990000' });
   });
 
+  it('trims and lowercases an email identifier', async () => {
+    const { svc, regRepo } = make();
+    await svc.submitPostEvent('slug-1', '  A@B.com  ', { Nota: '10' }, FIELDS);
+    expect(regRepo.findByEventAndContact).toHaveBeenCalledWith('evt-1', { email: 'a@b.com' });
+  });
+
+  it('trims a phone identifier and strips it to digits only', async () => {
+    const { svc, regRepo } = make();
+    await svc.submitPostEvent('slug-1', '  (55) 11 99999-0000  ', { Nota: '10' }, FIELDS);
+    expect(regRepo.findByEventAndContact).toHaveBeenCalledWith('evt-1', { phone: '5511999990000' });
+  });
+
   it('upserts the response when registration is found', async () => {
     const { svc, regRepo } = make();
     await svc.submitPostEvent('slug-1', 'a@b.com', { Nota: '10' }, FIELDS);

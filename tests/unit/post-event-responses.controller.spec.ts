@@ -38,6 +38,9 @@ describe('PostEventResponsesController', () => {
     const result = await ctrl.findAll('evt-1', { page: 2, limit: 10 });
 
     expect(prisma.postEventResponse.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 10, take: 10 }),
+    );
+    expect(prisma.postEventResponse.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { eventId: 'evt-1' },
         include: expect.objectContaining({
