@@ -1,3 +1,5 @@
+import { answerToString, escapeCell } from '@services/registrations/csv-utils';
+
 export interface CsvRegistration {
   name: string;
   email: string;
@@ -12,22 +14,6 @@ export interface CsvFormField {
 }
 
 const FIXED_HEADERS = ['nome', 'email', 'telefone', 'status', 'data_inscricao'];
-
-function escapeCell(value: string): string {
-  if (/[",\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
-}
-
-function answerToString(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-  return JSON.stringify(value);
-}
 
 export function buildRegistrationsCsv(
   registrations: CsvRegistration[],

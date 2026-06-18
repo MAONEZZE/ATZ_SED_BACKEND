@@ -15,13 +15,13 @@ describe('buildPostEventResponsesCsv', () => {
   it('renders fixed header + dynamic columns from post-event field labels', () => {
     const csv = buildPostEventResponsesCsv([response], [{ label: 'Nota' }, { label: 'Cargo' }]);
     const lines = csv.replace(/^﻿/, '').split('\n');
-    expect(lines[0]).toBe('Nome,Email,Telefone,Nota,Cargo,Data');
+    expect(lines[0]).toBe('nome,email,telefone,Nota,Cargo,data_resposta');
   });
 
-  it('fills present answers, leaves empty cell for absent ones, and dates as YYYY-MM-DD', () => {
+  it('fills present answers, leaves empty cell for absent ones, and formats date as ISO', () => {
     const csv = buildPostEventResponsesCsv([response], [{ label: 'Nota' }, { label: 'Cargo' }]);
     const lines = csv.replace(/^﻿/, '').split('\n');
-    expect(lines[1]).toBe('João,joao@test.com,+5511999999999,10,,2026-06-01');
+    expect(lines[1]).toBe('João,joao@test.com,+5511999999999,10,,2026-06-01T12:00:00.000Z');
   });
 
   it('escapes values containing commas', () => {
