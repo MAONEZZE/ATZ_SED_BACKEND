@@ -119,10 +119,7 @@ export class PrismaRegistrationRepository implements RegistrationRepositoryPort 
     return this.map(row);
   }
 
-  async updateAnswers(
-    id: string,
-    data: UpdateAnswersData,
-  ): Promise<RegistrationEntity> {
+  async updateAnswers(id: string, data: UpdateAnswersData): Promise<RegistrationEntity> {
     const row = await this.prisma.registration.update({
       where: { id },
       data: {
@@ -139,15 +136,20 @@ export class PrismaRegistrationRepository implements RegistrationRepositoryPort 
     eventId: string,
     contact: { email?: string; phone?: string },
   ): Promise<RegistrationEntity | null> {
-    const or: Prisma.RegistrationWhereInput[] = [];
-    if (contact.email)
-      or.push({ email: { equals: contact.email, mode: 'insensitive' } });
-    if (contact.phone) or.push({ phone: { contains: contact.phone } });
-    if (or.length === 0) return null;
-    const row = await this.prisma.registration.findFirst({
-      where: { eventId, OR: or },
-    });
-    return row ? this.map(row) : null;
+    if (contact.email) {
+      const row = await this.prisma.registration.findFirst({
+        where: { eventId, email: { equals: contact.email, mode: 'insensitive' } },
+      });
+      return row ? this.map(row) : null;
+    }
+    if (contact.phone) {
+      const digits = contact.phone.replace(/\D/g, '');
+      if (!digits) return null;
+      const rows = await this.prisma.registration.findMany({ where: { eventId } });
+      const match = rows.find((r) => r.phone.replace(/\D/g, '') === digits);
+      return match ? this.map(match) : null;
+    }
+    return null;
   }
 
   async upsertPostEventResponse(data: PostEventResponseData): Promise<void> {
