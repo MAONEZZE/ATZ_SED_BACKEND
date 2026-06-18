@@ -38,15 +38,17 @@ export class FormFieldsController {
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'kind', required: false, enum: ['registration', 'post_event'] })
   @ApiResponse({ status: 200, description: 'Lista paginada de campos' })
   async findAll(
     @Param('eventId') eventId: string,
     @Query() pagination: PaginationQueryDto,
+    @Query('kind') kind?: 'registration' | 'post_event',
   ): Promise<Paginated<object>> {
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 20;
     const skip = paginationToSkip(page, limit);
-    const where = { eventId };
+    const where = { eventId, ...(kind ? { kind } : {}) };
     const [data, total] = await Promise.all([
       this.prisma.formField.findMany({
         where,
@@ -73,6 +75,7 @@ export class FormFieldsController {
         options: dto.options != null ? (dto.options as Prisma.InputJsonValue) : Prisma.JsonNull,
         order: dto.order ?? 99,
         isFixed: false,
+        kind: (dto.kind ?? 'registration') as any,
       },
     });
   }
