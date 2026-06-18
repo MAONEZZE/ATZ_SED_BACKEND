@@ -5,6 +5,7 @@ import {
   RegistrationRepositoryPort,
   CreateRegistrationData,
   UpdateAnswersData,
+  PostEventResponseData,
 } from '@domain/registrations/ports/registration-repository.port';
 import {
   RegistrationEntity,
@@ -132,5 +133,32 @@ export class PrismaRegistrationRepository implements RegistrationRepositoryPort 
       },
     });
     return this.map(row);
+  }
+
+  async findByEventAndContact(
+    eventId: string,
+    contact: { email?: string; phone?: string },
+  ): Promise<RegistrationEntity | null> {
+    const or: Prisma.RegistrationWhereInput[] = [];
+    if (contact.email)
+      or.push({ email: { equals: contact.email, mode: 'insensitive' } });
+    if (contact.phone) or.push({ phone: { contains: contact.phone } });
+    if (or.length === 0) return null;
+    const row = await this.prisma.registration.findFirst({
+      where: { eventId, OR: or },
+    });
+    return row ? this.map(row) : null;
+  }
+
+  async upsertPostEventResponse(data: PostEventResponseData): Promise<void> {
+    await this.prisma.postEventResponse.upsert({
+      where: { registrationId: data.registrationId },
+      create: {
+        eventId: data.eventId,
+        registrationId: data.registrationId,
+        answers: data.answers as Prisma.InputJsonValue,
+      },
+      update: { answers: data.answers as Prisma.InputJsonValue },
+    });
   }
 }
