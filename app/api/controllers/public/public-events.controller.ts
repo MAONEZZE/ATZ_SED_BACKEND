@@ -53,7 +53,7 @@ export class PublicEventsController {
     }
 
     return this.prisma.formField.findMany({
-      where: { eventId: event.id },
+      where: { eventId: event.id, kind: 'registration' },
       orderBy: { order: 'asc' },
       select: {
         id: true,
