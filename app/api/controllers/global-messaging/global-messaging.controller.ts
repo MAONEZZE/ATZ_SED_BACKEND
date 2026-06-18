@@ -196,7 +196,11 @@ export class GlobalMessagingController {
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 20;
     const skip = paginationToSkip(page, limit);
-    const where = { event: { ownerId: user.id } };
+    const where = {
+      event: {
+        OR: [{ ownerId: user.id }, { collaborators: { some: { profileId: user.id } } }],
+      },
+    };
     const [data, total] = await Promise.all([
       this.prisma.automationRule.findMany({
         where,
@@ -226,7 +230,14 @@ export class GlobalMessagingController {
     const limit = pagination.limit ?? 20;
     const skip = paginationToSkip(page, limit);
     const where = {
-      OR: [{ event: { ownerId: user.id } }, { ownerId: user.id }],
+      OR: [
+        {
+          event: {
+            OR: [{ ownerId: user.id }, { collaborators: { some: { profileId: user.id } } }],
+          },
+        },
+        { ownerId: user.id },
+      ],
     };
     const [data, total] = await Promise.all([
       this.prisma.messageLog.findMany({

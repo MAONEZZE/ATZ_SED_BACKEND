@@ -64,9 +64,16 @@ export class PrismaEventRepository implements EventRepositoryPort {
     return row ? this.map(row) : null;
   }
 
+  // Eventos acessíveis pelo usuário: dono OU colaborador.
+  private accessibleWhere(userId: string) {
+    return {
+      OR: [{ ownerId: userId }, { collaborators: { some: { profileId: userId } } }],
+    };
+  }
+
   async findAllByOwner(ownerId: string): Promise<EventEntity[]> {
     const rows = await this.prisma.event.findMany({
-      where: { ownerId },
+      where: this.accessibleWhere(ownerId),
       orderBy: { createdAt: 'desc' },
     });
     return rows.map((r) => this.map(r));
@@ -76,7 +83,7 @@ export class PrismaEventRepository implements EventRepositoryPort {
     ownerId: string,
     pagination: { skip: number; take: number },
   ): Promise<{ data: EventEntity[]; total: number }> {
-    const where = { ownerId };
+    const where = this.accessibleWhere(ownerId);
     const [rows, total] = await Promise.all([
       this.prisma.event.findMany({
         where,

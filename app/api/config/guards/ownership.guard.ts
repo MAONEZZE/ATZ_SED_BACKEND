@@ -38,10 +38,15 @@ export class OwnershipGuard implements CanActivate {
 
     const event = await prismaEvent.findUnique({
       where: { id: eventId },
-      select: { ownerId: true },
+      select: {
+        ownerId: true,
+        collaborators: { where: { profileId: user.id }, select: { id: true }, take: 1 },
+      },
     });
     if (!event) throw new NotFoundException('Event not found');
-    if (event.ownerId !== user.id) throw new ForbiddenException('Not your event');
+    const isOwner = event.ownerId === user.id;
+    const isCollaborator = (event.collaborators?.length ?? 0) > 0;
+    if (!isOwner && !isCollaborator) throw new ForbiddenException('Not your event');
     return true;
   }
 }

@@ -39,7 +39,11 @@ const pacing: Record<string, number> = {
   MANUAL_BATCH_MAX_DELAY_MS: 100_000,
 };
 
-function makeService(overrides?: { registrations?: unknown[]; template?: unknown }) {
+function makeService(overrides?: {
+  registrations?: unknown[];
+  template?: unknown;
+  collaboratorCount?: number;
+}) {
   const prisma = {
     registration: {
       findMany: jest.fn().mockResolvedValue(overrides?.registrations ?? [regJoao]),
@@ -48,6 +52,9 @@ function makeService(overrides?: { registrations?: unknown[]; template?: unknown
       findFirst: jest
         .fn()
         .mockResolvedValue(overrides && 'template' in overrides ? overrides.template : template),
+    },
+    eventCollaborator: {
+      count: jest.fn().mockResolvedValue(overrides?.collaboratorCount ?? 0),
     },
   };
   const eventsService = { findById: jest.fn().mockResolvedValue(event) };
@@ -253,14 +260,27 @@ describe('ManualSendService.send', () => {
     expect(outbox.enqueue).toHaveBeenCalledTimes(1);
   });
 
-  it('throws ForbiddenException when userId does not own event', async () => {
-    const { service } = makeService();
+  it('throws ForbiddenException when userId is neither owner nor collaborator', async () => {
+    const { service } = makeService({ collaboratorCount: 0 });
     await expect(
       service.send(
         { eventId: 'evt-1', channel: 'email', body: 'oi', registrationIds: ['reg-1'] },
         'other-user',
       ),
     ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('collaborator (not owner) can send, message attributed to event owner', async () => {
+    const { service, outbox } = makeService({ collaboratorCount: 1 });
+    const result = await service.send(
+      { eventId: 'evt-1', channel: 'email', body: 'oi {{nome}}', registrationIds: ['reg-1'] },
+      'collab-user',
+    );
+    expect(result.queued).toBe(1);
+    expect(outbox.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ ownerId: 'user-1' }), // event.ownerId, não o colaborador
+      expect.any(Object),
+    );
   });
 
   it('throws BadRequestException when registrationIds provided without eventId', async () => {
