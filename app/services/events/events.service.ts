@@ -79,13 +79,13 @@ export class EventsService {
     return event;
   }
 
-  async update(id: string, input: UpdateEventInput): Promise<EventEntity> {
+  async update(id: string, input: UpdateEventInput, editorId?: string): Promise<EventEntity> {
     const event = await this.findById(id);
     if (!event.isEditable()) {
       throw new ForbiddenException('Cancelled events cannot be edited');
     }
     this.assertValidPeriod(input.eventDate ?? event.eventDate, input.endDate ?? event.endDate);
-    return this.eventRepo.update(id, input);
+    return this.eventRepo.update(id, editorId ? { ...input, lastEditedById: editorId } : input);
   }
 
   private assertValidPeriod(eventDate?: Date, endDate?: Date): void {
@@ -94,24 +94,32 @@ export class EventsService {
     }
   }
 
-  async updateStatus(id: string, status: EventStatus): Promise<EventEntity> {
+  async updateStatus(id: string, status: EventStatus, editorId?: string): Promise<EventEntity> {
     const event = await this.findById(id);
     if (!event.canTransitionTo(status)) {
       throw new BadRequestException(`Cannot transition from '${event.status}' to '${status}'`);
     }
-    return this.eventRepo.updateStatus(id, status);
+    return this.eventRepo.updateStatus(id, status, editorId);
   }
 
-  async uploadCover(id: string, file: Buffer, mimeType: string): Promise<EventEntity> {
+  async uploadCover(
+    id: string,
+    file: Buffer,
+    mimeType: string,
+    editorId?: string,
+  ): Promise<EventEntity> {
     await this.findById(id);
     const bucket = this.config.get<string>('SUPABASE_STORAGE_BUCKET') ?? 'ATZ_SED';
     const folder = this.config.get<string>('SUPABASE_STORAGE_BUCKET_COVERS') ?? 'event-covers';
     const path = `${folder}/${id}/cover`;
     const { url } = await this.storage.upload(bucket, path, file, mimeType);
-    return this.eventRepo.update(id, { coverUrl: url });
+    return this.eventRepo.update(
+      id,
+      editorId ? { coverUrl: url, lastEditedById: editorId } : { coverUrl: url },
+    );
   }
 
-  async deleteCover(id: string): Promise<EventEntity> {
+  async deleteCover(id: string, editorId?: string): Promise<EventEntity> {
     const event = await this.findById(id);
     if (event.coverUrl) {
       const bucket = this.config.get<string>('SUPABASE_STORAGE_BUCKET') ?? 'ATZ_SED';
@@ -121,7 +129,10 @@ export class EventsService {
         await this.storage.delete(bucket, path);
       } catch {}
     }
-    return this.eventRepo.update(id, { coverUrl: null });
+    return this.eventRepo.update(
+      id,
+      editorId ? { coverUrl: null, lastEditedById: editorId } : { coverUrl: null },
+    );
   }
 
   async delete(id: string): Promise<void> {

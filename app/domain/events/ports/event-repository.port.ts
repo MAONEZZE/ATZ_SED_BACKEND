@@ -28,6 +28,7 @@ export interface UpdateEventData {
   postRegistrationMessage?: string;
   evolutionInstance?: string;
   evolutionToken?: string;
+  lastEditedById?: string;
 }
 
 export interface EventRepositoryPort {
@@ -40,6 +41,6 @@ export interface EventRepositoryPort {
   ): Promise<{ data: EventEntity[]; total: number }>;
   create(data: CreateEventData): Promise<EventEntity>;
   update(id: string, data: UpdateEventData): Promise<EventEntity>;
-  updateStatus(id: string, status: EventStatus): Promise<EventEntity>;
+  updateStatus(id: string, status: EventStatus, editorId?: string): Promise<EventEntity>;
   delete(id: string): Promise<void>;
 }

@@ -18,14 +18,18 @@ export class EventLifecycleService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async cancel(eventId: string, notifyParticipants: boolean): Promise<EventEntity> {
+  async cancel(
+    eventId: string,
+    notifyParticipants: boolean,
+    editorId?: string,
+  ): Promise<EventEntity> {
     const event = await this.eventRepo.findById(eventId);
     if (!event) throw new NotFoundException('Event not found');
     if (!event.canTransitionTo('cancelled')) {
       throw new BadRequestException(`Cannot cancel event in status '${event.status}'`);
     }
 
-    const updated = await this.eventRepo.updateStatus(eventId, 'cancelled');
+    const updated = await this.eventRepo.updateStatus(eventId, 'cancelled', editorId);
 
     if (notifyParticipants) {
       await this.notifyCancellation(event);
@@ -58,6 +62,7 @@ export class EventLifecycleService {
         endDate: source.endDate,
         postRegistrationMessage: source.postRegistrationMessage,
         status: 'draft',
+        lastEditedById: ownerId,
         formFields: {
           create: source.formFields.map((f) => ({
             label: f.label,
@@ -66,6 +71,7 @@ export class EventLifecycleService {
             options: f.options ?? undefined,
             order: f.order,
             isFixed: f.isFixed,
+            kind: f.kind,
           })),
         },
       },

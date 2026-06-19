@@ -22,6 +22,7 @@ function makeService() {
     findById: jest.fn().mockResolvedValue(existing),
     create: jest.fn().mockImplementation((data) => Promise.resolve(data)),
     update: jest.fn().mockImplementation((_id, data) => Promise.resolve(data)),
+    updateStatus: jest.fn().mockImplementation((_id, status) => Promise.resolve({ status })),
   };
   const storage = { upload: jest.fn(), delete: jest.fn() };
   const config = { get: jest.fn().mockReturnValue(undefined) };
@@ -118,6 +119,37 @@ describe('EventsService endDate validation', () => {
         endDate: new Date('2026-06-15T22:00:00Z'),
         postRegistrationMessage: 'Obrigado!',
       }),
+    );
+  });
+
+  it('update stamps lastEditedById when editor provided', async () => {
+    const { service, eventRepo } = makeService();
+    await service.update('evt-1', { title: 'Novo' }, 'user-9');
+    expect(eventRepo.update).toHaveBeenCalledWith(
+      'evt-1',
+      expect.objectContaining({ title: 'Novo', lastEditedById: 'user-9' }),
+    );
+  });
+
+  it('update omits lastEditedById when no editor provided', async () => {
+    const { service, eventRepo } = makeService();
+    await service.update('evt-1', { title: 'Novo' });
+    expect(eventRepo.update).toHaveBeenCalledWith('evt-1', { title: 'Novo' });
+  });
+
+  it('updateStatus forwards editor to repo', async () => {
+    const { service, eventRepo } = makeService();
+    await service.updateStatus('evt-1', 'published', 'user-9');
+    expect(eventRepo.updateStatus).toHaveBeenCalledWith('evt-1', 'published', 'user-9');
+  });
+
+  it('uploadCover stamps lastEditedById when editor provided', async () => {
+    const { service, eventRepo, storage } = makeService();
+    storage.upload.mockResolvedValue({ url: 'https://storage/evt-1/cover' });
+    await service.uploadCover('evt-1', Buffer.from('x'), 'image/png', 'user-9');
+    expect(eventRepo.update).toHaveBeenCalledWith(
+      'evt-1',
+      expect.objectContaining({ coverUrl: 'https://storage/evt-1/cover', lastEditedById: 'user-9' }),
     );
   });
 });

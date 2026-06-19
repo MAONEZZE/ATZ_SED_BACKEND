@@ -1,11 +1,16 @@
 import { FormFieldsController } from '../../app/api/controllers/events/events_routes/form-fields.controller';
 
+const user = { id: 'user-1', email: 'u@e.com' } as any;
+
 function makeController() {
   const prisma = {
     formField: {
       create: jest.fn().mockResolvedValue({ id: 'f1' }),
       findMany: jest.fn().mockResolvedValue([]),
       count: jest.fn().mockResolvedValue(0),
+    },
+    event: {
+      update: jest.fn().mockResolvedValue({ id: 'evt-1' }),
     },
   };
   return { ctrl: new FormFieldsController(prisma as any), prisma };
@@ -16,7 +21,7 @@ describe('FormFieldsController kind support', () => {
 
   it('default kind registration on create when omitted', async () => {
     const { ctrl, prisma } = makeController();
-    await ctrl.create('evt-1', { label: 'Nome', type: 'text' });
+    await ctrl.create('evt-1', { label: 'Nome', type: 'text' }, user);
     expect(prisma.formField.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ kind: 'registration' }) }),
     );
@@ -24,10 +29,19 @@ describe('FormFieldsController kind support', () => {
 
   it('passes post_event kind on create', async () => {
     const { ctrl, prisma } = makeController();
-    await ctrl.create('evt-1', { label: 'Nota', type: 'text', kind: 'post_event' } as any);
+    await ctrl.create('evt-1', { label: 'Nota', type: 'text', kind: 'post_event' } as any, user);
     expect(prisma.formField.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ kind: 'post_event' }) }),
     );
+  });
+
+  it('stamps last editor on the event after creating a field', async () => {
+    const { ctrl, prisma } = makeController();
+    await ctrl.create('evt-1', { label: 'Nome', type: 'text' }, user);
+    expect(prisma.event.update).toHaveBeenCalledWith({
+      where: { id: 'evt-1' },
+      data: { lastEditedById: 'user-1' },
+    });
   });
 
   it('filters findAll by kind when given', async () => {

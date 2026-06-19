@@ -87,12 +87,20 @@ export class EventsController {
   @ApiOperation({ summary: 'Atualizar evento' })
   @ApiParam({ name: 'id', description: 'UUID do evento' })
   @ApiResponse({ status: 200, description: 'Evento atualizado' })
-  update(@Param('id') id: string, @Body() dto: UpdateEventDto) {
-    return this.eventsService.update(id, {
-      ...dto,
-      eventDate: dto.eventDate ? new Date(dto.eventDate) : undefined,
-      endDate: dto.endDate ? new Date(dto.endDate) : undefined,
-    });
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateEventDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.eventsService.update(
+      id,
+      {
+        ...dto,
+        eventDate: dto.eventDate ? new Date(dto.eventDate) : undefined,
+        endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+      },
+      user.id,
+    );
   }
 
   @Patch(':id/status')
@@ -100,8 +108,12 @@ export class EventsController {
   @ApiOperation({ summary: 'Atualizar status do evento' })
   @ApiParam({ name: 'id', description: 'UUID do evento' })
   @ApiResponse({ status: 200, description: 'Status atualizado' })
-  updateStatus(@Param('id') id: string, @Body() dto: UpdateEventStatusDto) {
-    return this.eventsService.updateStatus(id, dto.status);
+  updateStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateEventStatusDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.eventsService.updateStatus(id, dto.status, user.id);
   }
 
   @Post(':id/cover')
@@ -125,8 +137,9 @@ export class EventsController {
       }),
     )
     file: Express.Multer.File,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.eventsService.uploadCover(id, file.buffer, file.mimetype);
+    return this.eventsService.uploadCover(id, file.buffer, file.mimetype, user.id);
   }
 
   @Delete(':id/cover')
@@ -134,8 +147,8 @@ export class EventsController {
   @ApiOperation({ summary: 'Remover capa do evento' })
   @ApiParam({ name: 'id', description: 'UUID do evento' })
   @ApiResponse({ status: 200, description: 'Capa removida' })
-  deleteCover(@Param('id') id: string) {
-    return this.eventsService.deleteCover(id);
+  deleteCover(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.eventsService.deleteCover(id, user.id);
   }
 
   @Delete(':id')
@@ -154,8 +167,12 @@ export class EventsController {
   @ApiParam({ name: 'id', description: 'UUID do evento' })
   @ApiBody({ schema: { type: 'object', properties: { notifyParticipants: { type: 'boolean' } } } })
   @ApiResponse({ status: 201, description: 'Evento cancelado' })
-  cancel(@Param('id') id: string, @Body('notifyParticipants') notify: boolean) {
-    return this.lifecycleService.cancel(id, notify ?? false);
+  cancel(
+    @Param('id') id: string,
+    @Body('notifyParticipants') notify: boolean,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.lifecycleService.cancel(id, notify ?? false, user.id);
   }
 
   @Post(':id/duplicate')

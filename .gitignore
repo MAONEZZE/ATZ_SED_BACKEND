@@ -24,3 +24,4 @@ graphify-out/
 .env.example
 
 *.md
+docs/

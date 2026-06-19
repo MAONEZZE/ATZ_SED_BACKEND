@@ -27,6 +27,7 @@ export class EventEntity {
     public readonly updatedAt?: Date,
     public endDate?: Date,
     public postRegistrationMessage?: string,
+    public lastEditedById?: string,
   ) {}
 
   isEditable(): boolean {

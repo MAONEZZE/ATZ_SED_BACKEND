@@ -32,7 +32,9 @@ export class PublicEventsController {
     });
 
     if (!event) throw new NotFoundException('Event not found');
-    if (event.status !== 'published') throw new NotFoundException('Event not found');
+    if (event.status !== 'published' && event.status !== 'ended') {
+      throw new NotFoundException('Event not found');
+    }
 
     return event;
   }

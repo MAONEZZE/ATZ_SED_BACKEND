@@ -88,7 +88,8 @@ model Profile {
   evolutionInstance String?  @map("evolution_instance")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
-  events           Event[]
+  events           Event[]   @relation("EventOwner")
+  editedEvents     Event[]   @relation("EventLastEditor")
   collaborations   EventCollaborator[]
   templates        MessageTemplate[]
   outboxMessages   OutboxMessage[]
@@ -115,9 +116,11 @@ model Event {
   status            EventStatus     @default(draft)
   evolutionInstance String?         @map("evolution_instance")
   evolutionToken    String?         @map("evolution_token")
+  lastEditedById    String?         @map("last_edited_by")
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
-  owner             Profile         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner             Profile         @relation("EventOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  lastEditedBy      Profile?        @relation("EventLastEditor", fields: [lastEditedById], references: [id], onDelete: SetNull)
   collaborators     EventCollaborator[]
   formFields        FormField[]
   registrations     Registration[]

@@ -29,6 +29,7 @@ export class PrismaEventRepository implements EventRepositoryPort {
     postRegistrationMessage: string | null;
     evolutionInstance: string | null;
     evolutionToken: string | null;
+    lastEditedById: string | null;
     createdAt: Date;
     updatedAt: Date;
   }): EventEntity {
@@ -51,6 +52,7 @@ export class PrismaEventRepository implements EventRepositoryPort {
       row.updatedAt,
       row.endDate ?? undefined,
       row.postRegistrationMessage ?? undefined,
+      row.lastEditedById ?? undefined,
     );
   }
 
@@ -117,10 +119,10 @@ export class PrismaEventRepository implements EventRepositoryPort {
     return this.map(row);
   }
 
-  async updateStatus(id: string, status: EventStatus): Promise<EventEntity> {
+  async updateStatus(id: string, status: EventStatus, editorId?: string): Promise<EventEntity> {
     const row = await this.prisma.event.update({
       where: { id },
-      data: { status },
+      data: { status, ...(editorId ? { lastEditedById: editorId } : {}) },
     });
     return this.map(row);
   }
