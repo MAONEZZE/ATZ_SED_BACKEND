@@ -83,7 +83,7 @@ export class ScheduledAutomationsWorker extends WorkerHost implements OnModuleIn
           const shouldFire = this.shouldFire(trigger, rule, reg, now);
           if (!shouldFire) continue;
 
-          await this.engine.fireAutomations(reg.id, rule.event.id, trigger);
+          await this.engine.fireAutomations(reg.id, rule.event.id, trigger, [rule.id]);
         } catch (err) {
           this.logger.error(
             { err, registrationId: reg.id, trigger },

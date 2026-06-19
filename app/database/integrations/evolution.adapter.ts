@@ -76,4 +76,21 @@ export class EvolutionAdapter {
       throw new Error(`Evolution API error (${response.status}): ${errorText}`);
     }
   }
+
+  async fetchGroups(instancia: string): Promise<{ id: string; subject: string }[]> {
+    const url = `${this.baseUrl}/group/fetchAllGroups/${instancia}?getParticipants=false`;
+    const response = await fetch(url, {
+      headers: { apikey: this.apiKey },
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.logger.error(
+        { instancia, status: response.status, error: errorText },
+        'Evolution API fetchGroups error',
+      );
+      throw new Error(`Evolution API error (${response.status}): ${errorText}`);
+    }
+    const data = (await response.json()) as Array<{ id: string; subject: string }>;
+    return data.map(({ id, subject }) => ({ id, subject }));
+  }
 }

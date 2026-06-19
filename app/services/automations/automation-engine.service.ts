@@ -38,14 +38,18 @@ export class AutomationEngine {
     }
   }
 
-  async fireAutomations(registrationId: string, eventId: string, trigger: string): Promise<void> {
+  async fireAutomations(
+    registrationId: string,
+    eventId: string,
+    trigger: string,
+    ruleIds?: string[],
+  ): Promise<void> {
     const rules = await this.prisma.automationRule.findMany({
       where: {
         eventId,
-
         trigger: trigger as any,
         active: true,
-        delayMinutes: null,
+        ...(ruleIds ? { id: { in: ruleIds } } : { delayMinutes: null }),
       },
       include: { template: true },
     });
