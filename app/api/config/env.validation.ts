@@ -15,6 +15,10 @@ const envSchema = z.object({
   EVOLUTION_API_KEY: z.string().min(1),
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.string().email(),
+  PIPEDRIVE_WEBHOOK_URL: z
+    .string()
+    .url()
+    .default('https://n8n.learningbrands.cloud/webhook/send-to-pipedrive'),
   PORT: z.coerce.number().default(3000),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   ENVIROMENT: z.string().optional(),

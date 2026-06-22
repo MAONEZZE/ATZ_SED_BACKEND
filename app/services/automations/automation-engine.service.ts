@@ -5,6 +5,7 @@ import { OutboxService } from '@services/messaging/outbox.service';
 import { TemplateRenderer } from './template-renderer.service';
 import { IcsGeneratorService } from './ics-generator.service';
 import { RegistrationStatusChanged } from '@domain/registrations/entities/registration-status-changed.event';
+import { FormSubmitted } from '@domain/registrations/entities/form-submitted.event';
 
 const TRIGGER_MAP: Partial<Record<string, string>> = {
   pending: 'on_registration',
@@ -38,10 +39,62 @@ export class AutomationEngine {
     }
   }
 
+  @OnEvent('form.submitted')
+  async handleFormSubmitted(ev: FormSubmitted): Promise<void> {
+    try {
+      await this.fireForContact(ev.eventId, ev.trigger, ev.contact);
+    } catch (err) {
+      this.logger.error(
+        { err, eventId: ev.eventId, trigger: ev.trigger },
+        'AutomationEngine form.submitted error',
+      );
+    }
+  }
+
   async fireAutomations(
     registrationId: string,
     eventId: string,
     trigger: string,
+    ruleIds?: string[],
+  ): Promise<void> {
+    const registration = await this.prisma.registration.findUnique({
+      where: { id: registrationId },
+    });
+    if (!registration) {
+      this.logger.warn({ registrationId, eventId }, 'Registration not found for automation');
+      return;
+    }
+
+    await this.dispatchTrigger(
+      eventId,
+      trigger,
+      {
+        registrationId,
+        name: registration.name,
+        email: registration.email,
+        phone: registration.phone,
+      },
+      ruleIds,
+    );
+  }
+
+  /**
+   * Fires automations for a contact that may not have a Registration row
+   * (post-event / NPS submissions). Cross-form triggers use this path.
+   */
+  async fireForContact(
+    eventId: string,
+    trigger: string,
+    contact: { name: string; email: string; phone: string },
+    ruleIds?: string[],
+  ): Promise<void> {
+    await this.dispatchTrigger(eventId, trigger, contact, ruleIds);
+  }
+
+  private async dispatchTrigger(
+    eventId: string,
+    trigger: string,
+    contact: { registrationId?: string; name: string; email: string; phone: string },
     ruleIds?: string[],
   ): Promise<void> {
     const rules = await this.prisma.automationRule.findMany({
@@ -56,19 +109,13 @@ export class AutomationEngine {
 
     if (!rules.length) return;
 
-    const [registration, event] = await Promise.all([
-      this.prisma.registration.findUnique({ where: { id: registrationId } }),
-      this.prisma.event.findUnique({
-        where: { id: eventId },
-        include: { owner: true },
-      }),
-    ]);
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      include: { owner: true },
+    });
 
-    if (!registration || !event) {
-      this.logger.warn(
-        { registrationId, eventId },
-        'Registration or event not found for automation',
-      );
+    if (!event) {
+      this.logger.warn({ eventId }, 'Event not found for automation');
       return;
     }
 
@@ -77,9 +124,9 @@ export class AutomationEngine {
     for (const rule of rules) {
       const vars = this.renderer.buildVariables({
         registration: {
-          name: registration.name,
-          email: registration.email,
-          phone: registration.phone,
+          name: contact.name,
+          email: contact.email,
+          phone: contact.phone,
         },
         event: {
           title: event.title,
@@ -108,14 +155,20 @@ export class AutomationEngine {
         renderedBodyFinal = renderedBody;
       }
 
+      const recipient = rule.template.channel === 'email' ? contact.email : contact.phone;
+      const dedupKey = contact.registrationId
+        ? undefined
+        : `${eventId}:${(contact.email || contact.phone).toLowerCase()}:${rule.templateId}:${trigger}`;
+
       await this.outbox.enqueue({
         eventId: event.id,
         ownerId: event.ownerId,
-        registrationId,
+        registrationId: contact.registrationId,
         templateId: rule.templateId,
         trigger,
+        dedupKey,
         channel: rule.template.channel,
-        recipient: rule.template.channel === 'email' ? registration.email : registration.phone,
+        recipient,
         instancia: instancia ?? undefined,
         renderedBody: renderedBodyFinal,
         renderedSubject,

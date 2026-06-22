@@ -1,5 +1,5 @@
 import { RegistrationsService } from '../../app/services/registrations/registrations.service';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 
 function make(eventStatus = 'ended', reg: any = { id: 'r1', eventId: 'evt-1' }) {
   const regRepo = {
@@ -10,8 +10,16 @@ function make(eventStatus = 'ended', reg: any = { id: 'r1', eventId: 'evt-1' }) 
     findBySlug: jest.fn().mockResolvedValue({ id: 'evt-1', status: eventStatus, ownerId: 'o1' }),
   };
   const emitter = { emit: jest.fn() };
-  const svc = new RegistrationsService(regRepo as any, eventsService as any, emitter as any);
-  return { svc, regRepo, eventsService };
+  const userSubscriptions = { upsertFromForm: jest.fn().mockResolvedValue({}) };
+  const pipedrive = { send: jest.fn() };
+  const svc = new RegistrationsService(
+    regRepo as any,
+    eventsService as any,
+    emitter as any,
+    userSubscriptions as any,
+    pipedrive as any,
+  );
+  return { svc, regRepo, eventsService, emitter, userSubscriptions };
 }
 
 const FIELDS = [{ label: 'Nota', type: 'text', required: true, isFixed: false }];
@@ -60,18 +68,25 @@ describe('RegistrationsService.submitPostEvent', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('404 when no matching registration', async () => {
-    const { svc } = make('ended', null);
-    await expect(
-      svc.submitPostEvent('slug-1', 'a@b.com', { Nota: '10' }, FIELDS),
-    ).rejects.toBeInstanceOf(NotFoundException);
+  it('consolidates into user_subscriptions even without a matching registration', async () => {
+    const { svc, regRepo, userSubscriptions, emitter } = make('ended', null);
+    await svc.submitPostEvent('slug-1', 'a@b.com', { Nota: '10' }, FIELDS);
+    // No PostEventResponse persisted (no registration), but consolidation runs.
+    expect(regRepo.upsertPostEventResponse).not.toHaveBeenCalled();
+    expect(userSubscriptions.upsertFromForm).toHaveBeenCalledWith(
+      'evt-1',
+      'post_event',
+      { Nota: '10' },
+      { email: 'a@b.com', phone: undefined },
+    );
+    expect(emitter.emit).toHaveBeenCalledWith('form.submitted', expect.anything());
   });
 
-  it('404 when identifier resolves to empty contact', async () => {
+  it('400 when identifier resolves to empty contact', async () => {
     const { svc, regRepo } = make();
     await expect(
       svc.submitPostEvent('slug-1', 'abc', { Nota: '10' }, FIELDS),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(regRepo.findByEventAndContact).not.toHaveBeenCalled();
   });
 
