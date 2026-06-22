@@ -27,6 +27,7 @@ export class PublicEventsController {
         eventDate: true,
         endDate: true,
         postRegistrationMessage: true,
+        sendToPipedrive: true,
         status: true,
       },
     });

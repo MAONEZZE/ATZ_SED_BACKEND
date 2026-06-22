@@ -61,6 +61,7 @@ export class EventLifecycleService {
         eventDate: source.eventDate,
         endDate: source.endDate,
         postRegistrationMessage: source.postRegistrationMessage,
+        sendToPipedrive: source.sendToPipedrive,
         status: 'draft',
         lastEditedById: ownerId,
         formFields: {

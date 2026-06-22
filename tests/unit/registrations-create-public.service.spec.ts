@@ -1,7 +1,7 @@
 import { RegistrationsService } from '../../app/services/registrations/registrations.service';
 import { BadRequestException } from '@nestjs/common';
 
-function make(eventStatus = 'published') {
+function make(eventStatus = 'published', eventSendToPipedrive = false) {
   const regRepo = {
     create: jest.fn().mockResolvedValue({ id: 'reg-1', eventId: 'evt-1' }),
   };
@@ -12,11 +12,15 @@ function make(eventStatus = 'published') {
       title: 'Evento',
       status: eventStatus,
       ownerId: 'o1',
+      sendToPipedrive: eventSendToPipedrive,
     }),
   };
   const emitter = { emit: jest.fn() };
-  const userSubscriptions = { upsertFromForm: jest.fn().mockResolvedValue({}) };
-  const pipedrive = { send: jest.fn() };
+  const userSubscriptions = {
+    upsertFromForm: jest.fn().mockResolvedValue({ id: 'us-1' }),
+    markPipedrive: jest.fn().mockResolvedValue(undefined),
+  };
+  const pipedrive = { send: jest.fn().mockResolvedValue(undefined) };
   const svc = new RegistrationsService(
     regRepo as any,
     eventsService as any,
@@ -47,8 +51,8 @@ describe('RegistrationsService.createPublic', () => {
     expect(userSubscriptions.upsertFromForm).toHaveBeenCalledWith('evt-1', 'registration', answers);
   });
 
-  it('sends to Pipedrive when sendToPipedrive is true', async () => {
-    const { svc, pipedrive } = make();
+  it('sends to Pipedrive and records pending then sent status', async () => {
+    const { svc, pipedrive, userSubscriptions } = make();
     const answers = { nome: 'João', email: 'joao@b.com', telefone: '11999990000' };
 
     await svc.createPublic('slug-1', answers, true);
@@ -59,12 +63,41 @@ describe('RegistrationsService.createPublic', () => {
       contact: { name: 'João', email: 'joao@b.com', phone: '11999990000' },
       answers,
     });
+    expect(userSubscriptions.markPipedrive).toHaveBeenCalledWith('us-1', true, 'pending');
+
+    // Flush the fire-and-forget webhook + status update.
+    await new Promise((r) => setImmediate(r));
+    expect(userSubscriptions.markPipedrive).toHaveBeenCalledWith('us-1', true, 'sent');
   });
 
-  it('does not send to Pipedrive by default', async () => {
-    const { svc, pipedrive } = make();
+  it('records failed status when the webhook rejects', async () => {
+    const { svc, pipedrive, userSubscriptions } = make();
+    pipedrive.send.mockRejectedValueOnce(new Error('boom'));
+
+    await svc.createPublic('slug-1', { email: 'a@b.com' }, true);
+    await new Promise((r) => setImmediate(r));
+
+    expect(userSubscriptions.markPipedrive).toHaveBeenCalledWith('us-1', true, 'failed');
+  });
+
+  it('records skipped status and does not send by default', async () => {
+    const { svc, pipedrive, userSubscriptions } = make();
     await svc.createPublic('slug-1', { nome: 'X' });
     expect(pipedrive.send).not.toHaveBeenCalled();
+    expect(userSubscriptions.markPipedrive).toHaveBeenCalledWith('us-1', false, 'skipped');
+  });
+
+  it('falls back to the event-level sendToPipedrive when the body omits the flag', async () => {
+    const { svc, pipedrive } = make('published', true);
+    await svc.createPublic('slug-1', { email: 'a@b.com' });
+    expect(pipedrive.send).toHaveBeenCalled();
+  });
+
+  it('body flag false overrides an event-level true', async () => {
+    const { svc, pipedrive, userSubscriptions } = make('published', true);
+    await svc.createPublic('slug-1', { email: 'a@b.com' }, false);
+    expect(pipedrive.send).not.toHaveBeenCalled();
+    expect(userSubscriptions.markPipedrive).toHaveBeenCalledWith('us-1', false, 'skipped');
   });
 
   it('rejects when the event is not published', async () => {

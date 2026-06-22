@@ -23,6 +23,7 @@ export interface CreateEventInput {
   eventDate?: Date;
   endDate?: Date;
   postRegistrationMessage?: string;
+  sendToPipedrive?: boolean;
 }
 
 export interface UpdateEventInput {
@@ -35,6 +36,7 @@ export interface UpdateEventInput {
   eventDate?: Date;
   endDate?: Date;
   postRegistrationMessage?: string;
+  sendToPipedrive?: boolean;
   evolutionInstance?: string;
   evolutionToken?: string;
 }

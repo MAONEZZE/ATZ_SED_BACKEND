@@ -1,4 +1,12 @@
-import { IsString, IsOptional, IsInt, IsDateString, MinLength, Min } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsInt,
+  IsDateString,
+  IsBoolean,
+  MinLength,
+  Min,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateEventDto {
@@ -47,4 +55,12 @@ export class CreateEventDto {
   @IsOptional()
   @IsString()
   postRegistrationMessage?: string;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Se true, inscrições deste evento enviam o payload ao webhook do Pipedrive',
+  })
+  @IsOptional()
+  @IsBoolean()
+  sendToPipedrive?: boolean;
 }

@@ -28,6 +28,7 @@ export class EventEntity {
     public endDate?: Date,
     public postRegistrationMessage?: string,
     public lastEditedById?: string,
+    public sendToPipedrive: boolean = false,
   ) {}
 
   isEditable(): boolean {

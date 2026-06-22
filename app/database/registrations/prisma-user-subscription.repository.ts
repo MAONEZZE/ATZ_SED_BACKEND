@@ -6,6 +6,7 @@ import {
   UserSubscriptionRow,
   UpsertContact,
   FormKind,
+  PipedriveStatus,
 } from '@domain/registrations/ports/user-subscription-repository.port';
 
 const ANSWERS_COLUMN: Record<FormKind, 'registrationAnswers' | 'postEventAnswers' | 'npsAnswers'> = {
@@ -23,6 +24,10 @@ type Row = {
   registrationAnswers: unknown;
   postEventAnswers: unknown;
   npsAnswers: unknown;
+  sendToPipedrive: boolean;
+  pipedriveStatus: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 @Injectable()
@@ -39,7 +44,52 @@ export class PrismaUserSubscriptionRepository implements UserSubscriptionReposit
       registrationAnswers: row.registrationAnswers as Record<string, unknown> | null,
       postEventAnswers: row.postEventAnswers as Record<string, unknown> | null,
       npsAnswers: row.npsAnswers as Record<string, unknown> | null,
+      sendToPipedrive: row.sendToPipedrive,
+      pipedriveStatus: row.pipedriveStatus as PipedriveStatus | null,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
     };
+  }
+
+  private buildWhere(eventId: string, search?: string) {
+    return {
+      eventId,
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' as const } },
+              { email: { contains: search, mode: 'insensitive' as const } },
+              { phone: { contains: search, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+    };
+  }
+
+  async findAllByEventPaginated(
+    eventId: string,
+    pagination: { skip: number; take: number },
+    search?: string,
+  ): Promise<{ data: UserSubscriptionRow[]; total: number }> {
+    const where = this.buildWhere(eventId, search);
+    const [rows, total] = await Promise.all([
+      this.prisma.userSubscription.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: pagination.skip,
+        take: pagination.take,
+      }),
+      this.prisma.userSubscription.count({ where }),
+    ]);
+    return { data: rows.map((r) => this.map(r)), total };
+  }
+
+  async findAllByEvent(eventId: string, search?: string): Promise<UserSubscriptionRow[]> {
+    const rows = await this.prisma.userSubscription.findMany({
+      where: this.buildWhere(eventId, search),
+      orderBy: { createdAt: 'desc' },
+    });
+    return rows.map((r) => this.map(r));
   }
 
   async findByEventAndContact(
@@ -96,5 +146,18 @@ export class PrismaUserSubscriptionRepository implements UserSubscriptionReposit
       },
     });
     return this.map(row);
+  }
+
+  async setPipedrive(
+    id: string,
+    data: { sendToPipedrive: boolean; pipedriveStatus: PipedriveStatus },
+  ): Promise<void> {
+    await this.prisma.userSubscription.update({
+      where: { id },
+      data: {
+        sendToPipedrive: data.sendToPipedrive,
+        pipedriveStatus: data.pipedriveStatus,
+      },
+    });
   }
 }

@@ -9,6 +9,8 @@ export class CreateAutomationDto {
   @ApiProperty({
     enum: [
       'on_registration',
+      'on_post_event',
+      'on_nps',
       'on_approval',
       'on_rejection',
       'before_event',
@@ -18,6 +20,8 @@ export class CreateAutomationDto {
   })
   @IsEnum([
     'on_registration',
+    'on_post_event',
+    'on_nps',
     'on_approval',
     'on_rejection',
     'before_event',

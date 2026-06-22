@@ -4,6 +4,7 @@ import {
   UserSubscriptionRepositoryPort,
   UserSubscriptionRow,
   FormKind,
+  PipedriveStatus,
 } from '@domain/registrations/ports/user-subscription-repository.port';
 
 @Injectable()
@@ -48,6 +49,31 @@ export class UserSubscriptionsService {
       return this.repo.update(existing.id, { contact, kind, answers });
     }
     return this.repo.create({ eventId, contact, kind, answers });
+  }
+
+  async findAllPaginated(
+    eventId: string,
+    page: number,
+    limit: number,
+    search?: string,
+  ): Promise<{ data: UserSubscriptionRow[]; total: number }> {
+    return this.repo.findAllByEventPaginated(
+      eventId,
+      { skip: (page - 1) * limit, take: limit },
+      search,
+    );
+  }
+
+  async findAllByEvent(eventId: string, search?: string): Promise<UserSubscriptionRow[]> {
+    return this.repo.findAllByEvent(eventId, search);
+  }
+
+  async markPipedrive(
+    id: string,
+    sendToPipedrive: boolean,
+    pipedriveStatus: PipedriveStatus,
+  ): Promise<void> {
+    await this.repo.setPipedrive(id, { sendToPipedrive, pipedriveStatus });
   }
 
   private extractString(answers: Record<string, unknown>, keys: string[]): string {

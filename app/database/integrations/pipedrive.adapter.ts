@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 export interface PipedrivePayload {
@@ -11,23 +11,17 @@ export interface PipedrivePayload {
 @Injectable()
 export class PipedriveAdapter {
   private readonly webhookUrl: string;
-  private readonly logger = new Logger(PipedriveAdapter.name);
 
   constructor(config: ConfigService) {
     this.webhookUrl = config.get<string>('PIPEDRIVE_WEBHOOK_URL')!;
   }
 
   /**
-   * Fire-and-forget: never throws. A failed webhook must not fail the
-   * registration flow. Callers may invoke without awaiting.
+   * Posts the payload to the n8n/Pipedrive webhook. Rejects on failure so the
+   * caller can record the send status; the caller is responsible for keeping
+   * this fire-and-forget (not awaiting before responding to the user).
    */
-  send(payload: PipedrivePayload): void {
-    void this.post(payload).catch((err) => {
-      this.logger.error({ err, eventId: payload.event.id }, 'Pipedrive webhook error');
-    });
-  }
-
-  private async post(payload: PipedrivePayload): Promise<void> {
+  async send(payload: PipedrivePayload): Promise<void> {
     const response = await fetch(this.webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

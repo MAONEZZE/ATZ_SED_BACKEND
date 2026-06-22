@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   REGISTRATION_REPOSITORY_PORT,
@@ -16,6 +16,8 @@ import { PipedriveAdapter } from '@database/integrations/pipedrive.adapter';
 
 @Injectable()
 export class RegistrationsService {
+  private readonly logger = new Logger(RegistrationsService.name);
+
   constructor(
     @Inject(REGISTRATION_REPOSITORY_PORT)
     private readonly regRepo: RegistrationRepositoryPort,
@@ -28,12 +30,15 @@ export class RegistrationsService {
   async createPublic(
     slug: string,
     answers: Record<string, unknown>,
-    sendToPipedrive = false,
+    sendToPipedrive?: boolean,
   ): Promise<RegistrationEntity> {
     const event = await this.eventsService.findBySlug(slug);
     if (event.status !== 'published') {
       throw new BadRequestException('Event is not accepting registrations');
     }
+
+    // Body flag overrides; otherwise fall back to the event-level default.
+    const shouldSendToPipedrive = sendToPipedrive ?? event.sendToPipedrive;
 
     const name = this.extractString(answers, ['nome', 'name']);
     const email = this.extractString(answers, ['email']);
@@ -46,15 +51,30 @@ export class RegistrationsService {
       new RegistrationStatusChanged(reg.id, event.id, 'pending', 'pending', event.ownerId),
     );
 
-    await this.userSubscriptions.upsertFromForm(event.id, 'registration', answers);
+    const subscription = await this.userSubscriptions.upsertFromForm(
+      event.id,
+      'registration',
+      answers,
+    );
 
-    if (sendToPipedrive) {
-      this.pipedrive.send({
-        event: { id: event.id, slug: event.slug, title: event.title },
-        form: 'registration',
-        contact: { name, email, phone },
-        answers,
-      });
+    if (shouldSendToPipedrive) {
+      await this.userSubscriptions.markPipedrive(subscription.id, true, 'pending');
+      // Fire-and-forget: don't block the response on the webhook; record the
+      // outcome asynchronously.
+      void this.pipedrive
+        .send({
+          event: { id: event.id, slug: event.slug, title: event.title },
+          form: 'registration',
+          contact: { name, email, phone },
+          answers,
+        })
+        .then(() => this.userSubscriptions.markPipedrive(subscription.id, true, 'sent'))
+        .catch((err) => {
+          this.logger.error({ err, eventId: event.id }, 'Pipedrive webhook error');
+          return this.userSubscriptions.markPipedrive(subscription.id, true, 'failed');
+        });
+    } else {
+      await this.userSubscriptions.markPipedrive(subscription.id, false, 'skipped');
     }
 
     return reg;

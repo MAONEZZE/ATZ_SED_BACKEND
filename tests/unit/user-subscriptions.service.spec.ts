@@ -71,3 +71,28 @@ describe('UserSubscriptionsService.upsertFromForm', () => {
     expect(repo.create).toHaveBeenCalled();
   });
 });
+
+describe('UserSubscriptionsService.findAllPaginated', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  function make() {
+    const repo = {
+      findAllByEventPaginated: jest.fn().mockResolvedValue({ data: [{ id: 'us-1' }], total: 1 }),
+    };
+    const svc = new UserSubscriptionsService(repo as any);
+    return { svc, repo };
+  }
+
+  it('forwards skip/take and search to the repo', async () => {
+    const { svc, repo } = make();
+    const result = await svc.findAllPaginated('evt-1', 2, 10, 'jo');
+    expect(repo.findAllByEventPaginated).toHaveBeenCalledWith('evt-1', { skip: 10, take: 10 }, 'jo');
+    expect(result).toEqual({ data: [{ id: 'us-1' }], total: 1 });
+  });
+
+  it('omits search when not provided', async () => {
+    const { svc, repo } = make();
+    await svc.findAllPaginated('evt-1', 1, 20);
+    expect(repo.findAllByEventPaginated).toHaveBeenCalledWith('evt-1', { skip: 0, take: 20 }, undefined);
+  });
+});

@@ -80,6 +80,15 @@ enum OutboxStatus {
   @@schema("ATZ_SED")
 }
 
+enum PipedriveStatus {
+  pending
+  sent
+  failed
+  skipped
+
+  @@schema("ATZ_SED")
+}
+
 // ==================== MODELS ====================
 
 model Profile {
@@ -116,6 +125,7 @@ model Event {
   eventDate         DateTime?       @map("event_date")
   endDate           DateTime?       @map("end_date")
   postRegistrationMessage String?   @map("post_registration_message")
+  sendToPipedrive   Boolean         @default(false) @map("send_to_pipedrive")
   status            EventStatus     @default(draft)
   evolutionInstance String?         @map("evolution_instance")
   evolutionToken    String?         @map("evolution_token")
@@ -215,6 +225,8 @@ model UserSubscription {
   registrationAnswers Json?    @map("registration_answers")
   postEventAnswers    Json?    @map("post_event_answers")
   npsAnswers          Json?    @map("nps_answers")
+  sendToPipedrive     Boolean  @default(false) @map("send_to_pipedrive")
+  pipedriveStatus     PipedriveStatus? @map("pipedrive_status")
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
   event               Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)

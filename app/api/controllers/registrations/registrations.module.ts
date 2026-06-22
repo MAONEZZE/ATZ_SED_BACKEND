@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { RegistrationsController } from './registrations_routes/registrations.controller';
 import { PostEventResponsesController } from './registrations_routes/post-event-responses.controller';
+import { UserSubscriptionsController } from './registrations_routes/user-subscriptions.controller';
 import { RegistrationsService } from '@services/registrations/registrations.service';
 import { UserSubscriptionsService } from '@services/registrations/user-subscriptions.service';
 import { RegistrationsDbModule } from '@database/registrations/registrations-db.module';
@@ -10,7 +11,7 @@ import { EventsModule } from '../events/events.module';
 
 @Module({
   imports: [RegistrationsDbModule, IntegrationsModule, GuardsModule, EventsModule],
-  controllers: [RegistrationsController, PostEventResponsesController],
+  controllers: [RegistrationsController, PostEventResponsesController, UserSubscriptionsController],
   providers: [RegistrationsService, UserSubscriptionsService],
   exports: [RegistrationsService, UserSubscriptionsService],
 })

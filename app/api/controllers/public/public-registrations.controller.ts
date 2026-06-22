@@ -21,7 +21,9 @@ export class PublicRegistrationsController {
   @ApiResponse({ status: 404, description: 'Evento não encontrado ou não publicado' })
   create(@Param('slug') slug: string, @Body() body: Record<string, unknown>) {
     // `send_to_pipedrive` is a control flag, not a form answer — strip it out.
+    // When omitted, the event-level default decides (handled in the service).
     const { send_to_pipedrive, ...answers } = body;
-    return this.registrations.createPublic(slug, answers, send_to_pipedrive === true);
+    const flag = typeof send_to_pipedrive === 'boolean' ? send_to_pipedrive : undefined;
+    return this.registrations.createPublic(slug, answers, flag);
   }
 }

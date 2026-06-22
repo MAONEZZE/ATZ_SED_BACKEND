@@ -13,6 +13,7 @@ export interface CreateEventData {
   eventDate?: Date;
   endDate?: Date;
   postRegistrationMessage?: string;
+  sendToPipedrive?: boolean;
 }
 
 export interface UpdateEventData {
@@ -26,6 +27,7 @@ export interface UpdateEventData {
   eventDate?: Date;
   endDate?: Date;
   postRegistrationMessage?: string;
+  sendToPipedrive?: boolean;
   evolutionInstance?: string;
   evolutionToken?: string;
   lastEditedById?: string;

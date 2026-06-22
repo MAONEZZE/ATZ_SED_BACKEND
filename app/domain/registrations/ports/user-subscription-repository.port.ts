@@ -2,6 +2,8 @@ export const USER_SUBSCRIPTION_REPOSITORY_PORT = Symbol('USER_SUBSCRIPTION_REPOS
 
 export type FormKind = 'registration' | 'post_event' | 'nps';
 
+export type PipedriveStatus = 'pending' | 'sent' | 'failed' | 'skipped';
+
 export interface UserSubscriptionRow {
   id: string;
   eventId: string;
@@ -11,6 +13,10 @@ export interface UserSubscriptionRow {
   registrationAnswers: Record<string, unknown> | null;
   postEventAnswers: Record<string, unknown> | null;
   npsAnswers: Record<string, unknown> | null;
+  sendToPipedrive: boolean;
+  pipedriveStatus: PipedriveStatus | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface UpsertContact {
@@ -34,4 +40,14 @@ export interface UserSubscriptionRepositoryPort {
     id: string,
     data: { contact: UpsertContact; kind: FormKind; answers: Record<string, unknown> },
   ): Promise<UserSubscriptionRow>;
+  setPipedrive(
+    id: string,
+    data: { sendToPipedrive: boolean; pipedriveStatus: PipedriveStatus },
+  ): Promise<void>;
+  findAllByEventPaginated(
+    eventId: string,
+    pagination: { skip: number; take: number },
+    search?: string,
+  ): Promise<{ data: UserSubscriptionRow[]; total: number }>;
+  findAllByEvent(eventId: string, search?: string): Promise<UserSubscriptionRow[]>;
 }
