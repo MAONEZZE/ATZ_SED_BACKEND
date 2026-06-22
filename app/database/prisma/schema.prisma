@@ -32,6 +32,7 @@ enum FunnelStatus {
 enum FormFieldKind {
   registration
   post_event
+  nps
 
   @@schema("ATZ_SED")
 }
@@ -59,6 +60,8 @@ enum MessageChannel {
 
 enum AutomationTrigger {
   on_registration
+  on_post_event
+  on_nps
   on_approval
   on_rejection
   before_event
@@ -128,6 +131,7 @@ model Event {
   automationRules   AutomationRule[]
   outboxMessages    OutboxMessage[]
   messageLogs       MessageLog[]
+  userSubscriptions UserSubscription[]
 
   @@index([ownerId])
   @@map("events")
@@ -199,6 +203,26 @@ model PostEventResponse {
   @@unique([registrationId])
   @@index([eventId])
   @@map("post_event_responses")
+  @@schema("ATZ_SED")
+}
+
+model UserSubscription {
+  id                  String   @id @default(uuid())
+  eventId             String   @map("event_id")
+  name                String?
+  email               String?
+  phone               String?
+  registrationAnswers Json?    @map("registration_answers")
+  postEventAnswers    Json?    @map("post_event_answers")
+  npsAnswers          Json?    @map("nps_answers")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  event               Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([eventId, email])
+  @@index([eventId, phone])
+  @@map("user_subscriptions")
   @@schema("ATZ_SED")
 }
 

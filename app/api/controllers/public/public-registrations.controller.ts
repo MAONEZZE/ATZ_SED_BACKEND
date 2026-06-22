@@ -14,12 +14,14 @@ export class PublicRegistrationsController {
     schema: {
       type: 'object',
       additionalProperties: true,
-      example: { name: 'João Silva', email: 'joao@email.com' },
+      example: { name: 'João Silva', email: 'joao@email.com', send_to_pipedrive: true },
     },
   })
   @ApiResponse({ status: 201, description: 'Inscrição criada' })
   @ApiResponse({ status: 404, description: 'Evento não encontrado ou não publicado' })
-  create(@Param('slug') slug: string, @Body() answers: Record<string, unknown>) {
-    return this.registrations.createPublic(slug, answers);
+  create(@Param('slug') slug: string, @Body() body: Record<string, unknown>) {
+    // `send_to_pipedrive` is a control flag, not a form answer — strip it out.
+    const { send_to_pipedrive, ...answers } = body;
+    return this.registrations.createPublic(slug, answers, send_to_pipedrive === true);
   }
 }

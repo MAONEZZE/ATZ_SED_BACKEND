@@ -58,6 +58,17 @@ describe('TemplateRenderer', () => {
       expect(vars['data']).toMatch(/15\/06\/2026/);
     });
 
+    it('formats data in America/Sao_Paulo timezone regardless of server TZ', () => {
+      // 03:00 UTC == 00:00 horário de Brasília. Em servidor UTC (prod) sem
+      // timeZone explícito sairia 03:00 (bug). Deve sair sempre 00:00.
+      const vars = renderer.buildVariables({
+        registration: reg,
+        event: { ...event, eventDate: new Date('2026-06-15T03:00:00.000Z') },
+      });
+      expect(vars['data']).toMatch(/15\/06\/2026/);
+      expect(vars['data']).toContain('00:00');
+    });
+
     it('maps empty string when eventDate is null', () => {
       const vars = renderer.buildVariables({
         registration: reg,

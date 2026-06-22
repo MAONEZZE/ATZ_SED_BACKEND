@@ -40,12 +40,12 @@ export class FormFieldsController {
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'kind', required: false, enum: ['registration', 'post_event'] })
+  @ApiQuery({ name: 'kind', required: false, enum: ['registration', 'post_event', 'nps'] })
   @ApiResponse({ status: 200, description: 'Lista paginada de campos' })
   async findAll(
     @Param('eventId') eventId: string,
     @Query() pagination: PaginationQueryDto,
-    @Query('kind') kind?: 'registration' | 'post_event',
+    @Query('kind') kind?: 'registration' | 'post_event' | 'nps',
   ): Promise<Paginated<object>> {
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 20;
