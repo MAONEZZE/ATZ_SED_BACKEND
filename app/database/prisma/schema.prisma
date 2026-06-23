@@ -245,6 +245,8 @@ model MessageTemplate {
   channel        MessageChannel
   subject        String?
   body           String
+  layoutConfig   Json?           @map("layout_config")
+  styleKey       String?         @map("style_key")
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @updatedAt @map("updated_at")
   owner          Profile         @relation(fields: [ownerId], references: [id], onDelete: Cascade)

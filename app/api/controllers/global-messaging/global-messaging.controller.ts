@@ -19,8 +19,9 @@ import {
   ApiQuery,
   ApiParam,
 } from '@nestjs/swagger';
-import { IsString, IsEnum, IsOptional, MinLength } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsObject, IsIn, MinLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Prisma } from '@prisma/client';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { CurrentUser } from '@api/config/decorators/current-user.decorator';
 import { AuthenticatedUser } from '@domain/users/entities/authenticated-user.entity';
@@ -48,6 +49,16 @@ class CreateGlobalTemplateDto {
   @IsString()
   @MinLength(1)
   body!: string;
+
+  @ApiPropertyOptional({ description: 'Config visual (blob opaco). Só e-mail preenche.' })
+  @IsOptional()
+  @IsObject()
+  layoutConfig?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ enum: ['minimalista', 'profissional', 'acolhedor', 'elegante'] })
+  @IsOptional()
+  @IsIn(['minimalista', 'profissional', 'acolhedor', 'elegante'])
+  styleKey?: string;
 }
 
 class UpdateGlobalTemplateDto {
@@ -72,6 +83,16 @@ class UpdateGlobalTemplateDto {
   @IsString()
   @MinLength(1)
   body?: string;
+
+  @ApiPropertyOptional({ description: 'Config visual (blob opaco). Só e-mail preenche.' })
+  @IsOptional()
+  @IsObject()
+  layoutConfig?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ enum: ['minimalista', 'profissional', 'acolhedor', 'elegante'] })
+  @IsOptional()
+  @IsIn(['minimalista', 'profissional', 'acolhedor', 'elegante'])
+  styleKey?: string;
 }
 
 @ApiTags('Messaging (global)')
@@ -104,6 +125,11 @@ export class GlobalMessagingController {
         channel: dto.channel as any,
         subject: dto.subject,
         body: dto.body,
+        layoutConfig:
+          dto.layoutConfig != null
+            ? (dto.layoutConfig as Prisma.InputJsonValue)
+            : Prisma.JsonNull,
+        styleKey: dto.styleKey ?? null,
       },
     });
   }
@@ -167,6 +193,13 @@ export class GlobalMessagingController {
         ...(dto.channel !== undefined && { channel: dto.channel as any }),
         ...(dto.subject !== undefined && { subject: dto.subject }),
         ...(dto.body !== undefined && { body: dto.body }),
+        ...(dto.layoutConfig !== undefined && {
+          layoutConfig:
+            dto.layoutConfig != null
+              ? (dto.layoutConfig as Prisma.InputJsonValue)
+              : Prisma.JsonNull,
+        }),
+        ...(dto.styleKey !== undefined && { styleKey: dto.styleKey }),
       },
     });
   }
