@@ -12,8 +12,6 @@ import { GlobalExceptionFilter } from './api/config/filters/http-exception.filte
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
-  console.info(`http://localhost:${process.env.PORT}/docs`);
-
   app.useLogger(app.get(Logger));
 
   app.use(
