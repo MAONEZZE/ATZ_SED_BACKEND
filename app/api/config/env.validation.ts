@@ -25,6 +25,8 @@ const envSchema = z.object({
 
   WA_MIN_DELAY_MS: z.coerce.number().int().nonnegative().default(8000),
   WA_MAX_DELAY_MS: z.coerce.number().int().nonnegative().default(30000),
+  WA_AUTOMATION_GAP_MIN_MS: z.coerce.number().int().nonnegative().default(40_000),
+  WA_AUTOMATION_GAP_MAX_MS: z.coerce.number().int().nonnegative().default(60_000),
   WA_DISPATCH_CONCURRENCY: z.coerce.number().int().positive().default(1),
   WA_TYPING_ENABLED: z
     .union([z.boolean(), z.string()])

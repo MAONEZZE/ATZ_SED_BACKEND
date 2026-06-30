@@ -60,7 +60,9 @@ export class ScheduledAutomationsWorker extends WorkerHost implements OnModuleIn
       where: {
         trigger: trigger as any,
         active: true,
-        delayMinutes: { not: null },
+        // Agendados precisam de delay positivo real. { not: null } incluía 0 (que é
+        // disparo imediato e pertence ao engine), então usamos { gt: 0 }.
+        delayMinutes: { gt: 0 },
       },
       include: {
         event: {

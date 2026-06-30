@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '@database/prisma/prisma.service';
 import {
   OutboxRepositoryPort,
@@ -10,14 +11,29 @@ import {
 export class PrismaOutboxRepository implements OutboxRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
 
-  async enqueue(data: EnqueueMessageData & { dedupKey: string }): Promise<{ id: string }> {
-    const row = await this.prisma.outboxMessage.upsert({
-      where: { dedupKey: data.dedupKey },
-      update: {},
-      create: { ...data, status: 'pending' },
-      select: { id: true },
-    });
-    return { id: row.id };
+  async enqueue(
+    data: EnqueueMessageData & { dedupKey: string },
+  ): Promise<{ id: string; created: boolean }> {
+    // create + catch P2002 (em vez de upsert) para distinguir linha nova de
+    // duplicada via dedupKey. O chamador usa `created` para só aplicar o pacing
+    // anti-ban em mensagens realmente novas (reprocessamentos do scheduled worker
+    // não devem avançar o cursor de espaçamento).
+    try {
+      const row = await this.prisma.outboxMessage.create({
+        data: { ...data, status: 'pending' },
+        select: { id: true },
+      });
+      return { id: row.id, created: true };
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        const existing = await this.prisma.outboxMessage.findUniqueOrThrow({
+          where: { dedupKey: data.dedupKey },
+          select: { id: true },
+        });
+        return { id: existing.id, created: false };
+      }
+      throw err;
+    }
   }
 
   async claimStuck(olderThanMinutes: number): Promise<number> {
