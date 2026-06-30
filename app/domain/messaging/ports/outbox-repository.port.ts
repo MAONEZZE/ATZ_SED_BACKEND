@@ -29,7 +29,9 @@ export interface PendingOutboxMessage {
 }
 
 export interface OutboxRepositoryPort {
-  enqueue(data: EnqueueMessageData & { dedupKey: string }): Promise<{ id: string }>;
+  enqueue(
+    data: EnqueueMessageData & { dedupKey: string },
+  ): Promise<{ id: string; created: boolean }>;
   claimStuck(olderThanMinutes: number): Promise<number>;
   markProcessing(id: string): Promise<void>;
   markSent(id: string): Promise<void>;

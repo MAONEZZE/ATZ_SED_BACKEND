@@ -3,7 +3,6 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '@database/prisma/prisma.service';
 import { OutboxService } from '@services/messaging/outbox.service';
 import { TemplateRenderer } from './template-renderer.service';
-import { IcsGeneratorService } from './ics-generator.service';
 import { RegistrationStatusChanged } from '@domain/registrations/entities/registration-status-changed.event';
 import { FormSubmitted } from '@domain/registrations/entities/form-submitted.event';
 
@@ -21,7 +20,6 @@ export class AutomationEngine {
     private readonly prisma: PrismaService,
     private readonly outbox: OutboxService,
     private readonly renderer: TemplateRenderer,
-    private readonly ics: IcsGeneratorService,
   ) {}
 
   @OnEvent('registration.status_changed')
@@ -102,7 +100,10 @@ export class AutomationEngine {
         eventId,
         trigger: trigger as any,
         active: true,
-        ...(ruleIds ? { id: { in: ruleIds } } : { delayMinutes: null }),
+        // Disparo imediato: delayMinutes null OU 0 (robustez contra regras gravadas com 0).
+        ...(ruleIds
+          ? { id: { in: ruleIds } }
+          : { OR: [{ delayMinutes: null }, { delayMinutes: 0 }] }),
       },
       include: { template: true },
     });
@@ -143,38 +144,31 @@ export class AutomationEngine {
         ? this.renderer.render(rule.template.subject, vars)
         : undefined;
 
-      let renderedBodyFinal = renderedBody;
-      let icsContent: string | undefined;
-
-      if (trigger === 'on_approval' && rule.template.channel === 'email' && event.eventDate) {
-        icsContent = this.ics.generate({
-          title: event.title,
-          start: event.eventDate,
-          location: event.location ?? undefined,
-        });
-        renderedBodyFinal = renderedBody;
-      }
-
+      // O convite .ics é gerado pelo MessageDispatchWorker quando o corpo contém o
+      // marcador {{invite}} (ICS_MARKER) — ele regenera a partir do evento (com endDate).
+      // Não geramos ics aqui para não duplicar a lógica.
       const recipient = rule.template.channel === 'email' ? contact.email : contact.phone;
       const dedupKey = contact.registrationId
         ? undefined
         : `${eventId}:${(contact.email || contact.phone).toLowerCase()}:${rule.templateId}:${trigger}`;
 
-      await this.outbox.enqueue({
-        eventId: event.id,
-        ownerId: event.ownerId,
-        registrationId: contact.registrationId,
-        templateId: rule.templateId,
-        trigger,
-        dedupKey,
-        channel: rule.template.channel,
-        recipient,
-        instancia: instancia ?? undefined,
-        renderedBody: renderedBodyFinal,
-        renderedSubject,
-      });
-
-      void icsContent;
+      await this.outbox.enqueue(
+        {
+          eventId: event.id,
+          ownerId: event.ownerId,
+          registrationId: contact.registrationId,
+          templateId: rule.templateId,
+          trigger,
+          dedupKey,
+          channel: rule.template.channel,
+          recipient,
+          instancia: instancia ?? undefined,
+          renderedBody,
+          renderedSubject,
+        },
+        // Espaça os disparos de WhatsApp entre contatos distintos (anti-ban).
+        instancia ? { paceInstancia: instancia } : undefined,
+      );
     }
   }
 }

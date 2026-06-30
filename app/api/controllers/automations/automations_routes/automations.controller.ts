@@ -90,7 +90,10 @@ export class AutomationsController {
         eventId,
         templateId: dto.templateId,
         trigger: dto.trigger as any,
-        delayMinutes: dto.delayMinutes,
+        // delayMinutes nulo = disparo imediato. O front pode mandar 0 com a mesma
+        // intenção; normalizamos 0 -> null para a regra não cair no buraco entre o
+        // disparo imediato (engine) e o agendado (worker).
+        delayMinutes: dto.delayMinutes || null,
         active: dto.active ?? true,
       },
       include: { template: { select: { id: true, name: true, channel: true } } },
@@ -123,7 +126,7 @@ export class AutomationsController {
       data: {
         ...(dto.templateId && { templateId: dto.templateId }),
         ...(dto.trigger && { trigger: dto.trigger as any }),
-        ...(dto.delayMinutes !== undefined && { delayMinutes: dto.delayMinutes }),
+        ...(dto.delayMinutes !== undefined && { delayMinutes: dto.delayMinutes || null }),
         ...(dto.active !== undefined && { active: dto.active }),
       },
       include: { template: { select: { id: true, name: true, channel: true } } },

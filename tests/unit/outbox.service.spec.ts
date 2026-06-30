@@ -1,7 +1,7 @@
 import { OutboxService } from '@services/messaging/outbox.service';
 
 const mockOutboxRepo = {
-  enqueue: jest.fn().mockResolvedValue({ id: 'msg-1' }),
+  enqueue: jest.fn().mockResolvedValue({ id: 'msg-1', created: true }),
 };
 
 const mockQueue = {
@@ -9,7 +9,11 @@ const mockQueue = {
   clean: jest.fn().mockResolvedValue([]),
 };
 
-const service = new OutboxService(mockOutboxRepo as any, mockQueue as any);
+const mockPacing = {
+  nextDelayMs: jest.fn().mockResolvedValue(50000),
+};
+
+const service = new OutboxService(mockOutboxRepo as any, mockQueue as any, mockPacing as any);
 
 const baseData = {
   eventId: 'evt-1',
@@ -101,5 +105,62 @@ describe('OutboxService.enqueue', () => {
     expect(mockOutboxRepo.enqueue).toHaveBeenCalledTimes(1);
     expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
+  });
+});
+
+describe('OutboxService.enqueue — pacing anti-ban WhatsApp', () => {
+  const waData = {
+    eventId: 'evt-1',
+    registrationId: 'reg-1',
+    templateId: 'tmpl-1',
+    trigger: 'on_registration',
+    channel: 'whatsapp' as const,
+    recipient: '5511999999999',
+    renderedBody: 'Olá',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockOutboxRepo.enqueue.mockResolvedValue({ id: 'msg-1', created: true });
+    mockPacing.nextDelayMs.mockResolvedValue(50000);
+  });
+
+  it('aplica o delay do pacing para whatsapp novo com paceInstancia', async () => {
+    await service.enqueue(waData, { paceInstancia: 'wpp_atlaz' });
+    expect(mockPacing.nextDelayMs).toHaveBeenCalledWith('wpp_atlaz');
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      'dispatch',
+      expect.any(Object),
+      expect.objectContaining({ delay: 50000 }),
+    );
+  });
+
+  it('NÃO aplica pacing quando a mensagem já existia (created=false)', async () => {
+    mockOutboxRepo.enqueue.mockResolvedValueOnce({ id: 'msg-1', created: false });
+    await service.enqueue(waData, { paceInstancia: 'wpp_atlaz' });
+    expect(mockPacing.nextDelayMs).not.toHaveBeenCalled();
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      'dispatch',
+      expect.any(Object),
+      expect.objectContaining({ delay: 0 }),
+    );
+  });
+
+  it('NÃO aplica pacing para canal email', async () => {
+    await service.enqueue(
+      { ...waData, channel: 'email', recipient: 'a@b.com' },
+      { paceInstancia: 'wpp_atlaz' },
+    );
+    expect(mockPacing.nextDelayMs).not.toHaveBeenCalled();
+  });
+
+  it('delayMs explícito tem precedência sobre o pacing (envio manual)', async () => {
+    await service.enqueue(waData, { delayMs: 12345, paceInstancia: 'wpp_atlaz' });
+    expect(mockPacing.nextDelayMs).not.toHaveBeenCalled();
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      'dispatch',
+      expect.any(Object),
+      expect.objectContaining({ delay: 12345 }),
+    );
   });
 });
