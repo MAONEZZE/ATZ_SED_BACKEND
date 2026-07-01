@@ -11,6 +11,7 @@ import { EventsService } from '@services/events/events.service';
 import { OutboxService } from '@services/messaging/outbox.service';
 import { TemplateRenderer } from '@services/automations/template-renderer.service';
 import type { MessageChannel } from '@domain/messaging/types/message-channel.type';
+import type { InviteConfigInput } from '@domain/messaging/ports/outbox-repository.port';
 
 export interface ManualRecipientInput {
   name: string;
@@ -26,6 +27,7 @@ export interface SendMessageInput {
   body?: string;
   registrationIds?: string[];
   manualRecipients?: ManualRecipientInput[];
+  invite?: InviteConfigInput;
 }
 
 export interface SendMessageResult {
@@ -61,6 +63,12 @@ export class ManualSendService {
   async send(input: SendMessageInput, userId: string): Promise<SendMessageResult> {
     if (input.registrationIds?.length && !input.eventId) {
       throw new BadRequestException('registrationIds require an eventId');
+    }
+
+    if (input.invite && !input.invite.allDay) {
+      if (!input.invite.startTime || !input.invite.endTime) {
+        throw new BadRequestException('invite.startTime and invite.endTime are required when allDay is false');
+      }
     }
 
     let eventContext: {
@@ -224,6 +232,7 @@ export class ManualSendService {
             recipient: target,
             renderedBody,
             renderedSubject,
+            inviteConfig: input.invite ?? null,
           },
           { delayMs: isWhatsapp ? batchDelayCursor + innerDelayCursor : 0 },
         );

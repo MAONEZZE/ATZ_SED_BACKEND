@@ -19,8 +19,15 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
     // anti-ban em mensagens realmente novas (reprocessamentos do scheduled worker
     // não devem avançar o cursor de espaçamento).
     try {
+      const { inviteConfig, ...rest } = data;
       const row = await this.prisma.outboxMessage.create({
-        data: { ...data, status: 'pending' },
+        data: {
+          ...rest,
+          status: 'pending',
+          inviteConfig: inviteConfig
+            ? (inviteConfig as unknown as Prisma.InputJsonValue)
+            : Prisma.JsonNull,
+        },
         select: { id: true },
       });
       return { id: row.id, created: true };

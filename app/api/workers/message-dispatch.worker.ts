@@ -6,9 +6,12 @@ import { ResendAdapter } from '@database/integrations/resend.adapter';
 import { EvolutionAdapter } from '@database/integrations/evolution.adapter';
 import { QUEUE_MESSAGE_DISPATCH } from '@database/queue/bull-queues.module';
 import { IcsGeneratorService } from '@services/automations/ics-generator.service';
+import type { InviteConfigInput } from '@domain/messaging/ports/outbox-repository.port';
+import { APP_TIMEZONE } from '@domain/shared/constants/timezone';
+import { DateTime } from 'luxon';
 
 const ICS_MARKER = '[[[ICS_INVITE]]]';
-const ICS_RECURRING_MARKER = '[[[ICS_INVITE_RECURRING]]]';
+const ICS_MARKER_RECURRENT = '[[[ICS_INVITE_RECURRENT]]]';
 
 @Processor(QUEUE_MESSAGE_DISPATCH, {
   concurrency: Number(process.env.WA_DISPATCH_CONCURRENCY) || 1,
@@ -72,40 +75,12 @@ export class MessageDispatchWorker extends WorkerHost {
         let body = outbox.renderedBody;
         let icsContent: string | undefined;
 
-        const wantsRecurring = body.includes(ICS_RECURRING_MARKER);
-        const wantsInvite = wantsRecurring || body.includes(ICS_MARKER);
+        const wantsRecurrent = body.includes(ICS_MARKER_RECURRENT);
+        const wantsInvite = wantsRecurrent || body.includes(ICS_MARKER);
 
-        if (wantsInvite && outbox.eventId) {
-          const event = await this.prisma.event.findUnique({
-            where: { id: outbox.eventId },
-            select: {
-              title: true,
-              eventDate: true,
-              endDate: true,
-              location: true,
-              recurrenceFreq: true,
-              recurrenceInterval: true,
-              recurrenceUntil: true,
-            },
-          });
-          if (event?.eventDate) {
-            const repeating =
-              wantsRecurring && event.recurrenceFreq
-                ? {
-                    freq: event.recurrenceFreq,
-                    interval: event.recurrenceInterval ?? undefined,
-                    until: event.recurrenceUntil ?? undefined,
-                  }
-                : undefined;
-            icsContent = this.ics.generate({
-              title: event.title,
-              start: event.eventDate,
-              end: event.endDate ?? undefined,
-              location: event.location ?? undefined,
-              repeating,
-            });
-          }
-          body = body.replace(ICS_RECURRING_MARKER, '').replace(ICS_MARKER, '');
+        if (wantsInvite) {
+          icsContent = await this.buildInvite(outbox, wantsRecurrent);
+          body = body.replace(ICS_MARKER_RECURRENT, '').replace(ICS_MARKER, '');
         }
 
         await this.resend.sendEmail(
@@ -174,6 +149,95 @@ export class MessageDispatchWorker extends WorkerHost {
       if (err instanceof UnrecoverableError) throw err;
       throw new Error(msg);
     }
+  }
+
+  /**
+   * Gera o .ics do convite. Precedência:
+   *  (a) outbox.inviteConfig (payload do envio manual) — usa date/horários/timezone
+   *      e recorrência informados; ancora o instante no timezone IANA do config.
+   *  (b) fallback: deriva do Event (eventDate/endDate + recurrence* do evento),
+   *      renderizando no timezone da aplicação.
+   * UID estável por (eventId + destinatário) evita duplicação no calendário em reenvios.
+   */
+  private async buildInvite(
+    outbox: {
+      eventId: string | null;
+      recipient: string;
+      renderedSubject: string | null;
+      inviteConfig: unknown;
+    },
+    wantsRecurrent: boolean,
+  ): Promise<string | undefined> {
+    const event = outbox.eventId
+      ? await this.prisma.event.findUnique({
+          where: { id: outbox.eventId },
+          select: {
+            title: true,
+            eventDate: true,
+            endDate: true,
+            location: true,
+            recurrenceFreq: true,
+            recurrenceInterval: true,
+            recurrenceUntil: true,
+          },
+        })
+      : null;
+
+    const uid = `invite-${outbox.eventId ?? 'global'}-${outbox.recipient}`;
+    const cfg = (outbox.inviteConfig as InviteConfigInput | null) ?? null;
+
+    // (a) Config explícita no payload.
+    if (cfg) {
+      const tz = cfg.timezone || APP_TIMEZONE;
+      const start = DateTime.fromISO(`${cfg.date}T${cfg.allDay ? '00:00' : cfg.startTime}`, {
+        zone: tz,
+      }).toJSDate();
+      const end =
+        cfg.allDay || !cfg.endTime
+          ? undefined
+          : DateTime.fromISO(`${cfg.date}T${cfg.endTime}`, { zone: tz }).toJSDate();
+      const repeating =
+        wantsRecurrent && cfg.recurrence
+          ? {
+              freq: cfg.recurrence.freq,
+              interval: cfg.recurrence.interval,
+              until: cfg.recurrence.until ? new Date(cfg.recurrence.until) : undefined,
+            }
+          : undefined;
+      return this.ics.generate({
+        title: event?.title ?? outbox.renderedSubject ?? 'Convite',
+        start,
+        end,
+        allDay: cfg.allDay ?? false,
+        timezone: tz,
+        location: event?.location ?? undefined,
+        uid,
+        repeating,
+      });
+    }
+
+    // (b) Fallback: deriva do Event.
+    if (event?.eventDate) {
+      const repeating =
+        wantsRecurrent && event.recurrenceFreq
+          ? {
+              freq: event.recurrenceFreq,
+              interval: event.recurrenceInterval ?? undefined,
+              until: event.recurrenceUntil ?? undefined,
+            }
+          : undefined;
+      return this.ics.generate({
+        title: event.title,
+        start: event.eventDate,
+        end: event.endDate ?? undefined,
+        timezone: APP_TIMEZONE,
+        location: event.location ?? undefined,
+        uid,
+        repeating,
+      });
+    }
+
+    return undefined;
   }
 
   private async resolveWhatsAppInstance(

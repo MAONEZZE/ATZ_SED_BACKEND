@@ -5,10 +5,65 @@ import {
   IsArray,
   IsEmail,
   IsUUID,
+  IsInt,
+  IsBoolean,
+  IsISO8601,
+  Min,
+  Matches,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class InviteRecurrenceDto {
+  @ApiProperty({ enum: ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'], example: 'WEEKLY' })
+  @IsIn(['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'])
+  freq!: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+
+  @ApiProperty({ example: 1, description: 'Intervalo entre repetições (>= 1)' })
+  @IsInt()
+  @Min(1)
+  interval!: number;
+
+  @ApiPropertyOptional({
+    example: '2026-12-31T20:00:00.000Z',
+    description: 'ISO 8601. Sem valor = recorrência infinita.',
+  })
+  @IsOptional()
+  @IsISO8601()
+  until?: string;
+}
+
+export class InviteConfigDto {
+  @ApiProperty({ example: '2026-07-01', description: 'Data do evento (YYYY-MM-DD)' })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'date deve ser YYYY-MM-DD' })
+  date!: string;
+
+  @ApiPropertyOptional({ example: false, description: 'Evento de dia inteiro (ignora horários)' })
+  @IsOptional()
+  @IsBoolean()
+  allDay?: boolean;
+
+  @ApiPropertyOptional({ example: '09:00', description: 'HH:mm — obrigatório se allDay=false' })
+  @IsOptional()
+  @Matches(/^\d{2}:\d{2}$/, { message: 'startTime deve ser HH:mm' })
+  startTime?: string;
+
+  @ApiPropertyOptional({ example: '10:00', description: 'HH:mm — obrigatório se allDay=false' })
+  @IsOptional()
+  @Matches(/^\d{2}:\d{2}$/, { message: 'endTime deve ser HH:mm' })
+  endTime?: string;
+
+  @ApiProperty({ example: 'America/Sao_Paulo', description: 'Timezone IANA' })
+  @IsString()
+  timezone!: string;
+
+  @ApiPropertyOptional({ type: InviteRecurrenceDto, description: 'Ausente/null = convite único' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => InviteRecurrenceDto)
+  recurrence?: InviteRecurrenceDto | null;
+}
 
 export class ManualRecipientDto {
   @ApiProperty({ example: 'João Silva' })
@@ -69,4 +124,13 @@ export class SendMessageDto {
   @ValidateNested({ each: true })
   @Type(() => ManualRecipientDto)
   manualRecipients?: ManualRecipientDto[];
+
+  @ApiPropertyOptional({
+    type: InviteConfigDto,
+    description: 'Config do convite .ics. Ausente = comportamento atual (deriva do evento).',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => InviteConfigDto)
+  invite?: InviteConfigDto;
 }

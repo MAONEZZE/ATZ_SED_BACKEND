@@ -7,23 +7,35 @@ export interface IcsRecurrence {
   until?: Date;
 }
 
+export interface IcsGenerateParams {
+  title: string;
+  start: Date;
+  end?: Date;
+  allDay?: boolean;
+  /** IANA timezone (ex: America/Sao_Paulo). Emite DTSTART/DTEND com TZID. */
+  timezone?: string;
+  location?: string;
+  description?: string;
+  /** UID estável — evita duplicação em reenvios do mesmo convite. */
+  uid?: string;
+  repeating?: IcsRecurrence;
+}
+
 @Injectable()
 export class IcsGeneratorService {
-  generate(params: {
-    title: string;
-    start: Date;
-    end?: Date;
-    location?: string;
-    description?: string;
-    repeating?: IcsRecurrence;
-  }): string {
+  generate(params: IcsGenerateParams): string {
     const cal = ical({ name: params.title });
     const event = cal.createEvent({
       start: params.start,
-      end: params.end ?? new Date(params.start.getTime() + 2 * 60 * 60 * 1000),
+      end: params.allDay
+        ? undefined
+        : (params.end ?? new Date(params.start.getTime() + 2 * 60 * 60 * 1000)),
+      allDay: params.allDay ?? false,
+      timezone: params.timezone,
       summary: params.title,
       location: params.location,
       description: params.description,
+      id: params.uid,
     });
 
     if (params.repeating) {

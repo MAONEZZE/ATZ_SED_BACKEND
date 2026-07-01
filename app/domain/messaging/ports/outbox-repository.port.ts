@@ -2,6 +2,26 @@ import type { MessageChannel } from '@domain/messaging/types/message-channel.typ
 
 export const OUTBOX_REPOSITORY_PORT = Symbol('OUTBOX_REPOSITORY_PORT');
 
+export interface InviteRecurrenceInput {
+  freq: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  interval: number;
+  /** ISO 8601. Ausente = recorrência infinita. */
+  until?: string;
+}
+
+export interface InviteConfigInput {
+  /** YYYY-MM-DD */
+  date: string;
+  allDay?: boolean;
+  /** HH:mm — obrigatório quando allDay é falso. */
+  startTime?: string;
+  /** HH:mm — obrigatório quando allDay é falso. */
+  endTime?: string;
+  /** IANA timezone. */
+  timezone: string;
+  recurrence?: InviteRecurrenceInput | null;
+}
+
 export interface EnqueueMessageData {
   eventId?: string;
   ownerId?: string;
@@ -14,6 +34,7 @@ export interface EnqueueMessageData {
   instancia?: string;
   renderedBody: string;
   renderedSubject?: string;
+  inviteConfig?: InviteConfigInput | null;
 }
 
 export interface PendingOutboxMessage {
