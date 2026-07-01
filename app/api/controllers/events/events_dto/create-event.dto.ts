@@ -4,6 +4,7 @@ import {
   IsInt,
   IsDateString,
   IsBoolean,
+  IsIn,
   MinLength,
   Min,
 } from 'class-validator';
@@ -63,4 +64,27 @@ export class CreateEventDto {
   @IsOptional()
   @IsBoolean()
   sendToPipedrive?: boolean;
+
+  @ApiPropertyOptional({
+    example: 'WEEKLY',
+    enum: ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'],
+    description: 'Frequência de recorrência do convite .ics ({{invite_recorrente}})',
+  })
+  @IsOptional()
+  @IsIn(['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'])
+  recurrenceFreq?: string;
+
+  @ApiPropertyOptional({ example: 1, description: 'Intervalo entre repetições (default 1)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  recurrenceInterval?: number;
+
+  @ApiPropertyOptional({
+    example: '2026-12-31T20:00:00.000Z',
+    description: 'Data limite da recorrência',
+  })
+  @IsOptional()
+  @IsDateString()
+  recurrenceUntil?: string;
 }

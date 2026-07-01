@@ -33,6 +33,9 @@ export class PrismaEventRepository implements EventRepositoryPort {
     lastEditedById: string | null;
     createdAt: Date;
     updatedAt: Date;
+    recurrenceFreq: string | null;
+    recurrenceInterval: number | null;
+    recurrenceUntil: Date | null;
   }): EventEntity {
     return new EventEntity(
       row.id,
@@ -55,6 +58,9 @@ export class PrismaEventRepository implements EventRepositoryPort {
       row.postRegistrationMessage ?? undefined,
       row.lastEditedById ?? undefined,
       row.sendToPipedrive,
+      row.recurrenceFreq ?? undefined,
+      row.recurrenceInterval ?? undefined,
+      row.recurrenceUntil ?? undefined,
     );
   }
 

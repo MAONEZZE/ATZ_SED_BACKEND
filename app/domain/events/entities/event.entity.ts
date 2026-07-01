@@ -29,6 +29,9 @@ export class EventEntity {
     public postRegistrationMessage?: string,
     public lastEditedById?: string,
     public sendToPipedrive: boolean = false,
+    public recurrenceFreq?: string,
+    public recurrenceInterval?: number,
+    public recurrenceUntil?: Date,
   ) {}
 
   isEditable(): boolean {

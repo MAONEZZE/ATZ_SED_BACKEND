@@ -48,6 +48,7 @@ export class TemplateRenderer {
       dress_code: event.dressCode ?? '',
       link_grupo: event.groupLink ?? '',
       invite: '[[[ICS_INVITE]]]',
+      invite_recorrente: '[[[ICS_INVITE_RECURRING]]]',
       ...extra,
     };
   }

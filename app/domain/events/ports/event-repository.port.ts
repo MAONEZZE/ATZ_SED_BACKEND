@@ -14,6 +14,9 @@ export interface CreateEventData {
   endDate?: Date;
   postRegistrationMessage?: string;
   sendToPipedrive?: boolean;
+  recurrenceFreq?: string;
+  recurrenceInterval?: number;
+  recurrenceUntil?: Date;
 }
 
 export interface UpdateEventData {
@@ -31,6 +34,9 @@ export interface UpdateEventData {
   evolutionInstance?: string;
   evolutionToken?: string;
   lastEditedById?: string;
+  recurrenceFreq?: string | null;
+  recurrenceInterval?: number | null;
+  recurrenceUntil?: Date | null;
 }
 
 export interface EventRepositoryPort {
