@@ -24,6 +24,9 @@ export interface CreateEventInput {
   endDate?: Date;
   postRegistrationMessage?: string;
   sendToPipedrive?: boolean;
+  recurrenceFreq?: string;
+  recurrenceInterval?: number;
+  recurrenceUntil?: Date;
 }
 
 export interface UpdateEventInput {
@@ -39,6 +42,9 @@ export interface UpdateEventInput {
   sendToPipedrive?: boolean;
   evolutionInstance?: string;
   evolutionToken?: string;
+  recurrenceFreq?: string;
+  recurrenceInterval?: number;
+  recurrenceUntil?: Date;
 }
 
 @Injectable()

@@ -8,6 +8,7 @@ import { QUEUE_MESSAGE_DISPATCH } from '@database/queue/bull-queues.module';
 import { IcsGeneratorService } from '@services/automations/ics-generator.service';
 
 const ICS_MARKER = '[[[ICS_INVITE]]]';
+const ICS_RECURRING_MARKER = '[[[ICS_INVITE_RECURRING]]]';
 
 @Processor(QUEUE_MESSAGE_DISPATCH, {
   concurrency: Number(process.env.WA_DISPATCH_CONCURRENCY) || 1,
@@ -71,20 +72,40 @@ export class MessageDispatchWorker extends WorkerHost {
         let body = outbox.renderedBody;
         let icsContent: string | undefined;
 
-        if (body.includes(ICS_MARKER) && outbox.eventId) {
+        const wantsRecurring = body.includes(ICS_RECURRING_MARKER);
+        const wantsInvite = wantsRecurring || body.includes(ICS_MARKER);
+
+        if (wantsInvite && outbox.eventId) {
           const event = await this.prisma.event.findUnique({
             where: { id: outbox.eventId },
-            select: { title: true, eventDate: true, endDate: true, location: true },
+            select: {
+              title: true,
+              eventDate: true,
+              endDate: true,
+              location: true,
+              recurrenceFreq: true,
+              recurrenceInterval: true,
+              recurrenceUntil: true,
+            },
           });
           if (event?.eventDate) {
+            const repeating =
+              wantsRecurring && event.recurrenceFreq
+                ? {
+                    freq: event.recurrenceFreq,
+                    interval: event.recurrenceInterval ?? undefined,
+                    until: event.recurrenceUntil ?? undefined,
+                  }
+                : undefined;
             icsContent = this.ics.generate({
               title: event.title,
               start: event.eventDate,
               end: event.endDate ?? undefined,
               location: event.location ?? undefined,
+              repeating,
             });
           }
-          body = body.replace(ICS_MARKER, '');
+          body = body.replace(ICS_RECURRING_MARKER, '').replace(ICS_MARKER, '');
         }
 
         await this.resend.sendEmail(

@@ -54,6 +54,7 @@ export class EventsController {
       ...dto,
       eventDate: dto.eventDate ? new Date(dto.eventDate) : undefined,
       endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+      recurrenceUntil: dto.recurrenceUntil ? new Date(dto.recurrenceUntil) : undefined,
     });
   }
 
@@ -98,6 +99,7 @@ export class EventsController {
         ...dto,
         eventDate: dto.eventDate ? new Date(dto.eventDate) : undefined,
         endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+        recurrenceUntil: dto.recurrenceUntil ? new Date(dto.recurrenceUntil) : undefined,
       },
       user.id,
     );
