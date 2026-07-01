@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { APP_TIMEZONE } from '@domain/shared/constants/timezone';
 
 @Injectable()
 export class TemplateRenderer {
@@ -35,7 +36,7 @@ export class TemplateRenderer {
       event: event.title ?? '',
       data: event.eventDate
         ? event.eventDate.toLocaleDateString('pt-BR', {
-            timeZone: 'America/Sao_Paulo',
+            timeZone: APP_TIMEZONE,
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
@@ -48,7 +49,7 @@ export class TemplateRenderer {
       dress_code: event.dressCode ?? '',
       link_grupo: event.groupLink ?? '',
       invite: '[[[ICS_INVITE]]]',
-      invite_recorrente: '[[[ICS_INVITE_RECURRING]]]',
+      invite_recorrente: '[[[ICS_INVITE_RECURRENT]]]',
       ...extra,
     };
   }

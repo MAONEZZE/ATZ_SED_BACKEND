@@ -145,6 +145,7 @@ model Event {
   outboxMessages    OutboxMessage[]
   messageLogs       MessageLog[]
   userSubscriptions UserSubscription[]
+  messageTemplates  MessageTemplate[]
 
   @@index([ownerId])
   @@map("events")
@@ -250,13 +251,16 @@ model MessageTemplate {
   body           String
   layoutConfig   Json?           @map("layout_config")
   styleKey       String?         @map("style_key")
+  eventId        String?         @map("event_id")
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @updatedAt @map("updated_at")
   owner          Profile         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  event          Event?          @relation(fields: [eventId], references: [id], onDelete: SetNull)
   automationRules AutomationRule[]
   outboxMessages  OutboxMessage[]
 
   @@index([ownerId])
+  @@index([eventId])
   @@map("message_templates")
   @@schema("ATZ_SED")
 }
@@ -290,6 +294,7 @@ model OutboxMessage {
   instancia       String?
   renderedBody    String         @map("rendered_body")
   renderedSubject String?        @map("rendered_subject")
+  inviteConfig    Json?          @map("invite_config")
   status          OutboxStatus   @default(pending)
   attempts        Int            @default(0)
   sentParts       Int            @default(0) @map("sent_parts")

@@ -81,5 +81,18 @@ describe('TemplateRenderer', () => {
       const vars = renderer.buildVariables({ registration: reg, event, extra: { invite: 'VIP' } });
       expect(vars['invite']).toBe('VIP');
     });
+
+    it('maps invite tokens to the ICS markers', () => {
+      const vars = renderer.buildVariables({ registration: reg, event });
+      expect(vars['invite']).toBe('[[[ICS_INVITE]]]');
+      expect(vars['invite_recorrente']).toBe('[[[ICS_INVITE_RECURRENT]]]');
+    });
+
+    it('renders {{invite_recorrente}} into the recurrent marker', () => {
+      const vars = renderer.buildVariables({ registration: reg, event });
+      expect(renderer.render('X {{invite_recorrente}} Y', vars)).toBe(
+        'X [[[ICS_INVITE_RECURRENT]]] Y',
+      );
+    });
   });
 });

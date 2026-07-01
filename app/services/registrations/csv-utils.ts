@@ -1,3 +1,5 @@
+import { APP_TIMEZONE } from '@domain/shared/constants/timezone';
+
 export function escapeCell(value: string): string {
   if (/[",\n]/.test(value)) {
     return `"${value.replace(/"/g, '""')}"`;
@@ -8,7 +10,7 @@ export function escapeCell(value: string): string {
 /** Formats a Date in America/Sao_Paulo as DD/MM/YYYY HH:mm (24h), TZ-independent. */
 export function formatDateBrasilia(date: Date): string {
   const parts = new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
+    timeZone: APP_TIMEZONE,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

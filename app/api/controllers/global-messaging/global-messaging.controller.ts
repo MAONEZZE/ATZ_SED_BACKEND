@@ -19,7 +19,16 @@ import {
   ApiQuery,
   ApiParam,
 } from '@nestjs/swagger';
-import { IsString, IsEnum, IsOptional, IsObject, IsIn, MinLength } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsObject,
+  IsIn,
+  IsUUID,
+  MinLength,
+  ValidateIf,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Prisma } from '@prisma/client';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
@@ -59,6 +68,14 @@ class CreateGlobalTemplateDto {
   @IsOptional()
   @IsIn(['minimalista', 'profissional', 'acolhedor', 'elegante'])
   styleKey?: string;
+
+  @ApiPropertyOptional({
+    example: 'uuid-do-evento',
+    description: 'Vincula o template a um evento (opcional). Sem valor = template global.',
+  })
+  @IsOptional()
+  @IsUUID()
+  eventId?: string;
 }
 
 class UpdateGlobalTemplateDto {
@@ -93,6 +110,16 @@ class UpdateGlobalTemplateDto {
   @IsOptional()
   @IsIn(['minimalista', 'profissional', 'acolhedor', 'elegante'])
   styleKey?: string;
+
+  @ApiPropertyOptional({
+    example: 'uuid-do-evento',
+    description: 'Vincula/desvincula o template de um evento. null = desvincular.',
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateIf((o) => o.eventId !== null)
+  @IsUUID()
+  eventId?: string | null;
 }
 
 @ApiTags('Messaging (global)')
@@ -104,6 +131,18 @@ export class GlobalMessagingController {
     private readonly prisma: PrismaService,
     private readonly manualSend: ManualSendService,
   ) {}
+
+  // Garante que o evento a vincular pertence (ou é acessível) ao usuário.
+  private async assertEventAccess(eventId: string, userId: string): Promise<void> {
+    const event = await this.prisma.event.findFirst({
+      where: {
+        id: eventId,
+        OR: [{ ownerId: userId }, { collaborators: { some: { profileId: userId } } }],
+      },
+      select: { id: true },
+    });
+    if (!event) throw new NotFoundException('Event not found');
+  }
 
   @Post('messaging/send')
   @HttpCode(202)
@@ -117,7 +156,11 @@ export class GlobalMessagingController {
   @HttpCode(201)
   @ApiOperation({ summary: 'Criar template' })
   @ApiResponse({ status: 201, description: 'Template criado' })
-  createTemplate(@Body() dto: CreateGlobalTemplateDto, @CurrentUser() user: AuthenticatedUser) {
+  async createTemplate(
+    @Body() dto: CreateGlobalTemplateDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (dto.eventId) await this.assertEventAccess(dto.eventId, user.id);
     return this.prisma.messageTemplate.create({
       data: {
         ownerId: user.id,
@@ -130,6 +173,7 @@ export class GlobalMessagingController {
             ? (dto.layoutConfig as Prisma.InputJsonValue)
             : Prisma.JsonNull,
         styleKey: dto.styleKey ?? null,
+        eventId: dto.eventId ?? null,
       },
     });
   }
@@ -138,15 +182,25 @@ export class GlobalMessagingController {
   @ApiOperation({ summary: 'Listar templates do usuário' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({
+    name: 'eventId',
+    required: false,
+    type: String,
+    description: "Filtra por evento vinculado. 'null' retorna só os templates globais.",
+  })
   @ApiResponse({ status: 200, description: 'Lista paginada de templates' })
   async findTemplates(
     @CurrentUser() user: AuthenticatedUser,
     @Query() pagination: PaginationQueryDto,
+    @Query('eventId') eventId?: string,
   ): Promise<Paginated<object>> {
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 20;
     const skip = paginationToSkip(page, limit);
-    const where = { ownerId: user.id };
+    const where: Prisma.MessageTemplateWhereInput = {
+      ownerId: user.id,
+      ...(eventId === 'null' ? { eventId: null } : eventId ? { eventId } : {}),
+    };
     const [data, total] = await Promise.all([
       this.prisma.messageTemplate.findMany({
         where,
@@ -186,6 +240,7 @@ export class GlobalMessagingController {
       where: { id, ownerId: user.id },
     });
     if (!existing) throw new NotFoundException('Template not found');
+    if (dto.eventId) await this.assertEventAccess(dto.eventId, user.id);
     return this.prisma.messageTemplate.update({
       where: { id },
       data: {
@@ -200,6 +255,7 @@ export class GlobalMessagingController {
               : Prisma.JsonNull,
         }),
         ...(dto.styleKey !== undefined && { styleKey: dto.styleKey }),
+        ...(dto.eventId !== undefined && { eventId: dto.eventId }),
       },
     });
   }
