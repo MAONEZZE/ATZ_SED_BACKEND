@@ -2,6 +2,7 @@ import { WebSocket } from 'ws';
 (globalThis as any).WebSocket ??= WebSocket;
 
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
@@ -10,9 +11,13 @@ import { AppModule } from './api/config/app.module';
 import { GlobalExceptionFilter } from './api/config/filters/http-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
 
   app.useLogger(app.get(Logger));
+
+  const bodyLimit = process.env.BODY_LIMIT as string;
+  app.useBodyParser('json', { limit: bodyLimit });
+  app.useBodyParser('urlencoded', { limit: bodyLimit, extended: true });
 
   app.use(
     helmet({

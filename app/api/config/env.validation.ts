@@ -19,6 +19,7 @@ const envSchema = z.object({
   RESEND_FROM_EMAIL: z.string().email(),
   PIPEDRIVE_WEBHOOK_URL: z.string().url(),
   PORT: z.coerce.number().int().positive(),
+  BODY_LIMIT: z.string().min(1),
   NODE_ENV: z.enum(['development', 'production', 'test']),
   ENVIROMENT: z.string().optional(),
 
