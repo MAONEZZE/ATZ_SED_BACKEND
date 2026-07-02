@@ -432,4 +432,12 @@ describe('ManualSendService.send', () => {
       attachments: [{ path: 'message-attachments/OTHER-user/x.pdf', filename: 'x.pdf', mimetype: 'application/pdf' }],
     }, 'user-1')).rejects.toThrow(BadRequestException);
   });
+
+  it('rejects attachment path with .. traversal', async () => {
+    const { service } = makeService();
+    await expect(service.send({
+      eventId: 'evt-1', channel: 'email', body: 'oi', registrationIds: ['reg-1'],
+      attachments: [{ path: 'message-attachments/user-1/../user-2/secret.pdf', filename: 's.pdf', mimetype: 'application/pdf' }],
+    }, 'user-1')).rejects.toThrow(BadRequestException);
+  });
 });

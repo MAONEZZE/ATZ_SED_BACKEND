@@ -82,7 +82,7 @@ export class ManualSendService {
     if (input.attachments?.length) {
       const prefix = `${attachmentFolder}/${userId}/`;
       resolvedAttachments = input.attachments.map((a) => {
-        if (!a.path.startsWith(prefix)) {
+        if (!a.path.startsWith(prefix) || a.path.includes('..')) {
           throw new BadRequestException('Attachment path does not belong to the sender');
         }
         return { url: this.storage.getPublicUrl(bucket, a.path), filename: a.filename, mimetype: a.mimetype };
