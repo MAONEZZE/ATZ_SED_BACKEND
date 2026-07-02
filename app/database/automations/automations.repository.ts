@@ -26,6 +26,29 @@ export class AutomationsRepository extends PrismaRepositoryBase {
     return { data, total };
   }
 
+  async findAllForUserPaginated(
+    userId: string,
+    pagination: { skip: number; take: number },
+  ): Promise<{ data: object[]; total: number }> {
+    const where = {
+      event: { OR: [{ ownerId: userId }, { collaborators: { some: { profileId: userId } } }] },
+    };
+    const [data, total] = await Promise.all([
+      this.prisma.automationRule.findMany({
+        where,
+        include: {
+          event: { select: { id: true, title: true } },
+          template: { select: { id: true, name: true, channel: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: pagination.skip,
+        take: pagination.take,
+      }),
+      this.prisma.automationRule.count({ where }),
+    ]);
+    return { data, total };
+  }
+
   findOneWithTemplate(eventId: string, id: string) {
     return this.prisma.automationRule.findFirst({
       where: { id, eventId },

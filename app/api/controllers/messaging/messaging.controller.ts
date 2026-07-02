@@ -11,15 +11,15 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
-import { PrismaService } from '@database/prisma/prisma.service';
-import { PaginationQueryDto, Paginated, paginationToSkip } from '@api/common/pagination';
+import { MessageLogsService } from '@services/messaging/message-logs.service';
+import { PaginationQueryDto, Paginated } from '@api/common/pagination';
 
 @ApiTags('Messaging')
 @ApiBearerAuth()
 @Controller('events/:eventId/messaging')
 @UseGuards(JwtAuthGuard, OwnershipGuard)
 export class MessagingController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly logs: MessageLogsService) {}
 
   @Get('logs')
   @ApiOperation({ summary: 'Listar logs de mensagens do evento' })
@@ -33,17 +33,7 @@ export class MessagingController {
   ): Promise<Paginated<object>> {
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 20;
-    const skip = paginationToSkip(page, limit);
-    const where = { OR: [{ eventId }, { eventId: null, registration: { eventId } }] };
-    const [data, total] = await Promise.all([
-      this.prisma.messageLog.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-      }),
-      this.prisma.messageLog.count({ where }),
-    ]);
+    const { data, total } = await this.logs.listForEvent(eventId, page, limit);
     return { data, total, page, limit };
   }
 
@@ -57,13 +47,7 @@ export class MessagingController {
   })
   streamLogs(@Param('eventId') eventId: string): Observable<MessageEvent> {
     return interval(3000).pipe(
-      switchMap(() =>
-        this.prisma.messageLog.findMany({
-          where: { OR: [{ eventId }, { eventId: null, registration: { eventId } }] },
-          orderBy: { createdAt: 'desc' },
-          take: 20,
-        }),
-      ),
+      switchMap(() => this.logs.streamForEvent(eventId)),
       map((logs) => ({ data: JSON.stringify(logs) })),
     );
   }

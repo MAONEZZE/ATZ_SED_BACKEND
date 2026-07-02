@@ -24,6 +24,11 @@ export class AutomationsService {
     return this.repo.findAllByEventPaginated(eventId, { skip: (page - 1) * limit, take: limit });
   }
 
+  /** All automations across the user's events (owner or collaborator), with event + template. */
+  listForUser(userId: string, page: number, limit: number) {
+    return this.repo.findAllForUserPaginated(userId, { skip: (page - 1) * limit, take: limit });
+  }
+
   async findOne(eventId: string, id: string) {
     const rule = await this.repo.findOneWithTemplate(eventId, id);
     if (!rule) throw new NotFoundException('Automation rule not found');
