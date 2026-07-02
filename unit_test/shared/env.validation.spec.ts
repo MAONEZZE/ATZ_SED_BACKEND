@@ -19,6 +19,7 @@ describe('validateEnv', () => {
     RESEND_FROM_EMAIL: 'no-reply@example.com',
     PIPEDRIVE_WEBHOOK_URL: 'https://n8n.example.com/webhook/x',
     PORT: '3000',
+    BODY_LIMIT: '1mb',
     NODE_ENV: 'test',
     ENVIROMENT: 'dev',
     WA_MIN_DELAY_MS: '8000',
