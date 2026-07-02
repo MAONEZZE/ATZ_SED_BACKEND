@@ -59,15 +59,18 @@ function makeService(overrides?: {
   };
   const eventsService = { findById: jest.fn().mockResolvedValue(event) };
   const outbox = { enqueue: jest.fn().mockResolvedValue(undefined) };
-  const config = { get: jest.fn((key: string) => pacing[key]) };
+  const storage = { getPublicUrl: jest.fn((_b: string, p: string) => `https://cdn/${p}`), upload: jest.fn(), delete: jest.fn() };
+  const cfg: Record<string, unknown> = {
+    ...pacing,
+    SUPABASE_STORAGE_BUCKET: 'ATZ_SED',
+    SUPABASE_STORAGE_BUCKET_MESSAGE_ATTACHMENTS: 'message-attachments',
+  };
+  const config = { get: jest.fn((key: string) => cfg[key]) };
   const service = new ManualSendService(
-    prisma as any,
-    eventsService as any,
-    outbox as any,
-    new TemplateRenderer(),
-    config as any,
+    prisma as any, eventsService as any, outbox as any,
+    new TemplateRenderer(), config as any, storage as any,
   );
-  return { service, prisma, eventsService, outbox };
+  return { service, prisma, eventsService, outbox, storage };
 }
 
 describe('ManualSendService.send', () => {
@@ -406,5 +409,27 @@ describe('ManualSendService.send', () => {
     // Email não aplica batch delay — todos delayMs === 0
     const delays = outbox.enqueue.mock.calls.map((c: any[]) => c[1]?.delayMs);
     expect(delays).toEqual([0, 0, 0, 0]);
+  });
+
+  it('resolves attachment path to public url and forwards to outbox', async () => {
+    const { service, outbox } = makeService();
+    await service.send({
+      eventId: 'evt-1', channel: 'email', body: 'oi', registrationIds: ['reg-1'],
+      attachments: [{ path: 'message-attachments/user-1/abc-f.pdf', filename: 'f.pdf', mimetype: 'application/pdf' }],
+    }, 'user-1');
+    expect(outbox.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attachments: [{ url: 'https://cdn/message-attachments/user-1/abc-f.pdf', filename: 'f.pdf', mimetype: 'application/pdf' }],
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it('rejects attachment path not owned by the sender', async () => {
+    const { service } = makeService();
+    await expect(service.send({
+      eventId: 'evt-1', channel: 'email', body: 'oi', registrationIds: ['reg-1'],
+      attachments: [{ path: 'message-attachments/OTHER-user/x.pdf', filename: 'x.pdf', mimetype: 'application/pdf' }],
+    }, 'user-1')).rejects.toThrow(BadRequestException);
   });
 });

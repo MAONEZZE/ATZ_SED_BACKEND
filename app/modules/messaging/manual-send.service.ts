@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Inject,
   BadRequestException,
   ForbiddenException,
   NotFoundException,
@@ -7,11 +8,12 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { randomBytes, randomInt } from 'crypto';
 import { PrismaService } from '@infra/prisma/prisma.service';
+import { STORAGE_PORT, StoragePort } from '@infra/storage/storage.port';
 import { EventsService } from '@modules/events/events.service';
 import { OutboxService } from '@modules/messaging/outbox.service';
 import { TemplateRenderer } from '@modules/automations/template-renderer.service';
 import type { MessageChannel } from '@modules/messaging/message-channel.type';
-import type { InviteConfigInput } from '@modules/messaging/ports/outbox-repository.port';
+import type { InviteConfigInput, OutboxAttachment } from '@modules/messaging/ports/outbox-repository.port';
 
 export interface ManualRecipientInput {
   name: string;
@@ -28,6 +30,7 @@ export interface SendMessageInput {
   registrationIds?: string[];
   manualRecipients?: ManualRecipientInput[];
   invite?: InviteConfigInput;
+  attachments?: { path: string; filename: string; mimetype: string }[];
 }
 
 export interface SendMessageResult {
@@ -58,6 +61,7 @@ export class ManualSendService {
     private readonly outbox: OutboxService,
     private readonly renderer: TemplateRenderer,
     private readonly config: ConfigService,
+    @Inject(STORAGE_PORT) private readonly storage: StoragePort,
   ) {}
 
   async send(input: SendMessageInput, userId: string): Promise<SendMessageResult> {
@@ -69,6 +73,20 @@ export class ManualSendService {
       if (!input.invite.startTime || !input.invite.endTime) {
         throw new BadRequestException('invite.startTime and invite.endTime are required when allDay is false');
       }
+    }
+
+    const bucket = this.config.get<string>('SUPABASE_STORAGE_BUCKET') ?? 'ATZ_SED';
+    const attachmentFolder =
+      this.config.get<string>('SUPABASE_STORAGE_BUCKET_MESSAGE_ATTACHMENTS') ?? 'message-attachments';
+    let resolvedAttachments: OutboxAttachment[] | undefined;
+    if (input.attachments?.length) {
+      const prefix = `${attachmentFolder}/${userId}/`;
+      resolvedAttachments = input.attachments.map((a) => {
+        if (!a.path.startsWith(prefix)) {
+          throw new BadRequestException('Attachment path does not belong to the sender');
+        }
+        return { url: this.storage.getPublicUrl(bucket, a.path), filename: a.filename, mimetype: a.mimetype };
+      });
     }
 
     let eventContext: {
@@ -233,6 +251,7 @@ export class ManualSendService {
             renderedBody,
             renderedSubject,
             inviteConfig: input.invite ?? null,
+            attachments: resolvedAttachments,
           },
           { delayMs: isWhatsapp ? batchDelayCursor + innerDelayCursor : 0 },
         );
