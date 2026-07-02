@@ -298,6 +298,8 @@ model OutboxMessage {
   status          OutboxStatus   @default(pending)
   attempts        Int            @default(0)
   sentParts       Int            @default(0) @map("sent_parts")
+  attachments     Json?          @map("attachments")
+  sentAttachments Int            @default(0) @map("sent_attachments")
   errorMessage    String?        @map("error_message")
   processedAt     DateTime?      @map("processed_at")
   createdAt       DateTime       @default(now()) @map("created_at")
