@@ -49,8 +49,8 @@ export class ProfileController {
     return this.profiles.update(user.id, dto);
   }
 
-  @Post('ensure')
-  @ApiOperation({ summary: 'Criar perfil se não existir (idempotente)' })
+  @Post()
+  @ApiOperation({ summary: 'Criar perfil se não existir (upsert idempotente)' })
   @ApiResponse({ status: 201, description: 'Perfil criado ou retornado' })
   ensureProfile(@CurrentUser() user: AuthenticatedUser) {
     return this.profiles.ensure(user);

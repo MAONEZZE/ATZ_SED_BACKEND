@@ -37,7 +37,7 @@ describe('UserSubscriptionsController', () => {
     expect(service.findAllPaginated).toHaveBeenCalledWith('evt-1', 1, 20, undefined);
   });
 
-  it('export sends CSV with BOM, headers and forwards search', async () => {
+  it('CSV export (format=csv) returns CSV with BOM, headers and forwards search', async () => {
     const { ctrl, service, formFields } = make();
     service.findAllByEvent.mockResolvedValue([
       {
@@ -58,7 +58,7 @@ describe('UserSubscriptionsController', () => {
     );
     const res = fakeRes();
 
-    await ctrl.exportCsv('evt-1', res, 'jo');
+    const sent = await ctrl.findAll('evt-1', {}, 'jo', 'csv', res as any);
 
     expect(service.findAllByEvent).toHaveBeenCalledWith('evt-1', 'jo');
     expect(formFields.exportLabels).toHaveBeenCalledWith('evt-1', 'registration', true);
@@ -69,10 +69,9 @@ describe('UserSubscriptionsController', () => {
       'Content-Disposition',
       'attachment; filename="inscritos-evt-1.csv"',
     );
-    const sent = res.send.mock.calls[0][0];
     expect(typeof sent).toBe('string');
-    expect(sent.startsWith('﻿')).toBe(true);
-    expect(sent).toContain('Inscrição: Empresa');
-    expect(sent).toContain('João');
+    expect((sent as string).startsWith('﻿')).toBe(true);
+    expect(sent as string).toContain('Inscrição: Empresa');
+    expect(sent as string).toContain('João');
   });
 });

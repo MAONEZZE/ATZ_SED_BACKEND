@@ -26,40 +26,35 @@ export class PostEventResponsesController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'Listar respostas pós-evento' })
+  @ApiOperation({ summary: 'Listar respostas pós-evento (format=csv exporta CSV)' })
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({ status: 200, description: 'Lista paginada de respostas pós-evento' })
+  @ApiQuery({ name: 'format', required: false, enum: ['json', 'csv'] })
+  @ApiResponse({ status: 200, description: 'Lista paginada (JSON) ou arquivo CSV' })
   async findAll(
     @Param('eventId') eventId: string,
     @Query() pagination: PaginationQueryDto,
-  ): Promise<Paginated<object>> {
+    @Query('format') format?: string,
+    @Res({ passthrough: true }) res?: Response,
+  ): Promise<Paginated<object> | string> {
+    if (format === 'csv') {
+      const [rows, postEventFields] = await Promise.all([
+        this.postEventResponses.exportRows(eventId),
+        this.formFields.exportLabels(eventId, 'post_event'),
+      ]);
+      const date = new Date().toISOString().slice(0, 10);
+      res!.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res!.setHeader(
+        'Content-Disposition',
+        `attachment; filename="respostas-pos-evento-${eventId}-${date}.csv"`,
+      );
+      return buildPostEventResponsesCsv(rows, postEventFields);
+    }
+
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 20;
     const { data, total } = await this.postEventResponses.listPaginated(eventId, page, limit);
     return { data, total, page, limit };
-  }
-
-  @Get('export')
-  @ApiOperation({ summary: 'Exportar respostas pós-evento em CSV' })
-  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
-  @ApiResponse({ status: 200, description: 'Arquivo CSV', content: { 'text/csv': {} } })
-  async exportCsv(@Param('eventId') eventId: string, @Res() res: Response) {
-    const [rows, postEventFields] = await Promise.all([
-      this.postEventResponses.exportRows(eventId),
-      this.formFields.exportLabels(eventId, 'post_event'),
-    ]);
-
-    const csv = buildPostEventResponsesCsv(rows, postEventFields);
-    const date = new Date().toISOString().slice(0, 10);
-    res
-      .status(200)
-      .setHeader('Content-Type', 'text/csv; charset=utf-8')
-      .setHeader(
-        'Content-Disposition',
-        `attachment; filename="respostas-pos-evento-${eventId}-${date}.csv"`,
-      )
-      .send(csv);
   }
 }

@@ -26,17 +26,34 @@ export class UserSubscriptionsController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'Listar inscritos consolidados (inscrição + pós-evento + NPS)' })
+  @ApiOperation({
+    summary: 'Listar inscritos consolidados (inscrição + pós-evento + NPS; format=csv exporta CSV)',
+  })
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiQuery({ name: 'search', required: false, description: 'Busca por nome, email ou telefone' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({ status: 200, description: 'Lista paginada de inscritos consolidados' })
+  @ApiQuery({ name: 'format', required: false, enum: ['json', 'csv'] })
+  @ApiResponse({ status: 200, description: 'Lista paginada (JSON) ou arquivo CSV' })
   async findAll(
     @Param('eventId') eventId: string,
     @Query() pagination: PaginationQueryDto,
     @Query('search') search?: string,
-  ): Promise<Paginated<object>> {
+    @Query('format') format?: string,
+    @Res({ passthrough: true }) res?: Response,
+  ): Promise<Paginated<object> | string> {
+    if (format === 'csv') {
+      const [rows, registration, postEvent, nps] = await Promise.all([
+        this.userSubscriptions.findAllByEvent(eventId, search),
+        this.formFields.exportLabels(eventId, 'registration', true),
+        this.formFields.exportLabels(eventId, 'post_event'),
+        this.formFields.exportLabels(eventId, 'nps'),
+      ]);
+      res!.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res!.setHeader('Content-Disposition', `attachment; filename="inscritos-${eventId}.csv"`);
+      return buildUserSubscriptionsCsv(rows, { registration, postEvent, nps });
+    }
+
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 20;
     const { data, total } = await this.userSubscriptions.findAllPaginated(
@@ -46,30 +63,5 @@ export class UserSubscriptionsController {
       search,
     );
     return { data, total, page, limit };
-  }
-
-  @Get('export')
-  @ApiOperation({ summary: 'Exportar inscritos consolidados em CSV' })
-  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
-  @ApiQuery({ name: 'search', required: false, description: 'Busca por nome, email ou telefone' })
-  @ApiResponse({ status: 200, description: 'Arquivo CSV', content: { 'text/csv': {} } })
-  async exportCsv(
-    @Param('eventId') eventId: string,
-    @Res() res: Response,
-    @Query('search') search?: string,
-  ) {
-    const [rows, registration, postEvent, nps] = await Promise.all([
-      this.userSubscriptions.findAllByEvent(eventId, search),
-      this.formFields.exportLabels(eventId, 'registration', true),
-      this.formFields.exportLabels(eventId, 'post_event'),
-      this.formFields.exportLabels(eventId, 'nps'),
-    ]);
-
-    const csv = buildUserSubscriptionsCsv(rows, { registration, postEvent, nps });
-    res
-      .status(200)
-      .setHeader('Content-Type', 'text/csv; charset=utf-8')
-      .setHeader('Content-Disposition', `attachment; filename="inscritos-${eventId}.csv"`)
-      .send(csv);
   }
 }

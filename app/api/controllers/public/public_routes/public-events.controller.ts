@@ -25,7 +25,7 @@ export class PublicEventsController {
     return this.publicEvents.getPublicFormFields(slug, 'registration', false);
   }
 
-  @Get(':slug/post-event-fields')
+  @Get(':slug/post-event/form-fields')
   @ApiOperation({ summary: 'Buscar campos do formulário pós-evento (público)' })
   @ApiParam({ name: 'slug', description: 'Slug do evento' })
   @ApiResponse({ status: 200, description: 'Campos do formulário pós-evento' })
@@ -34,7 +34,7 @@ export class PublicEventsController {
     return this.publicEvents.getPublicFormFields(slug, 'post_event', true);
   }
 
-  @Get(':slug/nps-fields')
+  @Get(':slug/nps/form-fields')
   @ApiOperation({ summary: 'Buscar campos do formulário NPS (público)' })
   @ApiParam({ name: 'slug', description: 'Slug do evento' })
   @ApiResponse({ status: 200, description: 'Campos do formulário NPS' })

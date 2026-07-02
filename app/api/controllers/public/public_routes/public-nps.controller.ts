@@ -12,7 +12,7 @@ export class PublicNpsController {
     private readonly publicEvents: PublicEventsService,
   ) {}
 
-  @Post(':slug/nps')
+  @Post(':slug/nps/responses')
   @HttpCode(200)
   @ApiOperation({ summary: 'Enviar respostas do formulário NPS' })
   @ApiParam({ name: 'slug', description: 'Slug do evento' })

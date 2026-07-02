@@ -107,7 +107,9 @@ export class EventsController {
 
   @Patch(':id/status')
   @UseGuards(OwnershipGuard)
-  @ApiOperation({ summary: 'Atualizar status do evento' })
+  @ApiOperation({
+    summary: 'Atualizar status do evento (status=cancelled cancela e opcionalmente notifica)',
+  })
   @ApiParam({ name: 'id', description: 'UUID do evento' })
   @ApiResponse({ status: 200, description: 'Status atualizado' })
   updateStatus(
@@ -115,6 +117,11 @@ export class EventsController {
     @Body() dto: UpdateEventStatusDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    // Cancelamento é uma transição de estado com efeito colateral (notificação),
+    // por isso vive no PATCH de status em vez de um POST /cancel dedicado.
+    if (dto.status === 'cancelled') {
+      return this.lifecycleService.cancel(id, dto.notifyParticipants ?? false, user.id);
+    }
     return this.eventsService.updateStatus(id, dto.status, user.id);
   }
 
@@ -161,20 +168,6 @@ export class EventsController {
   @ApiResponse({ status: 204, description: 'Evento deletado' })
   delete(@Param('id') id: string) {
     return this.eventsService.delete(id);
-  }
-
-  @Post(':id/cancel')
-  @UseGuards(OwnershipGuard)
-  @ApiOperation({ summary: 'Cancelar evento' })
-  @ApiParam({ name: 'id', description: 'UUID do evento' })
-  @ApiBody({ schema: { type: 'object', properties: { notifyParticipants: { type: 'boolean' } } } })
-  @ApiResponse({ status: 201, description: 'Evento cancelado' })
-  cancel(
-    @Param('id') id: string,
-    @Body('notifyParticipants') notify: boolean,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    return this.lifecycleService.cancel(id, notify ?? false, user.id);
   }
 
   @Post(':id/duplicate')

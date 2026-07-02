@@ -24,19 +24,36 @@ export class RegistrationsController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'Listar inscrições do evento' })
+  @ApiOperation({ summary: 'Listar inscrições do evento (format=csv exporta CSV)' })
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiQuery({ name: 'status', required: false, enum: ['pending', 'approved', 'rejected'] })
   @ApiQuery({ name: 'search', required: false, description: 'Busca por nome ou email' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({ status: 200, description: 'Lista paginada de inscrições' })
+  @ApiQuery({ name: 'format', required: false, enum: ['json', 'csv'] })
+  @ApiResponse({ status: 200, description: 'Lista paginada (JSON) ou arquivo CSV' })
   async findAll(
     @Param('eventId') eventId: string,
     @Query() pagination: PaginationQueryDto,
     @Query('status') status?: FunnelStatus,
     @Query('search') search?: string,
-  ): Promise<Paginated<object>> {
+    @Query('format') format?: string,
+    @Res({ passthrough: true }) res?: Response,
+  ): Promise<Paginated<object> | string> {
+    if (format === 'csv') {
+      const [regs, formFields] = await Promise.all([
+        this.registrations.findAll(eventId, status, search),
+        this.formFields.exportLabels(eventId, 'registration', true),
+      ]);
+      const date = new Date().toISOString().slice(0, 10);
+      res!.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res!.setHeader(
+        'Content-Disposition',
+        `attachment; filename="inscricoes-${eventId}-${date}.csv"`,
+      );
+      return buildRegistrationsCsv(regs, formFields);
+    }
+
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 20;
     const { data, total } = await this.registrations.findAllPaginated(
@@ -47,31 +64,6 @@ export class RegistrationsController {
       search,
     );
     return { data, total, page, limit };
-  }
-
-  @Get('export')
-  @ApiOperation({ summary: 'Exportar inscrições em CSV' })
-  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
-  @ApiQuery({ name: 'status', required: false, enum: ['pending', 'approved', 'rejected'] })
-  @ApiQuery({ name: 'search', required: false })
-  @ApiResponse({ status: 200, description: 'Arquivo CSV', content: { 'text/csv': {} } })
-  async exportCsv(
-    @Param('eventId') eventId: string,
-    @Res() res: Response,
-    @Query('status') status?: FunnelStatus,
-    @Query('search') search?: string,
-  ) {
-    const [regs, formFields] = await Promise.all([
-      this.registrations.findAll(eventId, status, search),
-      this.formFields.exportLabels(eventId, 'registration', true),
-    ]);
-    const csv = buildRegistrationsCsv(regs, formFields);
-    const date = new Date().toISOString().slice(0, 10);
-    res
-      .status(200)
-      .setHeader('Content-Type', 'text/csv; charset=utf-8')
-      .setHeader('Content-Disposition', `attachment; filename="inscricoes-${eventId}-${date}.csv"`)
-      .send(csv);
   }
 
   @Get(':id')

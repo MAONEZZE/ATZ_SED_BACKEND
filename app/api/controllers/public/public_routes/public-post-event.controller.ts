@@ -12,7 +12,7 @@ export class PublicPostEventController {
     private readonly publicEvents: PublicEventsService,
   ) {}
 
-  @Post(':slug/post-event')
+  @Post(':slug/post-event/responses')
   @HttpCode(200)
   @ApiOperation({ summary: 'Enviar respostas do formulário pós-evento' })
   @ApiParam({ name: 'slug', description: 'Slug do evento' })

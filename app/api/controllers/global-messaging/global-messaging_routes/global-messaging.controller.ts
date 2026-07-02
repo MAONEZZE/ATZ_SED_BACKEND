@@ -44,7 +44,7 @@ export class GlobalMessagingController {
     private readonly automations: AutomationsService,
   ) {}
 
-  @Post('messaging/send')
+  @Post('messages')
   @HttpCode(202)
   @ApiOperation({ summary: 'Enviar mensagem — eventId opcional no body' })
   @ApiResponse({ status: 202, description: 'Mensagem(ns) enfileirada(s)' })

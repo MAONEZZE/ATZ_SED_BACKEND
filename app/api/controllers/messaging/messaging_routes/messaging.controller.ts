@@ -16,12 +16,12 @@ import { PaginationQueryDto, Paginated } from '@api/common/pagination';
 
 @ApiTags('Messaging')
 @ApiBearerAuth()
-@Controller('events/:eventId/messaging')
+@Controller('events/:eventId/message-logs')
 @UseGuards(JwtAuthGuard, OwnershipGuard)
 export class MessagingController {
   constructor(private readonly logs: MessageLogsService) {}
 
-  @Get('logs')
+  @Get()
   @ApiOperation({ summary: 'Listar logs de mensagens do evento' })
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiQuery({ name: 'page', required: false, type: Number })
@@ -37,7 +37,7 @@ export class MessagingController {
     return { data, total, page, limit };
   }
 
-  @Sse('logs/stream')
+  @Sse('stream')
   @ApiOperation({ summary: 'Stream SSE de logs de mensagens (polling 3s)' })
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiResponse({

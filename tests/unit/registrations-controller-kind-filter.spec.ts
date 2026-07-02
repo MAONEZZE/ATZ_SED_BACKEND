@@ -24,9 +24,9 @@ function fakeRes() {
 describe('RegistrationsController kind filter', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('exportCsv only reads dynamic registration-kind labels', async () => {
+  it('CSV export (format=csv) only reads dynamic registration-kind labels', async () => {
     const { ctrl, formFields } = make();
-    await ctrl.exportCsv('evt-1', fakeRes() as any);
+    await ctrl.findAll('evt-1', {}, undefined, undefined, 'csv', fakeRes() as any);
     expect(formFields.exportLabels).toHaveBeenCalledWith('evt-1', 'registration', true);
   });
 

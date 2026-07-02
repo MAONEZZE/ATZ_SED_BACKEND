@@ -34,10 +34,10 @@ describe('PostEventResponsesService.listPaginated', () => {
   });
 });
 
-describe('PostEventResponsesController.exportCsv', () => {
+describe('PostEventResponsesController CSV export (format=csv)', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('sends CSV with proper headers and field labels', async () => {
+  it('returns CSV with proper headers and field labels', async () => {
     const postEventResponses = {
       exportRows: jest.fn().mockResolvedValue([
         {
@@ -50,13 +50,10 @@ describe('PostEventResponsesController.exportCsv', () => {
       ]),
     };
     const formFields = { exportLabels: jest.fn().mockResolvedValue([{ label: 'Nota' }]) };
-    const ctrl = new PostEventResponsesController(
-      postEventResponses as any,
-      formFields as any,
-    );
+    const ctrl = new PostEventResponsesController(postEventResponses as any, formFields as any);
     const res = fakeRes();
 
-    await ctrl.exportCsv('evt-1', res);
+    const sent = await ctrl.findAll('evt-1', {}, 'csv', res as any);
 
     expect(formFields.exportLabels).toHaveBeenCalledWith('evt-1', 'post_event');
     expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv; charset=utf-8');
@@ -64,8 +61,7 @@ describe('PostEventResponsesController.exportCsv', () => {
       'Content-Disposition',
       expect.stringContaining('respostas-pos-evento-evt-1-'),
     );
-    const sent = res.send.mock.calls[0][0];
     expect(typeof sent).toBe('string');
-    expect(sent).toContain('Nota');
+    expect(sent as string).toContain('Nota');
   });
 });
