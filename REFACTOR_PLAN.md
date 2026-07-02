@@ -17,7 +17,7 @@ O backend (NestJS 11 + Prisma 6, layered-DDD em `app/{api,services,domain,databa
 ## Decisões (aprovadas)
 
 1. **Endpoints → redesign completo**: aplicar TODAS as mudanças de contrato; documentar cada uma como breaking change.
-2. **Camadas → híbrido pragmático**: manter o layout de topo (`api/services/domain/database`), mas cortar cerimônia sem ganho (ver Princípios + Fase 2.2).
+2. **Camadas → vertical-slice** (revisado após a Fase 2): layout migrado de layered (`api/services/domain/database`) para `app/modules/<dominio>` + `app/infra` + `app/shared` + `app/workers`. Fluxo controller→service→repository preservado; controller nunca toca Prisma; porta só p/ integração externa trocável (ver Princípios).
 3. **Mutação → adicionar Stryker** (`@stryker-mutator/core` + `jest-runner`).
 
 ## Princípios transversais (todo código escrito)
