@@ -29,6 +29,16 @@ export class FormFieldsService {
     });
   }
 
+  /** Ordered labels for CSV export headers (optionally only dynamic fields). */
+  exportLabels(eventId: string, kind: FormFieldKind, onlyDynamic = false) {
+    return this.repo.listLabels(eventId, kind, onlyDynamic);
+  }
+
+  /** Field metadata for validating submitted answers. */
+  validationFields(eventId: string, kind: FormFieldKind) {
+    return this.repo.listValidationFields(eventId, kind);
+  }
+
   async create(eventId: string, editorId: string, input: CreateFormFieldInput) {
     const field = await this.repo.create({
       eventId,

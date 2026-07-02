@@ -28,6 +28,23 @@ export class FormFieldsRepository extends PrismaRepositoryBase {
     return this.prisma.formField.findFirst({ where: { id, eventId } });
   }
 
+  /** Ordered labels of a kind, optionally only the dynamic (non-fixed) ones — used for CSV headers. */
+  listLabels(eventId: string, kind: FormFieldKind, onlyDynamic = false) {
+    return this.prisma.formField.findMany({
+      where: { eventId, kind, ...(onlyDynamic ? { isFixed: false } : {}) },
+      orderBy: { order: 'asc' },
+      select: { label: true },
+    });
+  }
+
+  /** Field metadata used to validate submitted answers. */
+  listValidationFields(eventId: string, kind: FormFieldKind) {
+    return this.prisma.formField.findMany({
+      where: { eventId, kind },
+      select: { label: true, type: true, required: true, isFixed: true },
+    });
+  }
+
   create(data: Prisma.FormFieldUncheckedCreateInput) {
     return this.prisma.formField.create({ data });
   }

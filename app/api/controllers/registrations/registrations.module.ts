@@ -4,6 +4,7 @@ import { PostEventResponsesController } from './registrations_routes/post-event-
 import { UserSubscriptionsController } from './registrations_routes/user-subscriptions.controller';
 import { RegistrationsService } from '@services/registrations/registrations.service';
 import { UserSubscriptionsService } from '@services/registrations/user-subscriptions.service';
+import { PostEventResponsesService } from '@services/registrations/post-event-responses.service';
 import { RegistrationsDbModule } from '@database/registrations/registrations-db.module';
 import { IntegrationsModule } from '@database/integrations/integrations.module';
 import { GuardsModule } from '@api/config/guards/guards.module';
@@ -12,7 +13,7 @@ import { EventsModule } from '../events/events.module';
 @Module({
   imports: [RegistrationsDbModule, IntegrationsModule, GuardsModule, EventsModule],
   controllers: [RegistrationsController, PostEventResponsesController, UserSubscriptionsController],
-  providers: [RegistrationsService, UserSubscriptionsService],
+  providers: [RegistrationsService, UserSubscriptionsService, PostEventResponsesService],
   exports: [RegistrationsService, UserSubscriptionsService],
 })
 export class RegistrationsModule {}

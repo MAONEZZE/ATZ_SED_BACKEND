@@ -10,9 +10,9 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
-import { PrismaService } from '@database/prisma/prisma.service';
 import { PaginationQueryDto, Paginated } from '@api/common/pagination';
 import { UserSubscriptionsService } from '@services/registrations/user-subscriptions.service';
+import { FormFieldsService } from '@services/events/form-fields.service';
 import { buildUserSubscriptionsCsv } from '@services/registrations/user-subscriptions-csv';
 
 @ApiTags('User Subscriptions')
@@ -22,7 +22,7 @@ import { buildUserSubscriptionsCsv } from '@services/registrations/user-subscrip
 export class UserSubscriptionsController {
   constructor(
     private readonly userSubscriptions: UserSubscriptionsService,
-    private readonly prisma: PrismaService,
+    private readonly formFields: FormFieldsService,
   ) {}
 
   @Get()
@@ -60,21 +60,9 @@ export class UserSubscriptionsController {
   ) {
     const [rows, registration, postEvent, nps] = await Promise.all([
       this.userSubscriptions.findAllByEvent(eventId, search),
-      this.prisma.formField.findMany({
-        where: { eventId, isFixed: false, kind: 'registration' },
-        orderBy: { order: 'asc' },
-        select: { label: true },
-      }),
-      this.prisma.formField.findMany({
-        where: { eventId, kind: 'post_event' },
-        orderBy: { order: 'asc' },
-        select: { label: true },
-      }),
-      this.prisma.formField.findMany({
-        where: { eventId, kind: 'nps' },
-        orderBy: { order: 'asc' },
-        select: { label: true },
-      }),
+      this.formFields.exportLabels(eventId, 'registration', true),
+      this.formFields.exportLabels(eventId, 'post_event'),
+      this.formFields.exportLabels(eventId, 'nps'),
     ]);
 
     const csv = buildUserSubscriptionsCsv(rows, { registration, postEvent, nps });

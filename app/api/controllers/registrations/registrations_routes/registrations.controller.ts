@@ -6,11 +6,11 @@ import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { CurrentUser } from '@api/config/decorators/current-user.decorator';
 import { AuthenticatedUser } from '@domain/users/entities/authenticated-user.entity';
 import { RegistrationsService } from '@services/registrations/registrations.service';
+import { FormFieldsService } from '@services/events/form-fields.service';
 import { buildRegistrationsCsv } from '@services/registrations/registrations-csv';
 import { FunnelStatus } from '@domain/registrations/entities/registration.entity';
 import { UpdateRegistrationStatusDto } from '../registrations_dto/update-registration-status.dto';
 import { UpdateRegistrationAnswersDto } from '../registrations_dto/update-registration-answers.dto';
-import { PrismaService } from '@database/prisma/prisma.service';
 import { PaginationQueryDto, Paginated } from '@api/common/pagination';
 
 @ApiTags('Registrations')
@@ -20,7 +20,7 @@ import { PaginationQueryDto, Paginated } from '@api/common/pagination';
 export class RegistrationsController {
   constructor(
     private readonly registrations: RegistrationsService,
-    private readonly prisma: PrismaService,
+    private readonly formFields: FormFieldsService,
   ) {}
 
   @Get()
@@ -63,11 +63,7 @@ export class RegistrationsController {
   ) {
     const [regs, formFields] = await Promise.all([
       this.registrations.findAll(eventId, status, search),
-      this.prisma.formField.findMany({
-        where: { eventId, isFixed: false, kind: 'registration' },
-        orderBy: { order: 'asc' },
-        select: { label: true },
-      }),
+      this.formFields.exportLabels(eventId, 'registration', true),
     ]);
     const csv = buildRegistrationsCsv(regs, formFields);
     const date = new Date().toISOString().slice(0, 10);
@@ -99,10 +95,7 @@ export class RegistrationsController {
     @Param('id') id: string,
     @Body() dto: UpdateRegistrationAnswersDto,
   ) {
-    const formFields = await this.prisma.formField.findMany({
-      where: { eventId, kind: 'registration' },
-      select: { label: true, type: true, required: true, isFixed: true },
-    });
+    const formFields = await this.formFields.validationFields(eventId, 'registration');
     return this.registrations.updateAnswers(id, eventId, dto.answers, formFields);
   }
 

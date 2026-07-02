@@ -15,6 +15,6 @@ import { WorkersModule } from '@api/workers/workers.module';
   imports: [EventsDbModule, StorageModule, GuardsModule, WorkersModule],
   controllers: [EventsController, FormFieldsController, CollaboratorsController],
   providers: [EventsService, EventLifecycleService, CollaboratorsService, FormFieldsService],
-  exports: [EventsService],
+  exports: [EventsService, FormFieldsService],
 })
 export class EventsModule {}

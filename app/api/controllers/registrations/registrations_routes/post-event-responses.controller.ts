@@ -10,8 +10,9 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
-import { PrismaService } from '@database/prisma/prisma.service';
-import { PaginationQueryDto, Paginated, paginationToSkip } from '@api/common/pagination';
+import { PaginationQueryDto, Paginated } from '@api/common/pagination';
+import { PostEventResponsesService } from '@services/registrations/post-event-responses.service';
+import { FormFieldsService } from '@services/events/form-fields.service';
 import { buildPostEventResponsesCsv } from '@services/registrations/post-event-responses-csv';
 
 @ApiTags('Post-Event Responses')
@@ -19,7 +20,10 @@ import { buildPostEventResponsesCsv } from '@services/registrations/post-event-r
 @Controller('events/:eventId/post-event-responses')
 @UseGuards(JwtAuthGuard, OwnershipGuard)
 export class PostEventResponsesController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly postEventResponses: PostEventResponsesService,
+    private readonly formFields: FormFieldsService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Listar respostas pós-evento' })
@@ -33,23 +37,7 @@ export class PostEventResponsesController {
   ): Promise<Paginated<object>> {
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 20;
-    const skip = paginationToSkip(page, limit);
-
-    const [data, total] = await Promise.all([
-      this.prisma.postEventResponse.findMany({
-        where: { eventId },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-        include: {
-          registration: {
-            select: { id: true, name: true, email: true, phone: true },
-          },
-        },
-      }),
-      this.prisma.postEventResponse.count({ where: { eventId } }),
-    ]);
-
+    const { data, total } = await this.postEventResponses.listPaginated(eventId, page, limit);
     return { data, total, page, limit };
   }
 
@@ -58,28 +46,10 @@ export class PostEventResponsesController {
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiResponse({ status: 200, description: 'Arquivo CSV', content: { 'text/csv': {} } })
   async exportCsv(@Param('eventId') eventId: string, @Res() res: Response) {
-    const [responses, postEventFields] = await Promise.all([
-      this.prisma.postEventResponse.findMany({
-        where: { eventId },
-        orderBy: { createdAt: 'desc' },
-        include: {
-          registration: { select: { name: true, email: true, phone: true } },
-        },
-      }),
-      this.prisma.formField.findMany({
-        where: { eventId, kind: 'post_event' },
-        orderBy: { order: 'asc' },
-        select: { label: true },
-      }),
+    const [rows, postEventFields] = await Promise.all([
+      this.postEventResponses.exportRows(eventId),
+      this.formFields.exportLabels(eventId, 'post_event'),
     ]);
-
-    const rows = responses.map((r) => ({
-      name: r.registration.name,
-      email: r.registration.email,
-      phone: r.registration.phone,
-      answers: (r.answers ?? {}) as Record<string, unknown>,
-      createdAt: r.createdAt,
-    }));
 
     const csv = buildPostEventResponsesCsv(rows, postEventFields);
     const date = new Date().toISOString().slice(0, 10);

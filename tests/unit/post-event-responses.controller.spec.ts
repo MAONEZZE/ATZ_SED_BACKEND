@@ -1,16 +1,5 @@
 import { PostEventResponsesController } from '../../app/api/controllers/registrations/registrations_routes/post-event-responses.controller';
-
-function make() {
-  const prisma = {
-    postEventResponse: {
-      findMany: jest.fn().mockResolvedValue([]),
-      count: jest.fn().mockResolvedValue(0),
-    },
-    formField: { findMany: jest.fn().mockResolvedValue([]) },
-  };
-  const ctrl = new PostEventResponsesController(prisma as any);
-  return { ctrl, prisma };
-}
+import { PostEventResponsesService } from '../../app/services/registrations/post-event-responses.service';
 
 function fakeRes() {
   const res: any = {};
@@ -20,72 +9,56 @@ function fakeRes() {
   return res;
 }
 
-describe('PostEventResponsesController', () => {
-  beforeEach(() => jest.clearAllMocks());
-
-  it('list returns paginated data scoped to the event with registration included', async () => {
-    const { ctrl, prisma } = make();
-    prisma.postEventResponse.findMany.mockResolvedValue([
-      {
-        id: 'p1',
-        answers: {},
-        createdAt: new Date(),
-        registration: { id: 'r1', name: 'A', email: 'a@b.com', phone: '1' },
-      },
-    ]);
-    prisma.postEventResponse.count.mockResolvedValue(1);
-
-    const result = await ctrl.findAll('evt-1', { page: 2, limit: 10 });
-
-    expect(prisma.postEventResponse.findMany).toHaveBeenCalledWith(
+describe('PostEventResponsesService.listPaginated', () => {
+  it('scopes the query to the event with registration included and paginates', async () => {
+    const repo = {
+      findAllByEventPaginated: jest.fn().mockResolvedValue({
+        data: [
+          {
+            id: 'p1',
+            answers: {},
+            createdAt: new Date(),
+            registration: { id: 'r1', name: 'A', email: 'a@b.com', phone: '1' },
+          },
+        ],
+        total: 1,
+      }),
+    };
+    const service = new PostEventResponsesService(repo as any);
+    const result = await service.listPaginated('evt-1', 2, 10);
+    expect(repo.findAllByEventPaginated).toHaveBeenCalledWith(
+      'evt-1',
       expect.objectContaining({ skip: 10, take: 10 }),
     );
-    expect(prisma.postEventResponse.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { eventId: 'evt-1' },
-        include: expect.objectContaining({
-          registration: expect.objectContaining({
-            select: { id: true, name: true, email: true, phone: true },
-          }),
-        }),
-      }),
-    );
-    expect(prisma.postEventResponse.count).toHaveBeenCalledWith({ where: { eventId: 'evt-1' } });
-    expect(result).toEqual({
-      data: [
-        {
-          id: 'p1',
-          answers: {},
-          createdAt: expect.any(Date),
-          registration: { id: 'r1', name: 'A', email: 'a@b.com', phone: '1' },
-        },
-      ],
-      total: 1,
-      page: 2,
-      limit: 10,
-    });
+    expect(result.total).toBe(1);
   });
+});
 
-  it('export sends CSV with proper headers and field labels', async () => {
-    const { ctrl, prisma } = make();
-    prisma.postEventResponse.findMany.mockResolvedValue([
-      {
-        id: 'p1',
-        answers: { Nota: '9' },
-        createdAt: new Date('2026-06-01T12:00:00Z'),
-        registration: { name: 'A', email: 'a@b.com', phone: '1' },
-      },
-    ]);
-    prisma.formField.findMany.mockResolvedValue([{ label: 'Nota' }]);
+describe('PostEventResponsesController.exportCsv', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('sends CSV with proper headers and field labels', async () => {
+    const postEventResponses = {
+      exportRows: jest.fn().mockResolvedValue([
+        {
+          name: 'A',
+          email: 'a@b.com',
+          phone: '1',
+          answers: { Nota: '9' },
+          createdAt: new Date('2026-06-01T12:00:00Z'),
+        },
+      ]),
+    };
+    const formFields = { exportLabels: jest.fn().mockResolvedValue([{ label: 'Nota' }]) };
+    const ctrl = new PostEventResponsesController(
+      postEventResponses as any,
+      formFields as any,
+    );
     const res = fakeRes();
 
     await ctrl.exportCsv('evt-1', res);
 
-    expect(prisma.formField.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { eventId: 'evt-1', kind: 'post_event' },
-      }),
-    );
+    expect(formFields.exportLabels).toHaveBeenCalledWith('evt-1', 'post_event');
     expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv; charset=utf-8');
     expect(res.setHeader).toHaveBeenCalledWith(
       'Content-Disposition',

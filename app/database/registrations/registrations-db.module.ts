@@ -3,6 +3,7 @@ import { REGISTRATION_REPOSITORY_PORT } from '@domain/registrations/ports/regist
 import { USER_SUBSCRIPTION_REPOSITORY_PORT } from '@domain/registrations/ports/user-subscription-repository.port';
 import { PrismaRegistrationRepository } from './prisma-registration.repository';
 import { PrismaUserSubscriptionRepository } from './prisma-user-subscription.repository';
+import { PostEventResponsesRepository } from './post-event-responses.repository';
 
 @Module({
   providers: [
@@ -14,7 +15,12 @@ import { PrismaUserSubscriptionRepository } from './prisma-user-subscription.rep
       provide: USER_SUBSCRIPTION_REPOSITORY_PORT,
       useClass: PrismaUserSubscriptionRepository,
     },
+    PostEventResponsesRepository,
   ],
-  exports: [REGISTRATION_REPOSITORY_PORT, USER_SUBSCRIPTION_REPOSITORY_PORT],
+  exports: [
+    REGISTRATION_REPOSITORY_PORT,
+    USER_SUBSCRIPTION_REPOSITORY_PORT,
+    PostEventResponsesRepository,
+  ],
 })
 export class RegistrationsDbModule {}
