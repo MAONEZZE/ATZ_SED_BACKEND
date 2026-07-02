@@ -4,6 +4,11 @@ node_modules/
 # build
 dist/
 
+# mutation testing (Stryker)
+mutation_test/.stryker-tmp/
+mutation_test/reports/
+.stryker-tmp/
+
 # env
 .env.*
 !.env.example
