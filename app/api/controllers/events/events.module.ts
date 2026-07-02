@@ -5,6 +5,7 @@ import { CollaboratorsController } from './events_routes/collaborators.controlle
 import { EventsService } from '@services/events/events.service';
 import { EventLifecycleService } from '@services/events/event-lifecycle.service';
 import { CollaboratorsService } from '@services/events/collaborators.service';
+import { FormFieldsService } from '@services/events/form-fields.service';
 import { EventsDbModule } from '@database/events/events-db.module';
 import { StorageModule } from '@database/storage/storage.module';
 import { GuardsModule } from '@api/config/guards/guards.module';
@@ -13,7 +14,7 @@ import { WorkersModule } from '@api/workers/workers.module';
 @Module({
   imports: [EventsDbModule, StorageModule, GuardsModule, WorkersModule],
   controllers: [EventsController, FormFieldsController, CollaboratorsController],
-  providers: [EventsService, EventLifecycleService, CollaboratorsService],
+  providers: [EventsService, EventLifecycleService, CollaboratorsService, FormFieldsService],
   exports: [EventsService],
 })
 export class EventsModule {}

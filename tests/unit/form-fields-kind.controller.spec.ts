@@ -1,65 +1,55 @@
-import { FormFieldsController } from '../../app/api/controllers/events/events_routes/form-fields.controller';
+import { FormFieldsService } from '../../app/services/events/form-fields.service';
 
-const user = { id: 'user-1', email: 'u@e.com' } as any;
-
-function makeController() {
-  const prisma = {
-    formField: {
-      create: jest.fn().mockResolvedValue({ id: 'f1' }),
-      findMany: jest.fn().mockResolvedValue([]),
-      count: jest.fn().mockResolvedValue(0),
-    },
-    event: {
-      update: jest.fn().mockResolvedValue({ id: 'evt-1' }),
-    },
+function makeService() {
+  const repo = {
+    create: jest.fn().mockResolvedValue({ id: 'f1' }),
+    update: jest.fn().mockResolvedValue({ id: 'f1' }),
+    delete: jest.fn().mockResolvedValue(undefined),
+    findByEvent: jest.fn().mockResolvedValue({ id: 'f1' }),
+    findAllByEventPaginated: jest.fn().mockResolvedValue({ data: [], total: 0 }),
+    touchEvent: jest.fn().mockResolvedValue({ id: 'evt-1' }),
   };
-  return { ctrl: new FormFieldsController(prisma as any), prisma };
+  return { service: new FormFieldsService(repo as any), repo };
 }
 
-describe('FormFieldsController kind support', () => {
+describe('FormFieldsService kind support', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('default kind registration on create when omitted', async () => {
-    const { ctrl, prisma } = makeController();
-    await ctrl.create('evt-1', { label: 'Nome', type: 'text' }, user);
-    expect(prisma.formField.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ kind: 'registration' }) }),
-    );
+    const { service, repo } = makeService();
+    await service.create('evt-1', 'user-1', { label: 'Nome', type: 'text' });
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ kind: 'registration' }));
   });
 
   it('passes post_event kind on create', async () => {
-    const { ctrl, prisma } = makeController();
-    await ctrl.create('evt-1', { label: 'Nota', type: 'text', kind: 'post_event' } as any, user);
-    expect(prisma.formField.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ kind: 'post_event' }) }),
-    );
+    const { service, repo } = makeService();
+    await service.create('evt-1', 'user-1', { label: 'Nota', type: 'text', kind: 'post_event' });
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ kind: 'post_event' }));
   });
 
   it('stamps last editor on the event after creating a field', async () => {
-    const { ctrl, prisma } = makeController();
-    await ctrl.create('evt-1', { label: 'Nome', type: 'text' }, user);
-    expect(prisma.event.update).toHaveBeenCalledWith({
-      where: { id: 'evt-1' },
-      data: { lastEditedById: 'user-1' },
-    });
+    const { service, repo } = makeService();
+    await service.create('evt-1', 'user-1', { label: 'Nome', type: 'text' });
+    expect(repo.touchEvent).toHaveBeenCalledWith('evt-1', 'user-1');
   });
 
-  it('filters findAll by kind when given', async () => {
-    const { ctrl, prisma } = makeController();
-    await ctrl.findAll('evt-1', {}, 'post_event');
-    expect(prisma.formField.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { eventId: 'evt-1', kind: 'post_event' } }),
+  it('filters listPaginated by kind when given', async () => {
+    const { service, repo } = makeService();
+    await service.listPaginated('evt-1', 'post_event', 1, 20);
+    expect(repo.findAllByEventPaginated).toHaveBeenCalledWith(
+      'evt-1',
+      'post_event',
+      expect.objectContaining({ skip: 0, take: 20 }),
     );
   });
 
-  it('findAll without kind uses where with only eventId (no stray kind key)', async () => {
-    const { ctrl, prisma } = makeController();
-    await ctrl.findAll('evt-1', {});
-    expect(prisma.formField.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { eventId: 'evt-1' } }),
-    );
-    expect(prisma.formField.findMany).not.toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ kind: expect.anything() }) }),
+  it('listPaginated without kind passes undefined kind', async () => {
+    const { service, repo } = makeService();
+    await service.listPaginated('evt-1', undefined, 1, 20);
+    expect(repo.findAllByEventPaginated).toHaveBeenCalledWith(
+      'evt-1',
+      undefined,
+      expect.objectContaining({ skip: 0, take: 20 }),
     );
   });
 });

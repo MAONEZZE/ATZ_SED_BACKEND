@@ -1,9 +1,13 @@
 import { Module } from '@nestjs/common';
 import { EVENT_REPOSITORY_PORT } from '@domain/events/ports/event-repository.port';
 import { PrismaEventRepository } from './prisma-event.repository';
+import { FormFieldsRepository } from './form-fields.repository';
 
 @Module({
-  providers: [{ provide: EVENT_REPOSITORY_PORT, useClass: PrismaEventRepository }],
-  exports: [EVENT_REPOSITORY_PORT],
+  providers: [
+    { provide: EVENT_REPOSITORY_PORT, useClass: PrismaEventRepository },
+    FormFieldsRepository,
+  ],
+  exports: [EVENT_REPOSITORY_PORT, FormFieldsRepository],
 })
 export class EventsDbModule {}
