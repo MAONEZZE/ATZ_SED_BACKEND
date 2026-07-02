@@ -1,4 +1,4 @@
-import { FormFieldsService } from '../../../app/services/events/form-fields.service';
+import { FormFieldsService } from '@modules/events/form-fields.service';
 
 function makeService() {
   const repo = {

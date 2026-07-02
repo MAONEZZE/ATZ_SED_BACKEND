@@ -1,4 +1,4 @@
-import { IcsGeneratorService } from '@services/automations/ics-generator.service';
+import { IcsGeneratorService } from '@modules/automations/ics-generator.service';
 
 describe('IcsGeneratorService', () => {
   const ics = new IcsGeneratorService();

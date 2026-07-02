@@ -1,4 +1,4 @@
-import { EvolutionAdapter } from '@database/integrations/evolution.adapter';
+import { EvolutionAdapter } from '@infra/integrations/evolution.adapter';
 
 function makeConfig(over: Record<string, unknown> = {}) {
   const base: Record<string, unknown> = {

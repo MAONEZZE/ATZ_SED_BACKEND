@@ -1,6 +1,6 @@
-import { OwnershipGuard } from '@api/config/guards/ownership.guard';
+import { OwnershipGuard } from '@shared/guards/ownership.guard';
 import { ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { AuthenticatedUser } from '@domain/users/entities/authenticated-user.entity';
+import { AuthenticatedUser } from '@shared/authenticated-user.entity';
 
 function makeCtx(req: Record<string, unknown>) {
   return { switchToHttp: () => ({ getRequest: () => req }) } as any;

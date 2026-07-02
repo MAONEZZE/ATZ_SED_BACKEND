@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { WhatsappController } from '../../../app/api/controllers/users/users_routes/whatsapp.controller';
+import { WhatsappController } from '@modules/users/whatsapp.controller';
 
 function make() {
   const evolution = { fetchGroups: jest.fn() };

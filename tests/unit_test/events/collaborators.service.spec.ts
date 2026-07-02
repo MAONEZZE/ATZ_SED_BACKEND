@@ -1,5 +1,5 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { CollaboratorsService } from '@services/events/collaborators.service';
+import { CollaboratorsService } from '@modules/events/collaborators.service';
 
 function makeService() {
   const prisma = {

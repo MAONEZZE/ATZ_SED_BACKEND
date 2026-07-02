@@ -1,4 +1,4 @@
-import { EvolutionAdapter } from '../../../app/database/integrations/evolution.adapter';
+import { EvolutionAdapter } from '@infra/integrations/evolution.adapter';
 
 // ConfigService falso: typing desabilitado para envios determinísticos (sem delay aleatório).
 const config = {

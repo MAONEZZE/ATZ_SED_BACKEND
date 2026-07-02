@@ -1,4 +1,4 @@
-import { PublicEventsService } from '../../../app/services/events/public-events.service';
+import { PublicEventsService } from '@modules/events/public-events.service';
 
 function makeService(eventRow: any) {
   const prisma = {

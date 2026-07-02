@@ -2,7 +2,7 @@ import {
   RegistrationEntity,
   FUNNEL_STATUSES,
   FunnelStatus,
-} from '@domain/registrations/entities/registration.entity';
+} from '@modules/registrations/entities/registration.entity';
 
 const make = (status: FunnelStatus) =>
   new RegistrationEntity(

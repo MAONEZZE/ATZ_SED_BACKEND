@@ -1,4 +1,4 @@
-import { validateEnv } from '@api/config/env.validation';
+import { validateEnv } from '@shared/config/env.validation';
 
 describe('validateEnv', () => {
   // .env é a fonte-única: o schema não tem defaults, então todas precisam estar presentes.

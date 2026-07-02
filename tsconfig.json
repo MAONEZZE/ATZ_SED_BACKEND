@@ -18,10 +18,10 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "paths": {
-      "@domain/*": ["app/domain/*"],
-      "@services/*": ["app/services/*"],
-      "@database/*": ["app/database/*"],
-      "@api/*": ["app/api/*"]
+      "@modules/*": ["app/modules/*"],
+      "@infra/*": ["app/infra/*"],
+      "@shared/*": ["app/shared/*"],
+      "@workers/*": ["app/workers/*"]
     }
   }
 }

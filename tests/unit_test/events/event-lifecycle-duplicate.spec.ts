@@ -1,4 +1,4 @@
-import { EventLifecycleService } from '../../../app/services/events/event-lifecycle.service';
+import { EventLifecycleService } from '@modules/events/event-lifecycle.service';
 
 function makeService(source: any) {
   const prisma = {

@@ -1,4 +1,4 @@
-import { MessageDispatchWorker } from '../../../app/api/workers/message-dispatch.worker';
+import { MessageDispatchWorker } from '@workers/message-dispatch.worker';
 
 const outboxRow = {
   id: 'msg-1',

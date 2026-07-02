@@ -1,4 +1,4 @@
-import { RegistrationsController } from '../../../app/api/controllers/registrations/registrations_routes/registrations.controller';
+import { RegistrationsController } from '@modules/registrations/registrations.controller';
 
 function make() {
   const registrations = {

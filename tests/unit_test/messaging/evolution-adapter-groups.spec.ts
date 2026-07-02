@@ -1,4 +1,4 @@
-import { EvolutionAdapter } from '../../../app/database/integrations/evolution.adapter';
+import { EvolutionAdapter } from '@infra/integrations/evolution.adapter';
 
 const config = {
   get: (key: string) => {

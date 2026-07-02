@@ -1,4 +1,4 @@
-import { UserSubscriptionsController } from '../../../app/api/controllers/registrations/registrations_routes/user-subscriptions.controller';
+import { UserSubscriptionsController } from '@modules/registrations/user-subscriptions.controller';
 
 function make() {
   const service = {

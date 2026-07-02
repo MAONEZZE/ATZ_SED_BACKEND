@@ -1,4 +1,4 @@
-import { OutboxService } from '@services/messaging/outbox.service';
+import { OutboxService } from '@modules/messaging/outbox.service';
 
 const mockOutboxRepo = {
   enqueue: jest.fn().mockResolvedValue({ id: 'msg-1', created: true }),

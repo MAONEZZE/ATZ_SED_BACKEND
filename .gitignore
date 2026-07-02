@@ -4,9 +4,8 @@ node_modules/
 # build
 dist/
 
-# mutation testing (Stryker)
-mutation_test/.stryker-tmp/
-mutation_test/reports/
+# mutation testing (Stryker) — relatório versionado de propósito; só o temp é ignorado
+tests/mutation_test/.stryker-tmp/
 .stryker-tmp/
 
 # env

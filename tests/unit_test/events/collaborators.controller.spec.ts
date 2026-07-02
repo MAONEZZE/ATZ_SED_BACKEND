@@ -1,4 +1,4 @@
-import { CollaboratorsController } from '../../../app/api/controllers/events/events_routes/collaborators.controller';
+import { CollaboratorsController } from '@modules/events/collaborators.controller';
 
 function make() {
   const service = {

@@ -1,4 +1,4 @@
-import { buildRegistrationsCsv } from '@services/registrations/registrations-csv';
+import { buildRegistrationsCsv } from '@modules/registrations/registrations-csv';
 
 const reg = {
   name: 'João',

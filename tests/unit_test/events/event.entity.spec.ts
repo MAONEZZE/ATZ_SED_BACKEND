@@ -1,4 +1,4 @@
-import { EventEntity } from '@domain/events/entities/event.entity';
+import { EventEntity } from '@modules/events/entities/event.entity';
 
 const makeEvent = (status: any) => new EventEntity('id', 'owner', 'Title', 'slug', status);
 

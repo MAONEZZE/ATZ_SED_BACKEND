@@ -14,9 +14,9 @@
     "!app/database/prisma/**"
   ],
   "reporters": ["html", "clear-text", "progress"],
-  "tempDirName": "mutation_test/.stryker-tmp",
+  "tempDirName": "tests/mutation_test/.stryker-tmp",
   "htmlReporter": {
-    "fileName": "mutation_test/reports/mutation.html"
+    "fileName": "tests/mutation_test/reports/mutation.html"
   },
   "thresholds": {
     "high": 80,

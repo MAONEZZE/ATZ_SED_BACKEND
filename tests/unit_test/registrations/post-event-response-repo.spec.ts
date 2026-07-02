@@ -1,4 +1,4 @@
-import { PrismaRegistrationRepository } from '../../../app/database/registrations/prisma-registration.repository';
+import { PrismaRegistrationRepository } from '@modules/registrations/prisma-registration.repository';
 
 function makeRepo() {
   const prisma = {

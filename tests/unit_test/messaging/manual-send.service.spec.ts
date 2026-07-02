@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { ManualSendService } from '@services/messaging/manual-send.service';
-import { TemplateRenderer } from '@services/automations/template-renderer.service';
+import { ManualSendService } from '@modules/messaging/manual-send.service';
+import { TemplateRenderer } from '@modules/automations/template-renderer.service';
 
 const event = {
   id: 'evt-1',

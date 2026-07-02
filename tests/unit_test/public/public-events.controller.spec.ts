@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import { PublicEventsService } from '../../../app/services/events/public-events.service';
+import { PublicEventsService } from '@modules/events/public-events.service';
 
 function makeService(event: any) {
   const prisma = {

@@ -1,5 +1,5 @@
-import { PostEventResponsesController } from '../../../app/api/controllers/registrations/registrations_routes/post-event-responses.controller';
-import { PostEventResponsesService } from '../../../app/services/registrations/post-event-responses.service';
+import { PostEventResponsesController } from '@modules/registrations/post-event-responses.controller';
+import { PostEventResponsesService } from '@modules/registrations/post-event-responses.service';
 
 function fakeRes() {
   const res: any = {};

@@ -1,4 +1,4 @@
-import { answerToString, escapeCell } from '@services/shared/csv-utils';
+import { answerToString, escapeCell } from '@shared/csv-utils';
 
 describe('escapeCell', () => {
   it('wraps and doubles quotes when value contains a quote', () => {

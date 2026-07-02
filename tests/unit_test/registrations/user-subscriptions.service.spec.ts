@@ -1,4 +1,4 @@
-import { UserSubscriptionsService } from '../../../app/services/registrations/user-subscriptions.service';
+import { UserSubscriptionsService } from '@modules/registrations/user-subscriptions.service';
 
 function make(existing: any = null) {
   const repo = {
