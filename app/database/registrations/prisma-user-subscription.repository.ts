@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '@database/prisma/prisma.service';
+import { PrismaRepositoryBase } from '@database/shared/prisma-repository.base';
 import {
   UserSubscriptionRepositoryPort,
   UserSubscriptionRow,
@@ -31,9 +31,10 @@ type Row = {
 };
 
 @Injectable()
-export class PrismaUserSubscriptionRepository implements UserSubscriptionRepositoryPort {
-  constructor(private readonly prisma: PrismaService) {}
-
+export class PrismaUserSubscriptionRepository
+  extends PrismaRepositoryBase
+  implements UserSubscriptionRepositoryPort
+{
   private map(row: Row): UserSubscriptionRow {
     return {
       id: row.id,
@@ -54,15 +55,7 @@ export class PrismaUserSubscriptionRepository implements UserSubscriptionReposit
   private buildWhere(eventId: string, search?: string) {
     return {
       eventId,
-      ...(search
-        ? {
-            OR: [
-              { name: { contains: search, mode: 'insensitive' as const } },
-              { email: { contains: search, mode: 'insensitive' as const } },
-              { phone: { contains: search, mode: 'insensitive' as const } },
-            ],
-          }
-        : {}),
+      ...this.containsSearch(['name', 'email', 'phone'], search),
     };
   }
 

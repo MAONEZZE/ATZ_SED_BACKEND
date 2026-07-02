@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '@database/prisma/prisma.service';
+import { PrismaRepositoryBase } from '@database/shared/prisma-repository.base';
 import {
   RegistrationRepositoryPort,
   CreateRegistrationData,
@@ -13,9 +13,10 @@ import {
 } from '@domain/registrations/entities/registration.entity';
 
 @Injectable()
-export class PrismaRegistrationRepository implements RegistrationRepositoryPort {
-  constructor(private readonly prisma: PrismaService) {}
-
+export class PrismaRegistrationRepository
+  extends PrismaRepositoryBase
+  implements RegistrationRepositoryPort
+{
   private map(row: {
     id: string;
     eventId: string;
@@ -54,15 +55,7 @@ export class PrismaRegistrationRepository implements RegistrationRepositoryPort 
       where: {
         eventId,
         ...(status ? { status } : {}),
-        ...(search
-          ? {
-              OR: [
-                { name: { contains: search, mode: 'insensitive' as const } },
-                { email: { contains: search, mode: 'insensitive' as const } },
-                { phone: { contains: search, mode: 'insensitive' as const } },
-              ],
-            }
-          : {}),
+        ...this.containsSearch(['name', 'email', 'phone'], search),
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -78,15 +71,7 @@ export class PrismaRegistrationRepository implements RegistrationRepositoryPort 
     const where = {
       eventId,
       ...(status ? { status } : {}),
-      ...(search
-        ? {
-            OR: [
-              { name: { contains: search, mode: 'insensitive' as const } },
-              { email: { contains: search, mode: 'insensitive' as const } },
-              { phone: { contains: search, mode: 'insensitive' as const } },
-            ],
-          }
-        : {}),
+      ...this.containsSearch(['name', 'email', 'phone'], search),
     };
     const [rows, total] = await Promise.all([
       this.prisma.registration.findMany({
