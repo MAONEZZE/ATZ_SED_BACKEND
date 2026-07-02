@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { GlobalMessagingController } from './global-messaging.controller';
+import { GlobalMessagingController } from './global-messaging_routes/global-messaging.controller';
 import { GuardsModule } from '@api/config/guards/guards.module';
 import { WorkersModule } from '@api/workers/workers.module';
 import { EventsModule } from '@api/controllers/events/events.module';

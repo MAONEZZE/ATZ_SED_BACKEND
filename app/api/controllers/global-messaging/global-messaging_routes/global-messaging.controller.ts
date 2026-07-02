@@ -25,11 +25,11 @@ import { ManualSendService } from '@services/messaging/manual-send.service';
 import { TemplatesService } from '@services/messaging/templates.service';
 import { MessageLogsService } from '@services/messaging/message-logs.service';
 import { AutomationsService } from '@services/automations/automations.service';
-import { SendMessageDto } from '../messaging/messaging_dto/send-message.dto';
+import { SendMessageDto } from '../../messaging/messaging_dto/send-message.dto';
 import {
   CreateGlobalTemplateDto,
   UpdateGlobalTemplateDto,
-} from './global-messaging_dto/global-template.dto';
+} from '../global-messaging_dto/global-template.dto';
 import { PaginationQueryDto, Paginated } from '@api/common/pagination';
 
 @ApiTags('Messaging (global)')
