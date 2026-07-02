@@ -1,19 +1,19 @@
-import { PublicEventsController } from '../../app/api/controllers/public/public-events.controller';
+import { PublicEventsService } from '../../app/services/events/public-events.service';
 
-function makeController(eventRow: any) {
+function makeService(eventRow: any) {
   const prisma = {
     event: { findUnique: jest.fn().mockResolvedValue(eventRow) },
     formField: { findMany: jest.fn().mockResolvedValue([]) },
   };
-  return { ctrl: new PublicEventsController(prisma as any), prisma };
+  return { service: new PublicEventsService(prisma as any), prisma };
 }
 
-describe('PublicEventsController.getFormFields', () => {
+describe('PublicEventsService.getPublicFormFields (registration)', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('only returns registration-kind fields', async () => {
-    const { ctrl, prisma } = makeController({ id: 'evt-1', status: 'published' });
-    await ctrl.getFormFields('slug-1');
+    const { service, prisma } = makeService({ id: 'evt-1', status: 'published' });
+    await service.getPublicFormFields('slug-1', 'registration', false);
     expect(prisma.formField.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { eventId: 'evt-1', kind: 'registration' } }),
     );

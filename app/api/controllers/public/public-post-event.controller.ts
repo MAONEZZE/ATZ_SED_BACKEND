@@ -1,7 +1,7 @@
 import { Controller, Post, Param, Body, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { RegistrationsService } from '@services/registrations/registrations.service';
-import { PrismaService } from '@database/prisma/prisma.service';
+import { PublicEventsService } from '@services/events/public-events.service';
 import { SubmitPostEventDto } from './public_dto/submit-post-event.dto';
 
 @ApiTags('Public')
@@ -9,7 +9,7 @@ import { SubmitPostEventDto } from './public_dto/submit-post-event.dto';
 export class PublicPostEventController {
   constructor(
     private readonly registrations: RegistrationsService,
-    private readonly prisma: PrismaService,
+    private readonly publicEvents: PublicEventsService,
   ) {}
 
   @Post(':slug/post-event')
@@ -20,10 +20,7 @@ export class PublicPostEventController {
   @ApiResponse({ status: 400, description: 'Evento inválido ou campo obrigatório ausente' })
   @ApiResponse({ status: 404, description: 'Inscrição não encontrada' })
   async submit(@Param('slug') slug: string, @Body() dto: SubmitPostEventDto) {
-    const fields = await this.prisma.formField.findMany({
-      where: { event: { slug }, kind: 'post_event' },
-      select: { label: true, required: true },
-    });
+    const fields = await this.publicEvents.getSubmissionFields(slug, 'post_event');
     await this.registrations.submitPostEvent(slug, dto.identifier, dto.answers, fields);
     return { ok: true };
   }

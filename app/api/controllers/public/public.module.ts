@@ -3,6 +3,7 @@ import { PublicRegistrationsController } from './public-registrations.controller
 import { PublicEventsController } from './public-events.controller';
 import { PublicPostEventController } from './public-post-event.controller';
 import { PublicNpsController } from './public-nps.controller';
+import { PublicEventsService } from '@services/events/public-events.service';
 import { RegistrationsModule } from '../registrations/registrations.module';
 
 @Module({
@@ -13,5 +14,6 @@ import { RegistrationsModule } from '../registrations/registrations.module';
     PublicPostEventController,
     PublicNpsController,
   ],
+  providers: [PublicEventsService],
 })
 export class PublicModule {}
