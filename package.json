@@ -7,12 +7,12 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "format": "prettier --write \"app/**/*.ts\" \"tests/**/*.ts\"",
+    "format": "prettier --write \"app/**/*.ts\" \"unit_test/**/*.ts\" \"integration_test/**/*.ts\"",
     "start": "nest start",
     "dev": "nest start --watch",
     "debug": "nest start --debug --watch",
     "prod": "node -r tsconfig-paths/register dist/main",
-    "lint": "eslint \"{app,tests}/**/*.ts\" --fix",
+    "lint": "eslint \"{app,unit_test,integration_test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
@@ -93,6 +93,10 @@
       "ts"
     ],
     "rootDir": ".",
+    "roots": [
+      "<rootDir>/unit_test",
+      "<rootDir>/integration_test"
+    ],
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
