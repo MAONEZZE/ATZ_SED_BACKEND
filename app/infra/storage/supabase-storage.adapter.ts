@@ -32,4 +32,9 @@ export class SupabaseStorageAdapter implements StoragePort {
     const { error } = await this.client.storage.from(bucket).remove([path]);
     if (error) throw new Error(`Storage delete failed: ${error.message}`);
   }
+
+  getPublicUrl(bucket: string, path: string): string {
+    const { data } = this.client.storage.from(bucket).getPublicUrl(path);
+    return data.publicUrl;
+  }
 }

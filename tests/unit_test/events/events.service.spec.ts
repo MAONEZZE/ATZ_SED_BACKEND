@@ -24,7 +24,7 @@ function makeService() {
     update: jest.fn().mockImplementation((_id, data) => Promise.resolve(data)),
     updateStatus: jest.fn().mockImplementation((_id, status) => Promise.resolve({ status })),
   };
-  const storage = { upload: jest.fn(), delete: jest.fn() };
+  const storage = { upload: jest.fn(), delete: jest.fn(), getPublicUrl: jest.fn() };
   const config = { get: jest.fn().mockReturnValue(undefined) };
   const service = new EventsService(eventRepo as any, storage, config as any);
   return { service, eventRepo, storage, config };
