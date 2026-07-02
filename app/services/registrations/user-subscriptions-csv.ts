@@ -1,4 +1,5 @@
-import { answerToString, escapeCell, formatDateBrasilia } from '@services/registrations/csv-utils';
+import { answerToString, formatDateBrasilia } from '@services/shared/csv-utils';
+import { buildCsv, CsvColumn } from '@services/shared/csv-builder';
 
 export interface CsvUserSubscription {
   name: string | null;
@@ -23,46 +24,34 @@ export interface CsvUserSubscriptionFields {
   nps: CsvField[];
 }
 
-const FIXED_HEADERS = [
-  'Nome',
-  'E-mail',
-  'Telefone',
-  'Enviar Pipedrive',
-  'Status Pipedrive',
-  'Criado em',
-  'Atualizado em',
-];
+/** Builds an answer column that reads `label` from the given answers bag of the row. */
+function answerColumn(
+  prefix: string,
+  label: string,
+  pick: (row: CsvUserSubscription) => Record<string, unknown> | null,
+): CsvColumn<CsvUserSubscription> {
+  return {
+    header: `${prefix}: ${label}`,
+    value: (row) => answerToString(pick(row)?.[label]),
+  };
+}
 
 export function buildUserSubscriptionsCsv(
   rows: CsvUserSubscription[],
   fields: CsvUserSubscriptionFields,
 ): string {
-  const regLabels = fields.registration.map((f) => f.label);
-  const postLabels = fields.postEvent.map((f) => f.label);
-  const npsLabels = fields.nps.map((f) => f.label);
-
-  const header = [
-    ...FIXED_HEADERS,
-    ...regLabels.map((l) => `Inscrição: ${l}`),
-    ...postLabels.map((l) => `Pós-evento: ${l}`),
-    ...npsLabels.map((l) => `NPS: ${l}`),
+  const columns: CsvColumn<CsvUserSubscription>[] = [
+    { header: 'Nome', value: (r) => r.name ?? '' },
+    { header: 'E-mail', value: (r) => r.email ?? '' },
+    { header: 'Telefone', value: (r) => r.phone ?? '' },
+    { header: 'Enviar Pipedrive', value: (r) => (r.sendToPipedrive ? 'sim' : 'não') },
+    { header: 'Status Pipedrive', value: (r) => r.pipedriveStatus ?? '' },
+    { header: 'Criado em', value: (r) => formatDateBrasilia(r.createdAt) },
+    { header: 'Atualizado em', value: (r) => formatDateBrasilia(r.updatedAt) },
+    ...fields.registration.map((f) => answerColumn('Inscrição', f.label, (r) => r.registrationAnswers)),
+    ...fields.postEvent.map((f) => answerColumn('Pós-evento', f.label, (r) => r.postEventAnswers)),
+    ...fields.nps.map((f) => answerColumn('NPS', f.label, (r) => r.npsAnswers)),
   ];
 
-  const lines = rows.map((row) => {
-    const fixed = [
-      row.name ?? '',
-      row.email ?? '',
-      row.phone ?? '',
-      row.sendToPipedrive ? 'sim' : 'não',
-      row.pipedriveStatus ?? '',
-      formatDateBrasilia(row.createdAt),
-      formatDateBrasilia(row.updatedAt),
-    ];
-    const reg = regLabels.map((l) => answerToString(row.registrationAnswers?.[l]));
-    const post = postLabels.map((l) => answerToString(row.postEventAnswers?.[l]));
-    const nps = npsLabels.map((l) => answerToString(row.npsAnswers?.[l]));
-    return [...fixed, ...reg, ...post, ...nps].map(escapeCell).join(',');
-  });
-
-  return '﻿' + [header.map(escapeCell).join(','), ...lines].join('\n');
+  return buildCsv(rows, columns);
 }

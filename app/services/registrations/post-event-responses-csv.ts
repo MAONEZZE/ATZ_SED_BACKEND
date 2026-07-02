@@ -1,4 +1,5 @@
-import { answerToString, escapeCell } from '@services/registrations/csv-utils';
+import { answerToString } from '@services/shared/csv-utils';
+import { buildCsv, CsvColumn } from '@services/shared/csv-builder';
 
 export interface CsvPostEventResponse {
   name: string;
@@ -12,21 +13,22 @@ export interface CsvPostEventField {
   label: string;
 }
 
-const FIXED_HEADERS = ['nome', 'email', 'telefone'];
-
 export function buildPostEventResponsesCsv(
   responses: CsvPostEventResponse[],
   postEventFields: CsvPostEventField[],
 ): string {
-  const dynamicLabels = postEventFields.map((f) => f.label);
-  const header = [...FIXED_HEADERS, ...dynamicLabels, 'data_resposta'];
+  const columns: CsvColumn<CsvPostEventResponse>[] = [
+    { header: 'nome', value: (r) => r.name },
+    { header: 'email', value: (r) => r.email },
+    { header: 'telefone', value: (r) => r.phone },
+    ...postEventFields.map(
+      (f): CsvColumn<CsvPostEventResponse> => ({
+        header: f.label,
+        value: (r) => answerToString(r.answers?.[f.label]),
+      }),
+    ),
+    { header: 'data_resposta', value: (r) => r.createdAt.toISOString() },
+  ];
 
-  const rows = responses.map((resp) => {
-    const dynamic = dynamicLabels.map((label) => answerToString(resp.answers?.[label]));
-    return [resp.name, resp.email, resp.phone, ...dynamic, resp.createdAt.toISOString()]
-      .map(escapeCell)
-      .join(',');
-  });
-
-  return '﻿' + [header.map(escapeCell).join(','), ...rows].join('\n');
+  return buildCsv(responses, columns);
 }

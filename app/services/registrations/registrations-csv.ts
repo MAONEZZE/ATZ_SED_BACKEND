@@ -1,4 +1,5 @@
-import { answerToString, escapeCell } from '@services/registrations/csv-utils';
+import { answerToString } from '@services/shared/csv-utils';
+import { buildCsv, CsvColumn } from '@services/shared/csv-builder';
 
 export interface CsvRegistration {
   name: string;
@@ -13,26 +14,23 @@ export interface CsvFormField {
   label: string;
 }
 
-const FIXED_HEADERS = ['nome', 'email', 'telefone', 'status', 'data_inscricao'];
-
 export function buildRegistrationsCsv(
   registrations: CsvRegistration[],
   formFields: CsvFormField[],
 ): string {
-  const dynamicLabels = formFields.map((f) => f.label);
-  const header = [...FIXED_HEADERS, ...dynamicLabels];
+  const columns: CsvColumn<CsvRegistration>[] = [
+    { header: 'nome', value: (r) => r.name },
+    { header: 'email', value: (r) => r.email },
+    { header: 'telefone', value: (r) => r.phone },
+    { header: 'status', value: (r) => r.status },
+    { header: 'data_inscricao', value: (r) => (r.createdAt ? r.createdAt.toISOString() : '') },
+    ...formFields.map(
+      (f): CsvColumn<CsvRegistration> => ({
+        header: f.label,
+        value: (r) => answerToString(r.answers?.[f.label]),
+      }),
+    ),
+  ];
 
-  const rows = registrations.map((reg) => {
-    const fixed = [
-      reg.name,
-      reg.email,
-      reg.phone,
-      reg.status,
-      reg.createdAt ? reg.createdAt.toISOString() : '',
-    ];
-    const dynamic = dynamicLabels.map((label) => answerToString(reg.answers?.[label]));
-    return [...fixed, ...dynamic].map(escapeCell).join(',');
-  });
-
-  return '﻿' + [header.map(escapeCell).join(','), ...rows].join('\n');
+  return buildCsv(registrations, columns);
 }
