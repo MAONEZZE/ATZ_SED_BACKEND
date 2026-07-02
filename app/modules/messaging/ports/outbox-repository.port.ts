@@ -22,6 +22,13 @@ export interface InviteConfigInput {
   recurrence?: InviteRecurrenceInput | null;
 }
 
+export interface OutboxAttachment {
+  /** URL pública resolvida server-side (não vem do client). */
+  url: string;
+  filename: string;
+  mimetype: string;
+}
+
 export interface EnqueueMessageData {
   eventId?: string;
   ownerId?: string;
@@ -35,6 +42,7 @@ export interface EnqueueMessageData {
   renderedBody: string;
   renderedSubject?: string;
   inviteConfig?: InviteConfigInput | null;
+  attachments?: OutboxAttachment[];
 }
 
 export interface PendingOutboxMessage {

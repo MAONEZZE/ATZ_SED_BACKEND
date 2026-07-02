@@ -81,6 +81,20 @@ export class ManualRecipientDto {
   phone?: string;
 }
 
+export class AttachmentRefDto {
+  @ApiProperty({ example: 'message-attachments/uuid-user/uuid-arquivo.pdf', description: 'path retornado por POST /messages/attachments' })
+  @IsString()
+  path!: string;
+
+  @ApiProperty({ example: 'contrato.pdf' })
+  @IsString()
+  filename!: string;
+
+  @ApiProperty({ example: 'application/pdf' })
+  @IsString()
+  mimetype!: string;
+}
+
 export class SendMessageDto {
   @ApiPropertyOptional({
     example: 'uuid-do-evento',
@@ -133,4 +147,11 @@ export class SendMessageDto {
   @ValidateNested()
   @Type(() => InviteConfigDto)
   invite?: InviteConfigDto;
+
+  @ApiPropertyOptional({ type: [AttachmentRefDto], description: 'Anexos previamente enviados via POST /messages/attachments.' })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AttachmentRefDto)
+  attachments?: AttachmentRefDto[];
 }
