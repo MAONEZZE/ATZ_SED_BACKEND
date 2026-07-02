@@ -25,7 +25,3 @@ export interface Paginated<T> {
   page: number;
   limit: number;
 }
-
-export function paginationToSkip(page = 1, limit = 20): number {
-  return (page - 1) * limit;
-}
