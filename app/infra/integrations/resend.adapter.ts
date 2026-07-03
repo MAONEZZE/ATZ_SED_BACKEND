@@ -24,6 +24,8 @@ export class ResendAdapter {
     if (icsContent) {
       files.push({ filename: 'evento.ics', content: Buffer.from(icsContent).toString('base64') });
     }
+    // Anexos do usuário vão por `path` (URL): o Resend baixa no momento do envio.
+    // Exige URL pública e estável — falha de fetch vira falha de envio (com retry na fila).
     for (const a of attachments ?? []) {
       files.push({ filename: a.filename, path: a.url });
     }

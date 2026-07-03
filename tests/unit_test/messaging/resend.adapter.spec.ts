@@ -12,12 +12,12 @@ describe('ResendAdapter.sendEmail attachments', () => {
       { filename: 'contrato.pdf', url: 'https://cdn/contrato.pdf' },
     ]);
     const arg = send.mock.calls[0][0];
-    expect(arg.attachments).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ filename: 'contrato.pdf', path: 'https://cdn/contrato.pdf' }),
-        expect.objectContaining({ filename: 'evento.ics' }),
-      ]),
-    );
+    const ics = arg.attachments.find((f: any) => f.filename === 'evento.ics');
+    const user = arg.attachments.find((f: any) => f.filename === 'contrato.pdf');
+    // ics vai por `content` (base64); anexo do usuário vai por `path` (URL) — não trocar
+    expect(ics).toEqual(expect.objectContaining({ content: expect.any(String) }));
+    expect(ics.path).toBeUndefined();
+    expect(user).toEqual({ filename: 'contrato.pdf', path: 'https://cdn/contrato.pdf' });
   });
 
   it('sends only user attachments when no ics', async () => {
