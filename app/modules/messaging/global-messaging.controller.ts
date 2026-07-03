@@ -41,6 +41,8 @@ import {
 } from './dto/global-template.dto';
 import { PaginationQueryDto, Paginated } from '@shared/pagination';
 
+const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+
 @ApiTags('Messaging (global)')
 @ApiBearerAuth()
 @Controller()
@@ -64,7 +66,7 @@ export class GlobalMessagingController {
 
   @Post('messages/attachments')
   @HttpCode(201)
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 25 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_ATTACHMENT_BYTES } }))
   @ApiOperation({ summary: 'Upload de anexo para envio de mensagem' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
@@ -73,7 +75,7 @@ export class GlobalMessagingController {
     @UploadedFile(
       new ParseFilePipe({
         validators: [
-          new MaxFileSizeValidator({ maxSize: 25 * 1024 * 1024 }),
+          new MaxFileSizeValidator({ maxSize: MAX_ATTACHMENT_BYTES }),
           new FileTypeValidator({
             fileType:
               /(image\/(jpeg|png|webp|gif))|(application\/pdf)|(application\/msword)|(application\/vnd\.openxmlformats-officedocument\.[\w.-]+)|(application\/vnd\.ms-(excel|powerpoint))|(video\/mp4)|(audio\/(mpeg|ogg))/,

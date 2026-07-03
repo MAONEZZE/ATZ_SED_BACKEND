@@ -24,7 +24,7 @@ export class MessageAttachmentsService {
     const bucket = this.config.get<string>('SUPABASE_STORAGE_BUCKET') ?? 'ATZ_SED';
     const folder =
       this.config.get<string>('SUPABASE_STORAGE_BUCKET_MESSAGE_ATTACHMENTS') ?? 'message-attachments';
-    const safeName = file.originalname.replace(/[^\w.\-]/g, '_');
+    const safeName = file.originalname.replace(/[^\w.\-]/g, '_').replace(/\.{2,}/g, '.');
     const path = `${folder}/${userId}/${randomUUID()}-${safeName}`;
     await this.storage.upload(bucket, path, file.buffer, file.mimetype);
     return { path, filename: file.originalname, mimetype: file.mimetype, size: file.size };
