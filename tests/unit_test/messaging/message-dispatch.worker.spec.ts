@@ -11,6 +11,8 @@ const outboxRow = {
   renderedBody: 'Olá',
   renderedSubject: 'Assunto',
   status: 'pending',
+  attachments: null,
+  sentAttachments: 0,
 };
 
 function makeMocks(row: unknown) {
@@ -28,7 +30,10 @@ function makeMocks(row: unknown) {
     },
   };
   const resend = { sendEmail: jest.fn().mockResolvedValue(undefined) };
-  const evolution = { sendWhatsApp: jest.fn().mockResolvedValue(undefined) };
+  const evolution = {
+    sendWhatsApp: jest.fn().mockResolvedValue(undefined),
+    sendMedia: jest.fn().mockResolvedValue(undefined),
+  };
   const ics = { generate: jest.fn().mockReturnValue('BEGIN:VCALENDAR') };
   return { prisma, resend, evolution, ics };
 }
@@ -201,5 +206,75 @@ describe('MessageDispatchWorker.process', () => {
     expect(prisma.messageLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ ownerId: 'user-1', eventId: null }),
     });
+  });
+
+  it('sends email attachments as the 5th sendEmail arg', async () => {
+    const row = {
+      ...outboxRow,
+      id: 'att-email-1',
+      eventId: null,
+      channel: 'email',
+      attachments: [{ url: 'https://cdn/f.pdf', filename: 'f.pdf', mimetype: 'application/pdf' }],
+      sentAttachments: 0,
+    };
+    const { prisma, resend, evolution, ics } = makeMocks(row);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any, ics as any);
+    await worker.process({ data: { outboxId: 'att-email-1' } } as any);
+
+    const fifthArg = resend.sendEmail.mock.calls[0][4];
+    expect(fifthArg).toEqual([{ filename: 'f.pdf', url: 'https://cdn/f.pdf' }]);
+  });
+
+  it('resumes whatsapp media from sentAttachments, sending only the remaining one', async () => {
+    const row = {
+      ...outboxRow,
+      id: 'att-wa-1',
+      eventId: null,
+      ownerId: null,
+      channel: 'whatsapp',
+      instancia: 'inst-1',
+      sentParts: 0,
+      attachments: [
+        { url: 'https://cdn/a.pdf', filename: 'a.pdf', mimetype: 'application/pdf' },
+        { url: 'https://cdn/b.png', filename: 'b.png', mimetype: 'image/png' },
+      ],
+      sentAttachments: 1,
+    };
+    const { prisma, resend, evolution, ics } = makeMocks(row);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any, ics as any);
+    await worker.process({ data: { outboxId: 'att-wa-1' } } as any);
+
+    expect(evolution.sendMedia).toHaveBeenCalledTimes(1);
+    expect(evolution.sendMedia).toHaveBeenCalledWith(
+      'inst-1',
+      'a@b.com',
+      'https://cdn/b.png',
+      'image',
+      'image/png',
+      'b.png',
+    );
+    expect(prisma.outboxMessage.update).toHaveBeenCalledWith({
+      where: { id: 'att-wa-1' },
+      data: { sentAttachments: 2 },
+    });
+  });
+
+  it('maps image mimetype to mediatype image', async () => {
+    const row = {
+      ...outboxRow,
+      id: 'att-wa-2',
+      eventId: null,
+      ownerId: null,
+      channel: 'whatsapp',
+      instancia: 'inst-1',
+      sentParts: 0,
+      attachments: [{ url: 'https://cdn/c.jpg', filename: 'c.jpg', mimetype: 'image/jpeg' }],
+      sentAttachments: 0,
+    };
+    const { prisma, resend, evolution, ics } = makeMocks(row);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any, ics as any);
+    await worker.process({ data: { outboxId: 'att-wa-2' } } as any);
+
+    expect(evolution.sendMedia.mock.calls[0][3]).toBe('image');
   });
 });

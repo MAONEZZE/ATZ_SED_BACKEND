@@ -6,7 +6,7 @@ import { ResendAdapter } from '@infra/integrations/resend.adapter';
 import { EvolutionAdapter } from '@infra/integrations/evolution.adapter';
 import { QUEUE_MESSAGE_DISPATCH } from '@infra/queue/bull-queues.module';
 import { IcsGeneratorService } from '@modules/automations/ics-generator.service';
-import type { InviteConfigInput } from '@modules/messaging/ports/outbox-repository.port';
+import type { InviteConfigInput, OutboxAttachment } from '@modules/messaging/ports/outbox-repository.port';
 import { APP_TIMEZONE } from '@shared/timezone';
 import { DateTime } from 'luxon';
 
@@ -83,11 +83,17 @@ export class MessageDispatchWorker extends WorkerHost {
           body = body.replace(ICS_MARKER_RECURRENT, '').replace(ICS_MARKER, '');
         }
 
+        const emailAttachments = ((outbox.attachments as OutboxAttachment[] | null) ?? []).map((a) => ({
+          filename: a.filename,
+          url: a.url,
+        }));
+
         await this.resend.sendEmail(
           outbox.recipient,
           outbox.renderedSubject ?? 'Mensagem do evento',
           body,
           icsContent,
+          emailAttachments.length ? emailAttachments : undefined,
         );
       } else {
         const instancia = await this.resolveWhatsAppInstance(
@@ -107,6 +113,23 @@ export class MessageDispatchWorker extends WorkerHost {
             });
           },
         });
+
+        const attachments = (outbox.attachments as OutboxAttachment[] | null) ?? [];
+        for (let i = outbox.sentAttachments; i < attachments.length; i++) {
+          const a = attachments[i];
+          await this.evolution.sendMedia(
+            instancia,
+            outbox.recipient,
+            a.url,
+            this.mediaTypeOf(a.mimetype),
+            a.mimetype,
+            a.filename,
+          );
+          await this.prisma.outboxMessage.update({
+            where: { id: outbox.id },
+            data: { sentAttachments: i + 1 },
+          });
+        }
       }
 
       await this.prisma.outboxMessage.update({
@@ -260,5 +283,12 @@ export class MessageDispatchWorker extends WorkerHost {
       return profile?.evolutionInstance ?? null;
     }
     return fallback ?? null;
+  }
+
+  private mediaTypeOf(mimetype: string): 'image' | 'video' | 'audio' | 'document' {
+    if (mimetype.startsWith('image/')) return 'image';
+    if (mimetype.startsWith('video/')) return 'video';
+    if (mimetype.startsWith('audio/')) return 'audio';
+    return 'document';
   }
 }
