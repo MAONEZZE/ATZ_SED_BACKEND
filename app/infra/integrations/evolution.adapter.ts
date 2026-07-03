@@ -77,6 +77,35 @@ export class EvolutionAdapter {
     }
   }
 
+  async sendMedia(
+    instancia: string,
+    to: string,
+    mediaUrl: string,
+    mediatype: 'image' | 'video' | 'audio' | 'document',
+    mimetype: string,
+    fileName: string,
+    caption?: string,
+  ): Promise<void> {
+    const url = `${this.baseUrl}/message/sendMedia/${instancia}`;
+    const payload: Record<string, unknown> = { number: to, mediatype, mimetype, media: mediaUrl, fileName };
+    if (caption) payload.caption = caption;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: this.apiKey },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.logger.error(
+        { instancia, status: response.status, error: errorText },
+        'Evolution API sendMedia error',
+      );
+      throw new Error(`Evolution API error (${response.status}): ${errorText}`);
+    }
+  }
+
   async fetchGroups(instancia: string): Promise<{ id: string; subject: string }[]> {
     const url = `${this.baseUrl}/group/fetchAllGroups/${instancia}?getParticipants=false`;
     const response = await fetch(url, {
