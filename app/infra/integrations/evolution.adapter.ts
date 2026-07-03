@@ -87,7 +87,14 @@ export class EvolutionAdapter {
     caption?: string,
   ): Promise<void> {
     const url = `${this.baseUrl}/message/sendMedia/${instancia}`;
-    const payload: Record<string, unknown> = { number: to, mediatype, mimetype, media: mediaUrl, fileName };
+    const payload: {
+      number: string;
+      mediatype: 'image' | 'video' | 'audio' | 'document';
+      mimetype: string;
+      media: string;
+      fileName: string;
+      caption?: string;
+    } = { number: to, mediatype, mimetype, media: mediaUrl, fileName };
     if (caption) payload.caption = caption;
 
     const response = await fetch(url, {
