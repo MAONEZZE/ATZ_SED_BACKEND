@@ -9,7 +9,13 @@ import {
   HttpCode,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -17,6 +23,8 @@ import {
   ApiResponse,
   ApiQuery,
   ApiParam,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
@@ -25,6 +33,7 @@ import { ManualSendService } from '@modules/messaging/manual-send.service';
 import { TemplatesService } from '@modules/messaging/templates.service';
 import { MessageLogsService } from '@modules/messaging/message-logs.service';
 import { AutomationsService } from '@modules/automations/automations.service';
+import { MessageAttachmentsService } from '@modules/messaging/message-attachments.service';
 import { SendMessageDto } from './dto/send-message.dto';
 import {
   CreateGlobalTemplateDto,
@@ -42,6 +51,7 @@ export class GlobalMessagingController {
     private readonly templates: TemplatesService,
     private readonly logs: MessageLogsService,
     private readonly automations: AutomationsService,
+    private readonly attachments: MessageAttachmentsService,
   ) {}
 
   @Post('messages')
@@ -50,6 +60,31 @@ export class GlobalMessagingController {
   @ApiResponse({ status: 202, description: 'Mensagem(ns) enfileirada(s)' })
   send(@Body() dto: SendMessageDto, @CurrentUser() user: AuthenticatedUser) {
     return this.manualSend.send(dto, user.id);
+  }
+
+  @Post('messages/attachments')
+  @HttpCode(201)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 25 * 1024 * 1024 } }))
+  @ApiOperation({ summary: 'Upload de anexo para envio de mensagem' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiResponse({ status: 201, description: 'Anexo enviado; use o path no POST /messages' })
+  uploadAttachment(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 25 * 1024 * 1024 }),
+          new FileTypeValidator({
+            fileType:
+              /(image\/(jpeg|png|webp|gif))|(application\/pdf)|(application\/msword)|(application\/vnd\.openxmlformats-officedocument\.[\w.-]+)|(application\/vnd\.ms-(excel|powerpoint))|(video\/mp4)|(audio\/(mpeg|ogg))/,
+          }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.attachments.upload(user.id, file);
   }
 
   @Post('messaging/templates')

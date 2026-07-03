@@ -7,6 +7,7 @@ import { MessagingDbModule } from '@modules/messaging/messaging-db.module';
 import { AutomationsDbModule } from '@modules/automations/automations-db.module';
 import { StorageModule } from '@infra/storage/storage.module';
 import { ManualSendService } from '@modules/messaging/manual-send.service';
+import { MessageAttachmentsService } from '@modules/messaging/message-attachments.service';
 import { TemplateRenderer } from '@modules/automations/template-renderer.service';
 import { TemplatesService } from '@modules/messaging/templates.service';
 import { MessageLogsService } from '@modules/messaging/message-logs.service';
@@ -24,6 +25,7 @@ import { AutomationsService } from '@modules/automations/automations.service';
   controllers: [GlobalMessagingController],
   providers: [
     ManualSendService,
+    MessageAttachmentsService,
     TemplateRenderer,
     TemplatesService,
     MessageLogsService,
