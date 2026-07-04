@@ -40,10 +40,18 @@ export class TemplatesService {
     });
   }
 
-  list(userId: string, eventId: string | undefined, page: number, limit: number) {
-    const eventFilter: Prisma.MessageTemplateWhereInput =
-      eventId === 'null' ? { eventId: null } : eventId ? { eventId } : {};
-    return this.repo.findAllForOwnerPaginated(userId, eventFilter, {
+  list(
+    userId: string,
+    eventId: string | undefined,
+    page: number,
+    limit: number,
+    channel?: string,
+  ) {
+    const filter: Prisma.MessageTemplateWhereInput = {
+      ...(eventId === 'null' ? { eventId: null } : eventId ? { eventId } : {}),
+      ...(channel && { channel: channel as Prisma.MessageTemplateWhereInput['channel'] }),
+    };
+    return this.repo.findAllForOwnerPaginated(userId, filter, {
       skip: (page - 1) * limit,
       take: limit,
     });

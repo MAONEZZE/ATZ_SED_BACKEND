@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, IsEnum } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationQueryDto } from '@shared/pagination';
 
@@ -10,4 +10,9 @@ export class ListTemplatesQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsString()
   eventId?: string;
+
+  @ApiPropertyOptional({ enum: ['whatsapp', 'email'], description: 'Filtra por canal.' })
+  @IsOptional()
+  @IsEnum(['whatsapp', 'email'])
+  channel?: string;
 }

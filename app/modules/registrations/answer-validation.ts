@@ -9,6 +9,15 @@ export interface AnswerFieldMeta {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function isValidUrl(val: string): boolean {
+  try {
+    new URL(val);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Validates submitted form answers against the organizer-configured fields:
  * required presence, plus basic type/range coherence for typed fields
@@ -36,6 +45,12 @@ export function validateAnswers(
       case 'date':
         if (typeof val !== 'string' || Number.isNaN(Date.parse(val))) {
           throw new BadRequestException(`Campo "${field.label}" deve ser uma data válida`);
+        }
+        break;
+      case 'linkedin':
+      case 'instagram':
+        if (typeof val !== 'string' || !isValidUrl(val)) {
+          throw new BadRequestException(`Campo "${field.label}" deve ser uma URL válida`);
         }
         break;
       case 'checkbox':

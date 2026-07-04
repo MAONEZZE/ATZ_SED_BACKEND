@@ -47,6 +47,8 @@ enum FieldType {
   checkbox
   image
   date
+  linkedin
+  instagram
 
   @@schema("ATZ_SED")
 }

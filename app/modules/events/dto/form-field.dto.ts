@@ -11,6 +11,8 @@ const FORM_FIELD_TYPES = [
   'checkbox',
   'image',
   'date',
+  'linkedin',
+  'instagram',
 ] as const;
 
 export class CreateFormFieldDto {

@@ -108,6 +108,7 @@ export class GlobalMessagingController {
     type: String,
     description: "Filtra por evento vinculado. 'null' retorna só os templates globais.",
   })
+  @ApiQuery({ name: 'channel', required: false, enum: ['whatsapp', 'email'], description: 'Filtra por canal.' })
   @ApiResponse({ status: 200, description: 'Lista paginada de templates' })
   async findTemplates(
     @CurrentUser() user: AuthenticatedUser,
@@ -115,7 +116,13 @@ export class GlobalMessagingController {
   ): Promise<Paginated<object>> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
-    const { data, total } = await this.templates.list(user.id, query.eventId, page, limit);
+    const { data, total } = await this.templates.list(
+      user.id,
+      query.eventId,
+      page,
+      limit,
+      query.channel,
+    );
     return { data, total, page, limit };
   }
 

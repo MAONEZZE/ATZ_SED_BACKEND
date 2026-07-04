@@ -54,6 +54,15 @@ export class RegistrationsService {
     const name = this.extractString(answers, ['nome', 'name']);
     const email = this.extractString(answers, ['email']);
     const phone = this.extractString(answers, ['telefone', 'phone']);
+    const linkedin = this.extractByFieldType(answers, fields, 'linkedin', [
+      'linkedin',
+      'Linkedin',
+      'LinkedIn',
+    ]);
+    const instagram = this.extractByFieldType(answers, fields, 'instagram', [
+      'instagram',
+      'Instagram',
+    ]);
 
     const reg = await this.regRepo.create({ eventId: event.id, answers, name, email, phone });
 
@@ -76,7 +85,7 @@ export class RegistrationsService {
         .send({
           event: { id: event.id, slug: event.slug, title: event.title },
           form: 'registration',
-          contact: { name, email, phone },
+          contact: { name, email, phone, ...(linkedin && { linkedin }), ...(instagram && { instagram }) },
           answers,
         })
         .then(() => this.userSubscriptions.markPipedrive(subscription.id, true, 'sent'))
@@ -267,5 +276,19 @@ export class RegistrationsService {
       if (typeof val === 'string' && val.trim()) return val.trim();
     }
     return '';
+  }
+
+  private extractByFieldType(
+    answers: Record<string, unknown>,
+    fields: AnswerFieldMeta[],
+    type: string,
+    fallbackKeys: string[] = [],
+  ): string {
+    const field = fields.find((f) => f.type === type);
+    if (field) {
+      const val = answers[field.label];
+      if (typeof val === 'string' && val.trim()) return val.trim();
+    }
+    return this.extractString(answers, fallbackKeys);
   }
 }

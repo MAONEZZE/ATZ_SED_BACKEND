@@ -70,6 +70,36 @@ describe('RegistrationsService.createPublic', () => {
     expect(userSubscriptions.markPipedrive).toHaveBeenCalledWith('us-1', true, 'sent');
   });
 
+  it('enriches the Pipedrive contact with linkedin/instagram from typed fields', async () => {
+    const { svc, pipedrive } = make();
+    const answers = {
+      nome: 'João',
+      email: 'joao@b.com',
+      telefone: '11999990000',
+      'Perfil do LinkedIn': 'https://linkedin.com/in/joao',
+      'Perfil do Instagram': 'https://instagram.com/joao',
+    };
+    const fields = [
+      { label: 'Perfil do LinkedIn', type: 'linkedin', required: false },
+      { label: 'Perfil do Instagram', type: 'instagram', required: false },
+    ];
+
+    await svc.createPublic('slug-1', answers, fields, true);
+
+    expect(pipedrive.send).toHaveBeenCalledWith({
+      event: { id: 'evt-1', slug: 'slug-1', title: 'Evento' },
+      form: 'registration',
+      contact: {
+        name: 'João',
+        email: 'joao@b.com',
+        phone: '11999990000',
+        linkedin: 'https://linkedin.com/in/joao',
+        instagram: 'https://instagram.com/joao',
+      },
+      answers,
+    });
+  });
+
   it('records failed status when the webhook rejects', async () => {
     const { svc, pipedrive, userSubscriptions } = make();
     pipedrive.send.mockRejectedValueOnce(new Error('boom'));
