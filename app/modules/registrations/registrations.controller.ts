@@ -8,10 +8,10 @@ import { AuthenticatedUser } from '@shared/authenticated-user.entity';
 import { RegistrationsService } from '@modules/registrations/registrations.service';
 import { FormFieldsService } from '@modules/events/form-fields.service';
 import { buildRegistrationsCsv } from '@modules/registrations/registrations-csv';
-import { FunnelStatus } from '@modules/registrations/entities/registration.entity';
 import { UpdateRegistrationStatusDto } from './dto/update-registration-status.dto';
 import { UpdateRegistrationAnswersDto } from './dto/update-registration-answers.dto';
-import { PaginationQueryDto, Paginated } from '@shared/pagination';
+import { ListRegistrationsQueryDto } from './dto/list-registrations-query.dto';
+import { Paginated } from '@shared/pagination';
 
 @ApiTags('Registrations')
 @ApiBearerAuth()
@@ -34,12 +34,10 @@ export class RegistrationsController {
   @ApiResponse({ status: 200, description: 'Lista paginada (JSON) ou arquivo CSV' })
   async findAll(
     @Param('eventId') eventId: string,
-    @Query() pagination: PaginationQueryDto,
-    @Query('status') status?: FunnelStatus,
-    @Query('search') search?: string,
-    @Query('format') format?: string,
+    @Query() query: ListRegistrationsQueryDto,
     @Res({ passthrough: true }) res?: Response,
   ): Promise<Paginated<object> | string> {
+    const { status, search, format } = query;
     if (format === 'csv') {
       const [regs, formFields] = await Promise.all([
         this.registrations.findAll(eventId, status, search),
@@ -54,8 +52,8 @@ export class RegistrationsController {
       return buildRegistrationsCsv(regs, formFields);
     }
 
-    const page = pagination.page ?? 1;
-    const limit = pagination.limit ?? 20;
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
     const { data, total } = await this.registrations.findAllPaginated(
       eventId,
       page,
@@ -71,8 +69,9 @@ export class RegistrationsController {
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiParam({ name: 'id', description: 'UUID da inscrição' })
   @ApiResponse({ status: 200, description: 'Inscrição encontrada' })
-  findOne(@Param('id') id: string) {
-    return this.registrations.findById(id);
+  @ApiResponse({ status: 404, description: 'Inscrição não encontrada' })
+  findOne(@Param('eventId') eventId: string, @Param('id') id: string) {
+    return this.registrations.findById(id, eventId);
   }
 
   @Patch(':id')
@@ -96,11 +95,13 @@ export class RegistrationsController {
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiParam({ name: 'id', description: 'UUID da inscrição' })
   @ApiResponse({ status: 200, description: 'Status atualizado' })
+  @ApiResponse({ status: 404, description: 'Inscrição não encontrada' })
   updateStatus(
+    @Param('eventId') eventId: string,
     @Param('id') id: string,
     @Body() dto: UpdateRegistrationStatusDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.registrations.updateStatus(id, dto.status, user.id);
+    return this.registrations.updateStatus(id, eventId, dto.status, user.id);
   }
 }

@@ -53,7 +53,7 @@ describe('PostEventResponsesController CSV export (format=csv)', () => {
     const ctrl = new PostEventResponsesController(postEventResponses as any, formFields as any);
     const res = fakeRes();
 
-    const sent = await ctrl.findAll('evt-1', {}, 'csv', res as any);
+    const sent = await ctrl.findAll('evt-1', { format: 'csv' } as any, res as any);
 
     expect(formFields.exportLabels).toHaveBeenCalledWith('evt-1', 'post_event');
     expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv; charset=utf-8');

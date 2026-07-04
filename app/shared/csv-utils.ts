@@ -1,10 +1,15 @@
 import { APP_TIMEZONE } from '@shared/timezone';
 
+const FORMULA_TRIGGER_RE = /^[=+\-@\t\r]/;
+
 export function escapeCell(value: string): string {
-  if (/[",\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
+  // Neutralize spreadsheet formula injection (Excel/Google Sheets execute a
+  // cell as a formula when it starts with =, +, -, or @).
+  const safeValue = FORMULA_TRIGGER_RE.test(value) ? `'${value}` : value;
+  if (/[",\n]/.test(safeValue)) {
+    return `"${safeValue.replace(/"/g, '""')}"`;
   }
-  return value;
+  return safeValue;
 }
 
 /** Formats a Date in America/Sao_Paulo as DD/MM/YYYY HH:mm (24h), TZ-independent. */

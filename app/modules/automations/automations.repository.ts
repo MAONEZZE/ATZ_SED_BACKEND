@@ -60,6 +60,17 @@ export class AutomationsRepository extends PrismaRepositoryBase {
     return this.prisma.automationRule.findFirst({ where: { id, eventId } });
   }
 
+  findActiveByEventAndTrigger(eventId: string, trigger: string, excludeId?: string) {
+    return this.prisma.automationRule.findFirst({
+      where: {
+        eventId,
+        trigger: trigger as Prisma.AutomationRuleUncheckedCreateInput['trigger'],
+        active: true,
+        ...(excludeId && { id: { not: excludeId } }),
+      },
+    });
+  }
+
   templateById(templateId: string) {
     return this.prisma.messageTemplate.findFirst({ where: { id: templateId } });
   }

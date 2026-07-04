@@ -1,36 +1,25 @@
-import { IsString, IsEnum, IsOptional, IsBoolean, IsInt, Min } from 'class-validator';
+import { IsString, IsIn, IsOptional, IsBoolean, IsInt, Min } from 'class-validator';
 import { PartialType, OmitType, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+const FORM_FIELD_TYPES = [
+  'text',
+  'textarea',
+  'email',
+  'phone',
+  'select',
+  'multiselect',
+  'checkbox',
+  'image',
+  'date',
+] as const;
 
 export class CreateFormFieldDto {
   @ApiProperty({ example: 'Nome completo' })
   @IsString()
   label!: string;
 
-  @ApiProperty({
-    enum: [
-      'text',
-      'textarea',
-      'email',
-      'phone',
-      'select',
-      'multiselect',
-      'checkbox',
-      'image',
-      'date',
-    ],
-    example: 'text',
-  })
-  @IsEnum([
-    'text',
-    'textarea',
-    'email',
-    'phone',
-    'select',
-    'multiselect',
-    'checkbox',
-    'image',
-    'date',
-  ])
+  @ApiProperty({ enum: FORM_FIELD_TYPES, example: 'text' })
+  @IsIn(FORM_FIELD_TYPES)
   type!: string;
 
   @ApiPropertyOptional({ example: true })
@@ -50,7 +39,7 @@ export class CreateFormFieldDto {
 
   @ApiPropertyOptional({ enum: ['registration', 'post_event', 'nps'], example: 'registration' })
   @IsOptional()
-  @IsEnum(['registration', 'post_event', 'nps'])
+  @IsIn(['registration', 'post_event', 'nps'])
   kind?: 'registration' | 'post_event' | 'nps';
 }
 

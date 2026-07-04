@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { FormFieldsRepository, FormFieldKind } from '@modules/events/form-fields.repository';
+import { EventsService } from '@modules/events/events.service';
 
 export interface CreateFormFieldInput {
   label: string;
@@ -20,7 +21,10 @@ export interface UpdateFormFieldInput {
 
 @Injectable()
 export class FormFieldsService {
-  constructor(private readonly repo: FormFieldsRepository) {}
+  constructor(
+    private readonly repo: FormFieldsRepository,
+    private readonly eventsService: EventsService,
+  ) {}
 
   listPaginated(eventId: string, kind: FormFieldKind | undefined, page: number, limit: number) {
     return this.repo.findAllByEventPaginated(eventId, kind, {
@@ -40,6 +44,7 @@ export class FormFieldsService {
   }
 
   async create(eventId: string, editorId: string, input: CreateFormFieldInput) {
+    await this.assertEventEditable(eventId);
     const field = await this.repo.create({
       eventId,
       label: input.label,
@@ -55,6 +60,7 @@ export class FormFieldsService {
   }
 
   async update(eventId: string, id: string, editorId: string, input: UpdateFormFieldInput) {
+    await this.assertEventEditable(eventId);
     await this.assertExists(eventId, id);
     const updated = await this.repo.update(id, {
       ...(input.label !== undefined && { label: input.label }),
@@ -67,6 +73,7 @@ export class FormFieldsService {
   }
 
   async delete(eventId: string, id: string, editorId: string): Promise<void> {
+    await this.assertEventEditable(eventId);
     await this.assertExists(eventId, id);
     await this.repo.delete(id);
     await this.repo.touchEvent(eventId, editorId);
@@ -75,6 +82,13 @@ export class FormFieldsService {
   private async assertExists(eventId: string, id: string): Promise<void> {
     const field = await this.repo.findByEvent(eventId, id);
     if (!field) throw new NotFoundException('Form field not found');
+  }
+
+  private async assertEventEditable(eventId: string): Promise<void> {
+    const event = await this.eventsService.findById(eventId);
+    if (!event.isEditable()) {
+      throw new ForbiddenException('Cancelled or ended events cannot be edited');
+    }
   }
 
   private toJson(options: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNull {

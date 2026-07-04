@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes, randomInt } from 'crypto';
+import { DateTime } from 'luxon';
 import { PrismaService } from '@infra/prisma/prisma.service';
 import { STORAGE_PORT, StoragePort } from '@infra/storage/storage.port';
 import { EventsService } from '@modules/events/events.service';
@@ -69,9 +70,22 @@ export class ManualSendService {
       throw new BadRequestException('registrationIds require an eventId');
     }
 
-    if (input.invite && !input.invite.allDay) {
-      if (!input.invite.startTime || !input.invite.endTime) {
-        throw new BadRequestException('invite.startTime and invite.endTime are required when allDay is false');
+    if (input.invite) {
+      if (!DateTime.fromISO(input.invite.date).isValid) {
+        throw new BadRequestException('invite.date is not a valid calendar date');
+      }
+      if (!input.invite.allDay) {
+        if (!input.invite.startTime || !input.invite.endTime) {
+          throw new BadRequestException(
+            'invite.startTime and invite.endTime are required when allDay is false',
+          );
+        }
+        if (!DateTime.fromFormat(input.invite.startTime, 'HH:mm').isValid) {
+          throw new BadRequestException('invite.startTime is not a valid time');
+        }
+        if (!DateTime.fromFormat(input.invite.endTime, 'HH:mm').isValid) {
+          throw new BadRequestException('invite.endTime is not a valid time');
+        }
       }
     }
 

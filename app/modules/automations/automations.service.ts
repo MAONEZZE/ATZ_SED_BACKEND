@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AutomationsRepository } from '@modules/automations/automations.repository';
 
@@ -37,6 +37,9 @@ export class AutomationsService {
 
   async create(eventId: string, input: CreateAutomationInput) {
     await this.assertTemplateExists(input.templateId);
+    if (input.active !== false) {
+      await this.assertNoActiveDuplicate(eventId, input.trigger);
+    }
     return this.repo.create({
       eventId,
       templateId: input.templateId,
@@ -53,6 +56,12 @@ export class AutomationsService {
     const existing = await this.repo.findByEvent(eventId, id);
     if (!existing) throw new NotFoundException('Automation rule not found');
     if (input.templateId) await this.assertTemplateExists(input.templateId);
+
+    const willBeActive = input.active ?? existing.active;
+    const trigger = input.trigger ?? existing.trigger;
+    if (willBeActive && (input.trigger || input.active === true)) {
+      await this.assertNoActiveDuplicate(eventId, trigger, id);
+    }
 
     return this.repo.update(id, {
       ...(input.templateId && { templateId: input.templateId }),
@@ -73,5 +82,18 @@ export class AutomationsService {
   private async assertTemplateExists(templateId: string): Promise<void> {
     const template = await this.repo.templateById(templateId);
     if (!template) throw new NotFoundException('Template not found');
+  }
+
+  private async assertNoActiveDuplicate(
+    eventId: string,
+    trigger: string,
+    excludeId?: string,
+  ): Promise<void> {
+    const duplicate = await this.repo.findActiveByEventAndTrigger(eventId, trigger, excludeId);
+    if (duplicate) {
+      throw new ConflictException(
+        `An active automation for trigger '${trigger}' already exists on this event`,
+      );
+    }
   }
 }

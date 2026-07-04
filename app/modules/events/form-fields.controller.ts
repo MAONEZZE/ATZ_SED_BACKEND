@@ -24,7 +24,8 @@ import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { AuthenticatedUser } from '@shared/authenticated-user.entity';
 import { FormFieldsService } from '@modules/events/form-fields.service';
 import { CreateFormFieldDto, UpdateFormFieldDto } from './dto/form-field.dto';
-import { PaginationQueryDto, Paginated } from '@shared/pagination';
+import { ListFormFieldsQueryDto } from './dto/list-form-fields-query.dto';
+import { Paginated } from '@shared/pagination';
 
 @ApiTags('Form Fields')
 @ApiBearerAuth()
@@ -42,12 +43,11 @@ export class FormFieldsController {
   @ApiResponse({ status: 200, description: 'Lista paginada de campos' })
   async findAll(
     @Param('eventId') eventId: string,
-    @Query() pagination: PaginationQueryDto,
-    @Query('kind') kind?: 'registration' | 'post_event' | 'nps',
+    @Query() query: ListFormFieldsQueryDto,
   ): Promise<Paginated<object>> {
-    const page = pagination.page ?? 1;
-    const limit = pagination.limit ?? 20;
-    const { data, total } = await this.formFields.listPaginated(eventId, kind, page, limit);
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const { data, total } = await this.formFields.listPaginated(eventId, query.kind, page, limit);
     return { data, total, page, limit };
   }
 

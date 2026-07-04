@@ -1,5 +1,5 @@
 import { RegistrationsService } from '@modules/registrations/registrations.service';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 function make(eventStatus = 'ended', reg: any = null) {
   const regRepo = {
@@ -28,7 +28,12 @@ describe('RegistrationsService.submitNps', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('consolidates NPS answers and fires on_nps trigger', async () => {
-    const { svc, regRepo, userSubscriptions, emitter } = make();
+    const { svc, regRepo, userSubscriptions, emitter } = make('ended', {
+      id: 'r1',
+      name: 'João',
+      email: 'a@b.com',
+      phone: '11999',
+    });
     await svc.submitNps('slug-1', 'a@b.com', { Nota: '9' }, FIELDS);
 
     // NPS never writes PostEventResponse storage.
@@ -37,12 +42,20 @@ describe('RegistrationsService.submitNps', () => {
       'evt-1',
       'nps',
       { Nota: '9' },
-      { email: 'a@b.com', phone: undefined },
+      { name: 'João', email: 'a@b.com', phone: '11999' },
     );
     expect(emitter.emit).toHaveBeenCalledWith(
       'form.submitted',
       expect.objectContaining({ trigger: 'on_nps' }),
     );
+  });
+
+  it('404 when identifier does not match any registration', async () => {
+    const { svc, userSubscriptions } = make('ended', null);
+    await expect(svc.submitNps('slug-1', 'a@b.com', { Nota: '9' }, FIELDS)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(userSubscriptions.upsertFromForm).not.toHaveBeenCalled();
   });
 
   it('enriches contact from a matched registration', async () => {

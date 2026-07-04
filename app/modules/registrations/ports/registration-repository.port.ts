@@ -44,4 +44,5 @@ export interface RegistrationRepositoryPort {
     contact: { email?: string; phone?: string },
   ): Promise<RegistrationEntity | null>;
   upsertPostEventResponse(data: PostEventResponseData): Promise<void>;
+  countByEvent(eventId: string): Promise<number>;
 }

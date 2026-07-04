@@ -1,5 +1,5 @@
 import { RegistrationsService } from '@modules/registrations/registrations.service';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 function make(eventStatus = 'ended', reg: any = { id: 'r1', eventId: 'evt-1' }) {
   const regRepo = {
@@ -68,18 +68,13 @@ describe('RegistrationsService.submitPostEvent', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('consolidates into user_subscriptions even without a matching registration', async () => {
-    const { svc, regRepo, userSubscriptions, emitter } = make('ended', null);
-    await svc.submitPostEvent('slug-1', 'a@b.com', { Nota: '10' }, FIELDS);
-    // No PostEventResponse persisted (no registration), but consolidation runs.
+  it('404 when identifier does not match any registration', async () => {
+    const { svc, regRepo, userSubscriptions } = make('ended', null);
+    await expect(
+      svc.submitPostEvent('slug-1', 'a@b.com', { Nota: '10' }, FIELDS),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(regRepo.upsertPostEventResponse).not.toHaveBeenCalled();
-    expect(userSubscriptions.upsertFromForm).toHaveBeenCalledWith(
-      'evt-1',
-      'post_event',
-      { Nota: '10' },
-      { email: 'a@b.com', phone: undefined },
-    );
-    expect(emitter.emit).toHaveBeenCalledWith('form.submitted', expect.anything());
+    expect(userSubscriptions.upsertFromForm).not.toHaveBeenCalled();
   });
 
   it('400 when identifier resolves to empty contact', async () => {

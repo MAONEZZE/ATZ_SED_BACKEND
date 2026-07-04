@@ -25,7 +25,7 @@ describe('EventEntity', () => {
     it('draft is editable', () => expect(makeEvent('draft').isEditable()).toBe(true));
     it('published is editable', () => expect(makeEvent('published').isEditable()).toBe(true));
     it('cancelled is NOT editable', () => expect(makeEvent('cancelled').isEditable()).toBe(false));
-    it('ended is editable', () => expect(makeEvent('ended').isEditable()).toBe(true));
+    it('ended is NOT editable', () => expect(makeEvent('ended').isEditable()).toBe(false));
   });
 
   describe('generateSlug', () => {

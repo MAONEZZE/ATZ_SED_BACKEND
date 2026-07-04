@@ -26,7 +26,7 @@ describe('RegistrationsController kind filter', () => {
 
   it('CSV export (format=csv) only reads dynamic registration-kind labels', async () => {
     const { ctrl, formFields } = make();
-    await ctrl.findAll('evt-1', {}, undefined, undefined, 'csv', fakeRes() as any);
+    await ctrl.findAll('evt-1', { format: 'csv' } as any, fakeRes() as any);
     expect(formFields.exportLabels).toHaveBeenCalledWith('evt-1', 'registration', true);
   });
 

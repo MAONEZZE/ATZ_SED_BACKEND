@@ -69,11 +69,11 @@ export class PublicEventsService {
     });
   }
 
-  /** Fields (label + required) used to validate a public NPS/post-event submission. */
-  getSubmissionFields(slug: string, kind: 'post_event' | 'nps') {
+  /** Fields used to validate a public registration/post-event/NPS submission. */
+  getSubmissionFields(slug: string, kind: PublicFormKind) {
     return this.prisma.formField.findMany({
       where: { event: { slug }, kind },
-      select: { label: true, required: true },
+      select: { label: true, type: true, required: true, options: true },
     });
   }
 }

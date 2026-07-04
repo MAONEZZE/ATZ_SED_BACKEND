@@ -21,7 +21,9 @@ describe('buildPostEventResponsesCsv', () => {
   it('fills present answers, leaves empty cell for absent ones, and formats date as ISO', () => {
     const csv = buildPostEventResponsesCsv([response], [{ label: 'Nota' }, { label: 'Cargo' }]);
     const lines = csv.replace(/^﻿/, '').split('\n');
-    expect(lines[1]).toBe('João,joao@test.com,+5511999999999,10,,2026-06-01T12:00:00.000Z');
+    // Leading "'" neutralizes CSV-formula injection for cells starting with +/-/=/@
+    // (Excel/Sheets hide the marker and render the value as plain text).
+    expect(lines[1]).toBe("João,joao@test.com,'+5511999999999,10,,2026-06-01T12:00:00.000Z");
   });
 
   it('escapes values containing commas', () => {

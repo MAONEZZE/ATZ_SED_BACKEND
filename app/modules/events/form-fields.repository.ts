@@ -41,7 +41,7 @@ export class FormFieldsRepository extends PrismaRepositoryBase {
   listValidationFields(eventId: string, kind: FormFieldKind) {
     return this.prisma.formField.findMany({
       where: { eventId, kind },
-      select: { label: true, type: true, required: true, isFixed: true },
+      select: { label: true, type: true, required: true, isFixed: true, options: true },
     });
   }
 

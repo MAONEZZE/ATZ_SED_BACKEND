@@ -10,10 +10,11 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@shared/guards/ownership.guard';
-import { PaginationQueryDto, Paginated } from '@shared/pagination';
+import { Paginated } from '@shared/pagination';
 import { UserSubscriptionsService } from '@modules/registrations/user-subscriptions.service';
 import { FormFieldsService } from '@modules/events/form-fields.service';
 import { buildUserSubscriptionsCsv } from '@modules/registrations/user-subscriptions-csv';
+import { ListUserSubscriptionsQueryDto } from './dto/list-user-subscriptions-query.dto';
 
 @ApiTags('User Subscriptions')
 @ApiBearerAuth()
@@ -37,11 +38,10 @@ export class UserSubscriptionsController {
   @ApiResponse({ status: 200, description: 'Lista paginada (JSON) ou arquivo CSV' })
   async findAll(
     @Param('eventId') eventId: string,
-    @Query() pagination: PaginationQueryDto,
-    @Query('search') search?: string,
-    @Query('format') format?: string,
+    @Query() query: ListUserSubscriptionsQueryDto,
     @Res({ passthrough: true }) res?: Response,
   ): Promise<Paginated<object> | string> {
+    const { search, format } = query;
     if (format === 'csv') {
       const [rows, registration, postEvent, nps] = await Promise.all([
         this.userSubscriptions.findAllByEvent(eventId, search),
@@ -54,8 +54,8 @@ export class UserSubscriptionsController {
       return buildUserSubscriptionsCsv(rows, { registration, postEvent, nps });
     }
 
-    const page = pagination.page ?? 1;
-    const limit = pagination.limit ?? 20;
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
     const { data, total } = await this.userSubscriptions.findAllPaginated(
       eventId,
       page,

@@ -16,6 +16,17 @@ describe('escapeCell', () => {
   it('leaves plain values untouched', () => {
     expect(escapeCell('plain')).toBe('plain');
   });
+
+  it('neutralizes formula-injection values starting with =, +, -, @', () => {
+    expect(escapeCell('=1+1')).toBe("'=1+1");
+    expect(escapeCell('+2+3')).toBe("'+2+3");
+    expect(escapeCell('-2+3')).toBe("'-2+3");
+    expect(escapeCell('@SUM(1+1)')).toBe("'@SUM(1+1)");
+  });
+
+  it('still quotes a neutralized formula value that also contains a comma', () => {
+    expect(escapeCell('=1+1,2')).toBe('"\'=1+1,2"');
+  });
 });
 
 describe('answerToString', () => {

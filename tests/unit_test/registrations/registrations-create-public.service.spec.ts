@@ -38,7 +38,7 @@ describe('RegistrationsService.createPublic', () => {
     const { svc, regRepo, emitter, userSubscriptions } = make();
     const answers = { nome: 'João', email: 'joao@b.com', telefone: '11999990000' };
 
-    await svc.createPublic('slug-1', answers);
+    await svc.createPublic('slug-1', answers, []);
 
     expect(regRepo.create).toHaveBeenCalledWith({
       eventId: 'evt-1',
@@ -55,7 +55,7 @@ describe('RegistrationsService.createPublic', () => {
     const { svc, pipedrive, userSubscriptions } = make();
     const answers = { nome: 'João', email: 'joao@b.com', telefone: '11999990000' };
 
-    await svc.createPublic('slug-1', answers, true);
+    await svc.createPublic('slug-1', answers, [], true);
 
     expect(pipedrive.send).toHaveBeenCalledWith({
       event: { id: 'evt-1', slug: 'slug-1', title: 'Evento' },
@@ -74,7 +74,7 @@ describe('RegistrationsService.createPublic', () => {
     const { svc, pipedrive, userSubscriptions } = make();
     pipedrive.send.mockRejectedValueOnce(new Error('boom'));
 
-    await svc.createPublic('slug-1', { email: 'a@b.com' }, true);
+    await svc.createPublic('slug-1', { email: 'a@b.com' }, [], true);
     await new Promise((r) => setImmediate(r));
 
     expect(userSubscriptions.markPipedrive).toHaveBeenCalledWith('us-1', true, 'failed');
@@ -82,27 +82,27 @@ describe('RegistrationsService.createPublic', () => {
 
   it('records skipped status and does not send by default', async () => {
     const { svc, pipedrive, userSubscriptions } = make();
-    await svc.createPublic('slug-1', { nome: 'X' });
+    await svc.createPublic('slug-1', { nome: 'X' }, []);
     expect(pipedrive.send).not.toHaveBeenCalled();
     expect(userSubscriptions.markPipedrive).toHaveBeenCalledWith('us-1', false, 'skipped');
   });
 
   it('falls back to the event-level sendToPipedrive when the body omits the flag', async () => {
     const { svc, pipedrive } = make('published', true);
-    await svc.createPublic('slug-1', { email: 'a@b.com' });
+    await svc.createPublic('slug-1', { email: 'a@b.com' }, []);
     expect(pipedrive.send).toHaveBeenCalled();
   });
 
   it('body flag false overrides an event-level true', async () => {
     const { svc, pipedrive, userSubscriptions } = make('published', true);
-    await svc.createPublic('slug-1', { email: 'a@b.com' }, false);
+    await svc.createPublic('slug-1', { email: 'a@b.com' }, [], false);
     expect(pipedrive.send).not.toHaveBeenCalled();
     expect(userSubscriptions.markPipedrive).toHaveBeenCalledWith('us-1', false, 'skipped');
   });
 
   it('rejects when the event is not published', async () => {
     const { svc } = make('draft');
-    await expect(svc.createPublic('slug-1', { nome: 'X' })).rejects.toBeInstanceOf(
+    await expect(svc.createPublic('slug-1', { nome: 'X' }, [])).rejects.toBeInstanceOf(
       BadRequestException,
     );
   });

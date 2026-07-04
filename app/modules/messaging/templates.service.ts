@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { MessageTemplatesRepository } from '@modules/messaging/message-templates.repository';
 
@@ -56,8 +56,15 @@ export class TemplatesService {
   }
 
   async update(userId: string, id: string, input: UpdateTemplateInput) {
-    await this.findOne(userId, id);
+    const existing = await this.findOne(userId, id);
     if (input.eventId) await this.assertEventAccess(input.eventId, userId);
+
+    const resolvedChannel = input.channel ?? existing.channel;
+    const resolvedSubject = input.subject !== undefined ? input.subject : existing.subject;
+    if (resolvedChannel === 'email' && !resolvedSubject?.trim()) {
+      throw new BadRequestException('subject é obrigatório para templates de email');
+    }
+
     return this.repo.update(id, {
       ...(input.name !== undefined && { name: input.name }),
       ...(input.channel !== undefined && {

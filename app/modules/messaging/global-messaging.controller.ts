@@ -39,6 +39,7 @@ import {
   CreateGlobalTemplateDto,
   UpdateGlobalTemplateDto,
 } from './dto/global-template.dto';
+import { ListTemplatesQueryDto } from './dto/list-templates-query.dto';
 import { PaginationQueryDto, Paginated } from '@shared/pagination';
 
 const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
@@ -110,12 +111,11 @@ export class GlobalMessagingController {
   @ApiResponse({ status: 200, description: 'Lista paginada de templates' })
   async findTemplates(
     @CurrentUser() user: AuthenticatedUser,
-    @Query() pagination: PaginationQueryDto,
-    @Query('eventId') eventId?: string,
+    @Query() query: ListTemplatesQueryDto,
   ): Promise<Paginated<object>> {
-    const page = pagination.page ?? 1;
-    const limit = pagination.limit ?? 20;
-    const { data, total } = await this.templates.list(user.id, eventId, page, limit);
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const { data, total } = await this.templates.list(user.id, query.eventId, page, limit);
     return { data, total, page, limit };
   }
 

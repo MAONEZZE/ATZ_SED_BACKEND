@@ -9,7 +9,10 @@ function makeService() {
     findAllByEventPaginated: jest.fn().mockResolvedValue({ data: [], total: 0 }),
     touchEvent: jest.fn().mockResolvedValue({ id: 'evt-1' }),
   };
-  return { service: new FormFieldsService(repo as any), repo };
+  const eventsService = {
+    findById: jest.fn().mockResolvedValue({ isEditable: () => true }),
+  };
+  return { service: new FormFieldsService(repo as any, eventsService as any), repo, eventsService };
 }
 
 describe('FormFieldsService kind support', () => {

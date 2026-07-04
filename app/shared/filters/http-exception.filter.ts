@@ -17,16 +17,29 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const res = ctx.getResponse<Response>();
     const req = ctx.getRequest<Request>();
 
+    // Body-parser (and other Express/Connect middleware) throw plain errors
+    // with a numeric `status`/`statusCode` (e.g. 413 for oversized payloads,
+    // 400 for malformed JSON) instead of a Nest HttpException. Honor that
+    // status instead of masking it as a 500.
+    const rawStatus =
+      exception instanceof HttpException
+        ? exception.getStatus()
+        : (exception as { status?: number; statusCode?: number })?.status ??
+          (exception as { status?: number; statusCode?: number })?.statusCode;
     const status =
-      exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+      typeof rawStatus === 'number' && rawStatus >= 400 && rawStatus < 600
+        ? rawStatus
+        : HttpStatus.INTERNAL_SERVER_ERROR;
 
     const rawResponse = exception instanceof HttpException ? exception.getResponse() : null;
     const message =
-      rawResponse === null
-        ? 'Internal server error'
-        : typeof rawResponse === 'string'
+      rawResponse !== null
+        ? typeof rawResponse === 'string'
           ? rawResponse
-          : ((rawResponse as Record<string, unknown>).message ?? 'Error');
+          : ((rawResponse as Record<string, unknown>).message ?? 'Error')
+        : status !== HttpStatus.INTERNAL_SERVER_ERROR && exception instanceof Error
+          ? exception.message
+          : 'Internal server error';
 
     if (status >= 500) {
       this.logger.error({ err: exception, path: req.url }, 'Unhandled error');

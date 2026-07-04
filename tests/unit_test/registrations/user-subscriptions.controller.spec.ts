@@ -25,7 +25,7 @@ describe('UserSubscriptionsController', () => {
     const { ctrl, service } = make();
     service.findAllPaginated.mockResolvedValue({ data: [{ id: 'us-1' }], total: 1 });
 
-    const result = await ctrl.findAll('evt-1', { page: 2, limit: 10 }, 'jo');
+    const result = await ctrl.findAll('evt-1', { page: 2, limit: 10, search: 'jo' } as any);
 
     expect(service.findAllPaginated).toHaveBeenCalledWith('evt-1', 2, 10, 'jo');
     expect(result).toEqual({ data: [{ id: 'us-1' }], total: 1, page: 2, limit: 10 });
@@ -33,7 +33,7 @@ describe('UserSubscriptionsController', () => {
 
   it('defaults page=1 and limit=20 when omitted', async () => {
     const { ctrl, service } = make();
-    await ctrl.findAll('evt-1', {}, undefined);
+    await ctrl.findAll('evt-1', {} as any);
     expect(service.findAllPaginated).toHaveBeenCalledWith('evt-1', 1, 20, undefined);
   });
 
@@ -58,7 +58,7 @@ describe('UserSubscriptionsController', () => {
     );
     const res = fakeRes();
 
-    const sent = await ctrl.findAll('evt-1', {}, 'jo', 'csv', res as any);
+    const sent = await ctrl.findAll('evt-1', { search: 'jo', format: 'csv' } as any, res as any);
 
     expect(service.findAllByEvent).toHaveBeenCalledWith('evt-1', 'jo');
     expect(formFields.exportLabels).toHaveBeenCalledWith('evt-1', 'registration', true);

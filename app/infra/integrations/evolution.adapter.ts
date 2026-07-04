@@ -1,6 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadGatewayException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomInt } from 'crypto';
+
+const FETCH_TIMEOUT_MS = 20_000;
 
 @Injectable()
 export class EvolutionAdapter {
@@ -27,6 +29,21 @@ export class EvolutionAdapter {
     if (!this.typingEnabled) return 0;
     const base = randomInt(this.typingMin, this.typingMax + 1);
     return Math.min(base + textLength * this.typingPerChar, this.typingMaxTotal);
+  }
+
+  private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      return await fetch(url, { ...init, signal: controller.signal });
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new BadGatewayException('Evolution API timeout');
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   splitParts(body: string): string[] {
@@ -58,7 +75,7 @@ export class EvolutionAdapter {
     const payload: { number: string; text: string; delay?: number } = { number: to, text };
     if (delay > 0) payload.delay = delay;
 
-    const response = await fetch(url, {
+    const response = await this.fetchWithTimeout(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -73,7 +90,7 @@ export class EvolutionAdapter {
         { instancia, status: response.status, error: errorText },
         'Evolution API error',
       );
-      throw new Error(`Evolution API error (${response.status}): ${errorText}`);
+      throw new BadGatewayException(`Evolution API error (${response.status}): ${errorText}`);
     }
   }
 
@@ -97,7 +114,7 @@ export class EvolutionAdapter {
     } = { number: to, mediatype, mimetype, media: mediaUrl, fileName };
     if (caption) payload.caption = caption;
 
-    const response = await fetch(url, {
+    const response = await this.fetchWithTimeout(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: this.apiKey },
       body: JSON.stringify(payload),
@@ -109,13 +126,13 @@ export class EvolutionAdapter {
         { instancia, status: response.status, error: errorText },
         'Evolution API sendMedia error',
       );
-      throw new Error(`Evolution API error (${response.status}): ${errorText}`);
+      throw new BadGatewayException(`Evolution API error (${response.status}): ${errorText}`);
     }
   }
 
   async fetchGroups(instancia: string): Promise<{ id: string; subject: string }[]> {
     const url = `${this.baseUrl}/group/fetchAllGroups/${instancia}?getParticipants=false`;
-    const response = await fetch(url, {
+    const response = await this.fetchWithTimeout(url, {
       headers: { apikey: this.apiKey },
     });
     if (!response.ok) {
@@ -124,7 +141,7 @@ export class EvolutionAdapter {
         { instancia, status: response.status, error: errorText },
         'Evolution API fetchGroups error',
       );
-      throw new Error(`Evolution API error (${response.status}): ${errorText}`);
+      throw new BadGatewayException(`Evolution API error (${response.status}): ${errorText}`);
     }
     const data = (await response.json()) as Array<{ id: string; subject: string }>;
     return data.map(({ id, subject }) => ({ id, subject }));

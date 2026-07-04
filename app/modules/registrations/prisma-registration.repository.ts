@@ -148,4 +148,8 @@ export class PrismaRegistrationRepository
       update: { answers: data.answers as Prisma.InputJsonValue },
     });
   }
+
+  countByEvent(eventId: string): Promise<number> {
+    return this.prisma.registration.count({ where: { eventId } });
+  }
 }

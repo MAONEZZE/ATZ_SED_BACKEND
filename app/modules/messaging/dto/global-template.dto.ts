@@ -20,9 +20,13 @@ export class CreateGlobalTemplateDto {
   @IsEnum(['whatsapp', 'email'])
   channel!: string;
 
-  @ApiPropertyOptional({ example: 'Sua inscrição foi confirmada!' })
-  @IsOptional()
+  @ApiPropertyOptional({
+    example: 'Sua inscrição foi confirmada!',
+    description: 'Obrigatório quando channel = email',
+  })
+  @ValidateIf((o) => o.channel === 'email')
   @IsString()
+  @MinLength(1, { message: 'subject é obrigatório para templates de email' })
   subject?: string;
 
   @ApiProperty({ example: 'Olá {{name}}, sua inscrição foi confirmada.' })

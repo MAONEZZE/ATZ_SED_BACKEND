@@ -31,15 +31,16 @@ export class ProfileService {
   }
 
   /** Idempotent: returns the existing profile or creates one from the auth identity. */
-  async ensure(user: { id: string; email: string }) {
+  async ensure(user: { id: string; email: string }): Promise<{ profile: unknown; created: boolean }> {
     const existing = await this.repo.findByUserId(user.id);
-    if (existing) return existing;
-    return this.repo.create({
+    if (existing) return { profile: existing, created: false };
+    const profile = await this.repo.create({
       id: user.id,
       userId: user.id,
       name: user.email.split('@')[0],
       email: user.email,
     });
+    return { profile, created: true };
   }
 
   async uploadPhoto(userId: string, file: { buffer: Buffer; mimetype: string }) {

@@ -5,13 +5,16 @@ import {
   Post,
   Delete,
   Body,
+  Res,
   UseGuards,
   UseInterceptors,
   UploadedFile,
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
+  HttpStatus,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
@@ -51,9 +54,15 @@ export class ProfileController {
 
   @Post()
   @ApiOperation({ summary: 'Criar perfil se não existir (upsert idempotente)' })
-  @ApiResponse({ status: 201, description: 'Perfil criado ou retornado' })
-  ensureProfile(@CurrentUser() user: AuthenticatedUser) {
-    return this.profiles.ensure(user);
+  @ApiResponse({ status: 201, description: 'Perfil criado' })
+  @ApiResponse({ status: 200, description: 'Perfil já existia' })
+  async ensureProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { profile, created } = await this.profiles.ensure(user);
+    res.status(created ? HttpStatus.CREATED : HttpStatus.OK);
+    return profile;
   }
 
   @Post('me/photo')

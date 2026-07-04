@@ -90,7 +90,7 @@ export class EventsService {
   async update(id: string, input: UpdateEventInput, editorId?: string): Promise<EventEntity> {
     const event = await this.findById(id);
     if (!event.isEditable()) {
-      throw new ForbiddenException('Cancelled events cannot be edited');
+      throw new ForbiddenException('Cancelled or ended events cannot be edited');
     }
     this.assertValidPeriod(input.eventDate ?? event.eventDate, input.endDate ?? event.endDate);
     return this.eventRepo.update(id, editorId ? { ...input, lastEditedById: editorId } : input);

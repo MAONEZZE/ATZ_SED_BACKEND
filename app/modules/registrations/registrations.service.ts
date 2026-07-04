@@ -13,6 +13,7 @@ import { FormSubmitted } from '@modules/registrations/entities/form-submitted.ev
 import { EventsService } from '@modules/events/events.service';
 import { UserSubscriptionsService } from './user-subscriptions.service';
 import { PipedriveAdapter } from '@infra/integrations/pipedrive.adapter';
+import { validateAnswers, AnswerFieldMeta } from './answer-validation';
 
 @Injectable()
 export class RegistrationsService {
@@ -30,11 +31,21 @@ export class RegistrationsService {
   async createPublic(
     slug: string,
     answers: Record<string, unknown>,
+    fields: AnswerFieldMeta[],
     sendToPipedrive?: boolean,
   ): Promise<RegistrationEntity> {
     const event = await this.eventsService.findBySlug(slug);
     if (event.status !== 'published') {
       throw new BadRequestException('Event is not accepting registrations');
+    }
+
+    validateAnswers(fields, answers);
+
+    if (event.capacity != null) {
+      const currentCount = await this.regRepo.countByEvent(event.id);
+      if (currentCount >= event.capacity) {
+        throw new BadRequestException('Event has reached its registration capacity');
+      }
     }
 
     // Body flag overrides; otherwise fall back to the event-level default.
@@ -103,18 +114,22 @@ export class RegistrationsService {
     );
   }
 
-  async findById(id: string): Promise<RegistrationEntity> {
+  async findById(id: string, eventId: string): Promise<RegistrationEntity> {
     const reg = await this.regRepo.findById(id);
-    if (!reg) throw new NotFoundException('Registration not found');
+    if (!reg || reg.eventId !== eventId) {
+      throw new NotFoundException('Registration not found');
+    }
     return reg;
   }
 
   async updateStatus(
     id: string,
+    eventId: string,
     newStatus: FunnelStatus,
     _ownerId: string,
   ): Promise<RegistrationEntity> {
-    const reg = await this.findById(id);
+    const reg = await this.findById(id, eventId);
+    if (reg.status === newStatus) return reg;
     if (!reg.canTransitionTo(newStatus)) {
       throw new BadRequestException(`Cannot transition from '${reg.status}' to '${newStatus}'`);
     }
@@ -150,12 +165,14 @@ export class RegistrationsService {
       }
     }
 
+    const mergedAnswers = { ...reg.answers, ...answers };
+
     const updateData: {
       answers: Record<string, unknown>;
       name?: string;
       email?: string;
       phone?: string;
-    } = { answers };
+    } = { answers: mergedAnswers };
 
     for (const f of formFields.filter((f) => f.isFixed)) {
       const raw = answers[f.label];
@@ -172,7 +189,7 @@ export class RegistrationsService {
     slug: string,
     identifier: string,
     answers: Record<string, unknown>,
-    postEventFields: Array<{ label: string; required: boolean }>,
+    postEventFields: AnswerFieldMeta[],
   ): Promise<void> {
     await this.submitCrossForm(slug, 'post_event', identifier, answers, postEventFields);
   }
@@ -181,23 +198,23 @@ export class RegistrationsService {
     slug: string,
     identifier: string,
     answers: Record<string, unknown>,
-    npsFields: Array<{ label: string; required: boolean }>,
+    npsFields: AnswerFieldMeta[],
   ): Promise<void> {
     await this.submitCrossForm(slug, 'nps', identifier, answers, npsFields);
   }
 
   /**
-   * Shared flow for the post-event and NPS forms: validates required fields,
-   * cross-matches the contact by email/phone, persists per-form storage when a
-   * registration exists, consolidates into user_subscriptions regardless, and
-   * fires the matching automation trigger.
+   * Shared flow for the post-event and NPS forms: validates fields, requires
+   * the contact to match an existing registration, persists per-form storage
+   * when applicable, consolidates into user_subscriptions, and fires the
+   * matching automation trigger.
    */
   private async submitCrossForm(
     slug: string,
     kind: 'post_event' | 'nps',
     identifier: string,
     answers: Record<string, unknown>,
-    fields: Array<{ label: string; required: boolean }>,
+    fields: AnswerFieldMeta[],
   ): Promise<void> {
     const event = await this.eventsService.findBySlug(slug);
     if (event.status !== 'published' && event.status !== 'ended') {
@@ -213,20 +230,16 @@ export class RegistrationsService {
       throw new BadRequestException('Identificador (email ou telefone) é obrigatório');
     }
 
-    for (const field of fields) {
-      if (field.required) {
-        const val = answers[field.label];
-        if (val === undefined || val === null || String(val).trim() === '') {
-          throw new BadRequestException(`Campo obrigatório ausente: "${field.label}"`);
-        }
-      }
+    validateAnswers(fields, answers);
+
+    // A matching registration is required — post-event/NPS responses are only
+    // meaningful for people who actually registered for the event.
+    const reg = await this.regRepo.findByEventAndContact(event.id, contact);
+    if (!reg) {
+      throw new NotFoundException('Registration not found for this identifier');
     }
 
-    // Cross-match is best-effort: an existing registration enriches the contact
-    // and (for post-event) keeps the dedicated PostEventResponse storage.
-    const reg = await this.regRepo.findByEventAndContact(event.id, contact);
-
-    if (kind === 'post_event' && reg) {
+    if (kind === 'post_event') {
       await this.regRepo.upsertPostEventResponse({
         eventId: event.id,
         registrationId: reg.id,
@@ -234,9 +247,7 @@ export class RegistrationsService {
       });
     }
 
-    const contactOverride = reg
-      ? { name: reg.name, email: reg.email, phone: reg.phone }
-      : { email: contact.email, phone: contact.phone };
+    const contactOverride = { name: reg.name, email: reg.email, phone: reg.phone };
 
     await this.userSubscriptions.upsertFromForm(event.id, kind, answers, contactOverride);
 

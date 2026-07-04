@@ -35,7 +35,7 @@ export class EventEntity {
   ) {}
 
   isEditable(): boolean {
-    return this.status !== 'cancelled';
+    return this.status !== 'cancelled' && this.status !== 'ended';
   }
 
   canTransitionTo(next: EventStatus): boolean {
