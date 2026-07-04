@@ -29,3 +29,6 @@ graphify-out/
 
 *.md
 docs/
+
+# isolated dev workspaces
+.worktrees/
