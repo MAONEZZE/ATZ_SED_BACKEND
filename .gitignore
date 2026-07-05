@@ -4,6 +4,10 @@ node_modules/
 # build
 dist/
 
+# mutation testing (Stryker) — relatório versionado de propósito; só o temp é ignorado
+tests/mutation_test/.stryker-tmp/
+.stryker-tmp/
+
 # env
 .env.*
 !.env.example
@@ -25,3 +29,6 @@ graphify-out/
 
 *.md
 docs/
+
+# isolated dev workspaces
+.worktrees/

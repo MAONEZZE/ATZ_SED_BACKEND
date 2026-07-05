@@ -16,12 +16,12 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "db:seed": "ts-node -r tsconfig-paths/register scripts/seed.ts",
+    "test:mutation": "stryker run",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate"
   },
   "prisma": {
-    "schema": "app/database/prisma/schema.prisma"
+    "schema": "app/infra/prisma/schema.prisma"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.4",
@@ -63,6 +63,8 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
+    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/jest-runner": "^9.6.1",
     "@types/express": "^5.0.0",
     "@types/ioredis": "^4.28.10",
     "@types/jest": "^30.0.0",
@@ -93,6 +95,10 @@
       "ts"
     ],
     "rootDir": ".",
+    "roots": [
+      "<rootDir>/tests/unit_test",
+      "<rootDir>/tests/integration_test"
+    ],
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
@@ -103,10 +109,10 @@
     "coverageDirectory": "./coverage",
     "testEnvironment": "node",
     "moduleNameMapper": {
-      "@domain/(.*)": "<rootDir>/app/domain/$1",
-      "@services/(.*)": "<rootDir>/app/services/$1",
-      "@database/(.*)": "<rootDir>/app/database/$1",
-      "@api/(.*)": "<rootDir>/app/api/$1"
+      "@modules/(.*)": "<rootDir>/app/modules/$1",
+      "@infra/(.*)": "<rootDir>/app/infra/$1",
+      "@shared/(.*)": "<rootDir>/app/shared/$1",
+      "@workers/(.*)": "<rootDir>/app/workers/$1"
     }
   }
 }

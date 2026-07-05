@@ -1,0 +1,3 @@
+ALTER TABLE "ATZ_SED"."outbox_messages"
+  ADD COLUMN IF NOT EXISTS "attachments" JSONB,
+  ADD COLUMN IF NOT EXISTS "sent_attachments" INTEGER NOT NULL DEFAULT 0;

@@ -7,8 +7,8 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
-import { AppModule } from './api/config/app.module';
-import { GlobalExceptionFilter } from './api/config/filters/http-exception.filter';
+import { AppModule } from './app.module';
+import { GlobalExceptionFilter } from '@shared/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });

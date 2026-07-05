@@ -1,0 +1,149 @@
+import { Injectable, Logger, BadGatewayException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { randomInt } from 'crypto';
+
+const FETCH_TIMEOUT_MS = 20_000;
+
+@Injectable()
+export class EvolutionAdapter {
+  private readonly baseUrl: string;
+  private readonly apiKey: string;
+  private readonly typingEnabled: boolean;
+  private readonly typingMin: number;
+  private readonly typingMax: number;
+  private readonly typingPerChar: number;
+  private readonly typingMaxTotal: number;
+  private readonly logger = new Logger(EvolutionAdapter.name);
+
+  constructor(config: ConfigService) {
+    this.baseUrl = config.get<string>('EVOLUTION_API_URL')!;
+    this.apiKey = config.get<string>('EVOLUTION_API_KEY')!;
+    this.typingEnabled = config.get<boolean>('WA_TYPING_ENABLED') ?? true;
+    this.typingMin = config.get<number>('WA_TYPING_MIN_MS') ?? 1500;
+    this.typingMax = config.get<number>('WA_TYPING_MAX_MS') ?? 4000;
+    this.typingPerChar = config.get<number>('WA_TYPING_MS_PER_CHAR') ?? 40;
+    this.typingMaxTotal = config.get<number>('WA_TYPING_MAX_TOTAL_MS') ?? 15000;
+  }
+
+  private typingDelay(textLength: number): number {
+    if (!this.typingEnabled) return 0;
+    const base = randomInt(this.typingMin, this.typingMax + 1);
+    return Math.min(base + textLength * this.typingPerChar, this.typingMaxTotal);
+  }
+
+  private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      return await fetch(url, { ...init, signal: controller.signal });
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new BadGatewayException('Evolution API timeout');
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  splitParts(body: string): string[] {
+    return body
+      .split(/\n\s*\n+/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+  }
+
+  async sendWhatsApp(
+    instancia: string,
+    to: string,
+    body: string,
+    opts?: { startIndex?: number; onPartSent?: (index: number) => void | Promise<void> },
+  ): Promise<void> {
+    const parts = this.splitParts(body);
+    const start = opts?.startIndex ?? 0;
+
+    for (let i = start; i < parts.length; i++) {
+      await this.sendPart(instancia, to, parts[i]);
+      if (opts?.onPartSent) await opts.onPartSent(i);
+    }
+  }
+
+  private async sendPart(instancia: string, to: string, text: string): Promise<void> {
+    const url = `${this.baseUrl}/message/sendText/${instancia}`;
+
+    const delay = this.typingDelay(text.length);
+    const payload: { number: string; text: string; delay?: number } = { number: to, text };
+    if (delay > 0) payload.delay = delay;
+
+    const response = await this.fetchWithTimeout(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: this.apiKey,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.logger.error(
+        { instancia, status: response.status, error: errorText },
+        'Evolution API error',
+      );
+      throw new BadGatewayException(`Evolution API error (${response.status}): ${errorText}`);
+    }
+  }
+
+  async sendMedia(
+    instancia: string,
+    to: string,
+    mediaUrl: string,
+    mediatype: 'image' | 'video' | 'audio' | 'document',
+    mimetype: string,
+    fileName: string,
+    caption?: string,
+  ): Promise<void> {
+    const url = `${this.baseUrl}/message/sendMedia/${instancia}`;
+    const payload: {
+      number: string;
+      mediatype: 'image' | 'video' | 'audio' | 'document';
+      mimetype: string;
+      media: string;
+      fileName: string;
+      caption?: string;
+    } = { number: to, mediatype, mimetype, media: mediaUrl, fileName };
+    if (caption) payload.caption = caption;
+
+    const response = await this.fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: this.apiKey },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.logger.error(
+        { instancia, status: response.status, error: errorText },
+        'Evolution API sendMedia error',
+      );
+      throw new BadGatewayException(`Evolution API error (${response.status}): ${errorText}`);
+    }
+  }
+
+  async fetchGroups(instancia: string): Promise<{ id: string; subject: string }[]> {
+    const url = `${this.baseUrl}/group/fetchAllGroups/${instancia}?getParticipants=false`;
+    const response = await this.fetchWithTimeout(url, {
+      headers: { apikey: this.apiKey },
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.logger.error(
+        { instancia, status: response.status, error: errorText },
+        'Evolution API fetchGroups error',
+      );
+      throw new BadGatewayException(`Evolution API error (${response.status}): ${errorText}`);
+    }
+    const data = (await response.json()) as Array<{ id: string; subject: string }>;
+    return data.map(({ id, subject }) => ({ id, subject }));
+  }
+}

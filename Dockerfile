@@ -5,7 +5,7 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
-RUN npx prisma generate --schema=app/database/prisma/schema.prisma
+RUN npx prisma generate --schema=app/infra/prisma/schema.prisma
 RUN npm run build
 
 FROM node:22-alpine AS runner
@@ -18,7 +18,7 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
-COPY app/database/prisma/schema.prisma ./app/database/prisma/schema.prisma
+COPY app/infra/prisma/schema.prisma ./app/infra/prisma/schema.prisma
 
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=app/database/prisma/schema.prisma && node dist/main"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=app/infra/prisma/schema.prisma && node dist/main"]
