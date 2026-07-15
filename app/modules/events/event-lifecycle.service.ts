@@ -41,7 +41,7 @@ export class EventLifecycleService {
   async duplicate(eventId: string, ownerId: string): Promise<EventEntity> {
     const source = await this.prisma.event.findUnique({
       where: { id: eventId },
-      include: { formFields: true, automationRules: true },
+      include: { forms: { include: { fields: true } }, automationRules: true },
     });
     if (!source) throw new NotFoundException('Event not found');
 
@@ -53,30 +53,38 @@ export class EventLifecycleService {
         ownerId,
         title: `${source.title} (cópia)`,
         slug: newSlug,
-        description: source.description,
         location: source.location,
         capacity: source.capacity,
         dressCode: source.dressCode,
         groupLink: source.groupLink,
         eventDate: source.eventDate,
         endDate: source.endDate,
-        postRegistrationMessage: source.postRegistrationMessage,
         sendToPipedrive: source.sendToPipedrive,
         status: 'draft',
         lastEditedById: ownerId,
-        formFields: {
-          create: source.formFields.map((f) => ({
-            label: f.label,
-            type: f.type,
-            required: f.required,
-            options: f.options ?? undefined,
-            order: f.order,
-            isFixed: f.isFixed,
-            kind: f.kind,
-          })),
-        },
       },
     });
+
+    for (const form of source.forms) {
+      await this.prisma.form.create({
+        data: {
+          eventId: newEvent.id,
+          kind: form.kind,
+          description: form.description,
+          postRegistrationMessage: form.postRegistrationMessage,
+          fields: {
+            create: form.fields.map((f) => ({
+              label: f.label,
+              type: f.type,
+              required: f.required,
+              options: f.options ?? undefined,
+              order: f.order,
+              isFixed: f.isFixed,
+            })),
+          },
+        },
+      });
+    }
 
     if (source.automationRules.length > 0) {
       await this.prisma.automationRule.createMany({

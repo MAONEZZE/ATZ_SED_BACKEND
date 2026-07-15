@@ -12,7 +12,15 @@ function makeService(existingField: Record<string, unknown> = { id: 'f1', label:
   const eventsService = {
     findById: jest.fn().mockResolvedValue({ isEditable: () => true }),
   };
-  return { service: new FormFieldsService(repo as any, eventsService as any), repo, eventsService };
+  const formsService = {
+    getOrCreate: jest.fn().mockResolvedValue({ id: 'form-1' }),
+  };
+  return {
+    service: new FormFieldsService(repo as any, eventsService as any, formsService as any),
+    repo,
+    eventsService,
+    formsService,
+  };
 }
 
 describe('FormFieldsService.update — type change', () => {

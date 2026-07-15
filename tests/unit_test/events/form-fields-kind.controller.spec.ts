@@ -12,22 +12,31 @@ function makeService() {
   const eventsService = {
     findById: jest.fn().mockResolvedValue({ isEditable: () => true }),
   };
-  return { service: new FormFieldsService(repo as any, eventsService as any), repo, eventsService };
+  const formsService = {
+    getOrCreate: jest.fn().mockResolvedValue({ id: 'form-1' }),
+  };
+  return {
+    service: new FormFieldsService(repo as any, eventsService as any, formsService as any),
+    repo,
+    eventsService,
+    formsService,
+  };
 }
 
 describe('FormFieldsService kind support', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('default kind registration on create when omitted', async () => {
-    const { service, repo } = makeService();
+    const { service, repo, formsService } = makeService();
     await service.create('evt-1', 'user-1', { label: 'Nome', type: 'text' });
-    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ kind: 'registration' }));
+    expect(formsService.getOrCreate).toHaveBeenCalledWith('evt-1', 'registration');
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ formId: 'form-1' }));
   });
 
-  it('passes post_event kind on create', async () => {
-    const { service, repo } = makeService();
+  it('resolves the Form for the given kind on create', async () => {
+    const { service, formsService } = makeService();
     await service.create('evt-1', 'user-1', { label: 'Nota', type: 'text', kind: 'post_event' });
-    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ kind: 'post_event' }));
+    expect(formsService.getOrCreate).toHaveBeenCalledWith('evt-1', 'post_event');
   });
 
   it('stamps last editor on the event after creating a field', async () => {

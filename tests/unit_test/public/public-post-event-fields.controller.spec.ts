@@ -16,7 +16,7 @@ describe('PublicEventsService.getPublicFormFields (post_event)', () => {
     const { service, prisma } = makeService({ id: 'evt-1', status: 'published' });
     await service.getPublicFormFields('slug-1', 'post_event', true);
     expect(prisma.formField.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { eventId: 'evt-1', kind: 'post_event' } }),
+      expect.objectContaining({ where: { form: { eventId: 'evt-1', kind: 'post_event' } } }),
     );
   });
 
@@ -24,7 +24,7 @@ describe('PublicEventsService.getPublicFormFields (post_event)', () => {
     const { service, prisma } = makeService({ id: 'evt-1', status: 'ended' });
     await expect(service.getPublicFormFields('slug-1', 'post_event', true)).resolves.toBeDefined();
     expect(prisma.formField.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { eventId: 'evt-1', kind: 'post_event' } }),
+      expect.objectContaining({ where: { form: { eventId: 'evt-1', kind: 'post_event' } } }),
     );
   });
 

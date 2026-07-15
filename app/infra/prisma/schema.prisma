@@ -119,7 +119,6 @@ model Event {
   ownerId           String          @map("owner_id")
   title             String
   slug              String          @unique
-  description       String?
   coverUrl          String?         @map("cover_url")
   location          String?
   capacity          Int?
@@ -127,7 +126,6 @@ model Event {
   groupLink         String?         @map("group_link")
   eventDate         DateTime?       @map("event_date")
   endDate           DateTime?       @map("end_date")
-  postRegistrationMessage String?   @map("post_registration_message")
   sendToPipedrive   Boolean         @default(false) @map("send_to_pipedrive")
   recurrenceFreq     String?        @map("recurrence_freq")
   recurrenceInterval Int?           @map("recurrence_interval")
@@ -141,7 +139,7 @@ model Event {
   owner             Profile         @relation("EventOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   lastEditedBy      Profile?        @relation("EventLastEditor", fields: [lastEditedById], references: [id], onDelete: SetNull)
   collaborators     EventCollaborator[]
-  formFields        FormField[]
+  forms             Form[]
   registrations     Registration[]
   postEventResponses PostEventResponse[]
   automationRules   AutomationRule[]
@@ -152,6 +150,22 @@ model Event {
 
   @@index([ownerId])
   @@map("events")
+  @@schema("ATZ_SED")
+}
+
+model Form {
+  id                      String        @id @default(uuid())
+  eventId                 String        @map("event_id")
+  kind                    FormFieldKind @default(registration)
+  description             String?
+  postRegistrationMessage String?       @map("post_registration_message")
+  createdAt               DateTime      @default(now()) @map("created_at")
+  updatedAt               DateTime      @updatedAt @map("updated_at")
+  event                   Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  fields                  FormField[]
+
+  @@unique([eventId, kind])
+  @@map("forms")
   @@schema("ATZ_SED")
 }
 
@@ -171,18 +185,17 @@ model EventCollaborator {
 
 model FormField {
   id        String    @id @default(uuid())
-  eventId   String    @map("event_id")
+  formId    String    @map("form_id")
   label     String
   type      FieldType
   required  Boolean   @default(true)
   options   Json?
   order     Int       @default(0)
   isFixed   Boolean   @default(false) @map("is_fixed")
-  kind      FormFieldKind @default(registration)
   createdAt DateTime  @default(now()) @map("created_at")
-  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  form      Form      @relation(fields: [formId], references: [id], onDelete: Cascade)
 
-  @@index([eventId, kind])
+  @@index([formId])
   @@map("form_fields")
   @@schema("ATZ_SED")
 }

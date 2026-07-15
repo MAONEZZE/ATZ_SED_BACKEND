@@ -13,7 +13,6 @@ const existing = new EventEntity(
   undefined,
   undefined,
   undefined,
-  undefined,
   new Date('2026-06-15T18:00:00Z'),
 );
 
@@ -73,7 +72,6 @@ describe('EventsService endDate validation', () => {
       'Tech Day',
       'tech-day-abc',
       'draft',
-      undefined,
       'https://storage/evt-1/cover',
     );
     eventRepo.findById.mockResolvedValue(withCover);
@@ -90,7 +88,6 @@ describe('EventsService endDate validation', () => {
       'Tech Day',
       'tech-day-abc',
       'draft',
-      undefined,
       'https://storage/evt-1/cover',
     );
     eventRepo.findById.mockResolvedValue(withCover);
@@ -107,17 +104,15 @@ describe('EventsService endDate validation', () => {
     expect(eventRepo.update).toHaveBeenCalledWith('evt-1', { coverUrl: null });
   });
 
-  it('update accepts endDate after merged eventDate and passes postRegistrationMessage', async () => {
+  it('update accepts endDate after merged eventDate', async () => {
     const { service, eventRepo } = makeService();
     await service.update('evt-1', {
       endDate: new Date('2026-06-15T22:00:00Z'),
-      postRegistrationMessage: 'Obrigado!',
     });
     expect(eventRepo.update).toHaveBeenCalledWith(
       'evt-1',
       expect.objectContaining({
         endDate: new Date('2026-06-15T22:00:00Z'),
-        postRegistrationMessage: 'Obrigado!',
       }),
     );
   });

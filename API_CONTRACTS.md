@@ -21,6 +21,9 @@ Mudanças de contrato que o frontend precisa adaptar. Rotas antigas **deixam de 
 | 8 | `GET /public/events/:slug/nps-fields` | `GET /public/events/:slug/nps/form-fields` |
 | 9 | `POST /public/events/:slug/nps` | `POST /public/events/:slug/nps/responses` |
 | 10 | `POST /public/events/:slug/post-event` | `POST /public/events/:slug/post-event/responses` |
+| 11 | `Event.description` / `Event.postRegistrationMessage` (POST/PATCH/GET `/events[...]`) | Removidos do Event. Passam a viver em `Form` (por `eventId`+`kind`), via `GET/PATCH /events/:eventId/forms/:kind` (ver seção 3b) |
+| 12 | `FormField.eventId` no corpo de resposta | Renomeado para `FormField.formId` |
+| 13 | `PATCH /events/:eventId/form-fields/:id` não aceitava `type` | `type` agora aceito no PATCH (não revalida answers antigas) |
 
 Rotas globais agregadas mantidas: `GET /templates`, `GET /templates/:id`, `POST/PATCH/DELETE /templates[...]`, `GET /automations` (todos os eventos do usuário), `GET /messaging/logs` (agregado global — distinto do escopado por evento acima).
 
@@ -53,7 +56,8 @@ Também corrigidos neste doc os enums `FunnelStatus` e `AutomationTrigger`, que 
 | `FunnelStatus` | `pending`, `approved`, `rejected` |
 | `FieldType` | `text`, `textarea`, `email`, `phone`, `select`, `multiselect`, `checkbox`, `image`, `date` |
 | `MessageChannel` | `whatsapp`, `email` |
-| `AutomationTrigger` | `on_registration`, `on_post_event`, `on_nps`, `on_approval`, `on_rejection`, `before_event`, `after_event`, `after_approval` |
+| `AutomationTrigger` | `on_registration`, `on_post_event`, `on_nps`, `on_approval`, `on_rejection`, `before_event`, `after_event`, `after_approval`, `recurring` |
+| `FormFieldKind` | `registration`, `post_event`, `nps` |
 
 ### Objetos de retorno (shapes principais)
 
@@ -64,7 +68,6 @@ Também corrigidos neste doc os enums `FunnelStatus` e `AutomationTrigger`, que 
   "ownerId": "uuid",
   "title": "string",
   "slug": "string",
-  "description": "string | null",
   "coverUrl": "string | null",
   "location": "string | null",
   "capacity": 100,
@@ -72,10 +75,23 @@ Também corrigidos neste doc os enums `FunnelStatus` e `AutomationTrigger`, que 
   "groupLink": "string | null",
   "eventDate": "ISO | null",
   "endDate": "ISO | null",
-  "postRegistrationMessage": "string | null",
   "status": "draft | published | cancelled | ended",
   "evolutionInstance": "string | null",
   "evolutionToken": "string | null",
+  "createdAt": "ISO",
+  "updatedAt": "ISO"
+}
+```
+`description` e `postRegistrationMessage` não fazem mais parte do Event — ver **Form** (seção 3b).
+
+**Form**
+```json
+{
+  "id": "uuid",
+  "eventId": "uuid",
+  "kind": "registration | post_event | nps",
+  "description": "string | null",
+  "postRegistrationMessage": "string | null",
   "createdAt": "ISO",
   "updatedAt": "ISO"
 }
@@ -85,7 +101,7 @@ Também corrigidos neste doc os enums `FunnelStatus` e `AutomationTrigger`, que 
 ```json
 {
   "id": "uuid",
-  "eventId": "uuid",
+  "formId": "uuid",
   "label": "string",
   "type": "FieldType",
   "required": true,
@@ -227,17 +243,16 @@ Também corrigidos neste doc os enums `FunnelStatus` e `AutomationTrigger`, que 
 ```json
 {
   "title": "string (min 3, obrigatório)",
-  "description": "string?",
   "location": "string?",
   "capacity": "int >= 1 ?",
   "dressCode": "string?",
   "groupLink": "string?",
   "eventDate": "ISO date string?",
-  "endDate": "ISO date string?",
-  "postRegistrationMessage": "string?"
+  "endDate": "ISO date string?"
 }
 ```
 - Retorno: **201** `Event` (status inicial `draft`, slug gerado automaticamente).
+- `description`/`postRegistrationMessage` não são aceitos aqui — configurar depois via `PATCH /events/:eventId/forms/:kind` (seção 3b).
 
 ### GET `/events`
 - Retorno: **200** `Event[]` (somente do usuário logado).
@@ -279,13 +294,16 @@ Também corrigidos neste doc os enums `FunnelStatus` e `AutomationTrigger`, que 
 
 ### POST `/events/:id/duplicate`
 - Body: nenhum.
-- Retorno: **201** `Event` novo (cópia com form fields e templates, slug novo, status `draft`).
+- Retorno: **201** `Event` novo (cópia com forms — description/postRegistrationMessage/fields por kind — e templates, slug novo, status `draft`).
 
 ---
 
 ## 3. Form Fields — `/events/:eventId/form-fields` (auth + ownership)
 
+Cada campo pertence a um `Form` (por `eventId`+`kind`); o `Form` é criado sob demanda na primeira escrita — as rotas abaixo continuam recebendo `eventId` (+ `kind` opcional no body/query, default `registration`) e resolvem o `Form` internamente.
+
 ### GET `/events/:eventId/form-fields`
+- Query opcional: `?kind=registration|post_event|nps`.
 - Retorno: **200** `FormField[]` ordenado por `order` asc.
 
 ### POST `/events/:eventId/form-fields`
@@ -296,20 +314,39 @@ Também corrigidos neste doc os enums `FunnelStatus` e `AutomationTrigger`, que 
   "type": "FieldType (obrigatório)",
   "required": "boolean? (default true)",
   "options": "json? (ex.: [\"opção A\", \"opção B\"] para select)",
-  "order": "int >= 0 ? (default 99)"
+  "order": "int >= 0 ? (default 99)",
+  "kind": "registration | post_event | nps ? (default registration)"
 }
 ```
 - Retorno: **201** `FormField` (`isFixed` sempre `false` para campos criados via API).
 
 ### PATCH `/events/:eventId/form-fields/:id`
-- Body (todos opcionais — `type` **não** pode ser alterado):
+- Body (todos opcionais, incluindo `type`):
 ```json
-{ "label": "string", "required": true, "options": "json", "order": 1 }
+{ "label": "string", "type": "FieldType", "required": true, "options": "json", "order": 1 }
 ```
 - Retorno: **200** `FormField`. **404** se não pertencer ao evento.
+- Trocar `type` **não** revalida/migra answers já salvas com o tipo antigo — só novas submissões usam o novo tipo.
 
 ### DELETE `/events/:eventId/form-fields/:id`
 - Retorno: **204**. **400** se campo for `isFixed` (campos fixos: nome/email/telefone não podem ser apagados).
+
+---
+
+## 3b. Forms — `/events/:eventId/forms/:kind` (auth + ownership)
+
+Metadados do formulário (`description` + `postRegistrationMessage`), escopados por `kind`. Antes viviam direto no `Event`.
+
+### GET `/events/:eventId/forms/:kind`
+- `:kind` = `registration | post_event | nps`.
+- Retorno: **200** `Form` — cria uma linha vazia na primeira leitura se ainda não existir.
+
+### PATCH `/events/:eventId/forms/:kind`
+- Body (todos opcionais):
+```json
+{ "description": "string", "postRegistrationMessage": "string" }
+```
+- Retorno: **200** `Form` atualizado.
 
 ---
 
@@ -318,6 +355,16 @@ Também corrigidos neste doc os enums `FunnelStatus` e `AutomationTrigger`, que 
 ### GET `/events/:eventId/registrations`
 - Query (opcionais): `?status=<FunnelStatus>&search=<texto>` (search em name/email/phone).
 - Retorno: **200** `Registration[]`.
+
+### POST `/events/:eventId/registrations/import`
+- Body:
+```json
+{ "registrations": [{ "nome": "string (obrigatório)", "telefone": "string?", "email": "string?" }] }
+```
+- Exige `nome` + ao menos um de `telefone`/`email`. Telefone normalizado (BR: dígitos + prefixo `55`).
+- Dedup contra inscritos existentes por telefone/email normalizado (linhas duplicadas são puladas, não erram).
+- Cria como `pending`. **Não** dispara `registration.status_changed` (evita enxurrada de automação em massa).
+- Retorno: **201** `{ "created": number, "skipped": number }`.
 
 ### GET `/events/:eventId/registrations/export`
 - Query: mesmos filtros `status`/`search`.
@@ -383,10 +430,13 @@ Também corrigidos neste doc os enums `FunnelStatus` e `AutomationTrigger`, que 
   "templateId": "uuid (obrigatório, template do mesmo evento)",
   "trigger": "AutomationTrigger (obrigatório)",
   "delayMinutes": "int >= 0 ?",
+  "cron": "string? (5 campos, ex. \"0 9 * * 1\" — obrigatório se trigger=recurring)",
+  "timezone": "string? (IANA, ex. \"America/Sao_Paulo\" — obrigatório se trigger=recurring)",
   "active": "boolean? (default true)"
 }
 ```
-- Retorno: **201** `AutomationRule`. **404** se template não pertencer ao evento.
+- Retorno: **201** `AutomationRule`. **404** se template não pertencer ao evento. **400** se `trigger=recurring` sem `cron`/`timezone` válidos.
+- `trigger=recurring`: dispara por calendário (BullMQ job scheduler) para os inscritos `approved`, não por evento imediato/agendado-relativo-ao-evento. Múltiplas regras `recurring` ativas no mesmo evento são permitidas (sem checagem de duplicata).
 
 ### PATCH `/events/:eventId/automations/:id`
 - Body: todos opcionais (mesmos campos do POST).
@@ -468,12 +518,12 @@ data: [DONE]                      <- sempre ao final
 - Retorno: **200** evento publicado:
 ```json
 {
-  "id", "title", "slug", "description", "coverUrl", "location",
-  "capacity", "dressCode", "eventDate", "endDate",
-  "postRegistrationMessage", "status",
-  "landingPage": { "...": "...", "sections": ["somente enabled, ordenadas"] }
+  "id", "title", "slug", "coverUrl", "location",
+  "capacity", "dressCode", "eventDate", "endDate", "status",
+  "description", "postRegistrationMessage"
 }
 ```
+- `description`/`postRegistrationMessage` vêm do `Form` de `kind=registration` (mergeados na resposta; `null` se o form ainda não tiver metadados salvos).
 - **404** se não existir ou não estiver `published`.
 
 ### GET `/public/events/:slug/form-fields`
@@ -522,10 +572,13 @@ data: [DONE]                      <- sempre ao final
 | POST | `/events/:eventId/form-fields` | ✅ | FormField |
 | PATCH | `/events/:eventId/form-fields/:id` | ✅ | FormField |
 | DELETE | `/events/:eventId/form-fields/:id` | ✅ | 204 |
+| GET | `/events/:eventId/forms/:kind` | ✅ | Form |
+| PATCH | `/events/:eventId/forms/:kind` | ✅ | Form |
 | GET | `/events/:eventId/registrations` | ✅ | Registration[] |
 | GET | `/events/:eventId/registrations/export` | ✅ | CSV |
 | GET | `/events/:eventId/registrations/:id` | ✅ | Registration |
 | PATCH | `/events/:eventId/registrations/:id/status` | ✅ | Registration |
+| POST | `/events/:eventId/registrations/import` | ✅ | {created, skipped} |
 | GET | `/events/:eventId/templates` | ✅ | MessageTemplate[] |
 | GET | `/events/:eventId/templates/:id` | ✅ | MessageTemplate |
 | POST | `/events/:eventId/templates` | ✅ | MessageTemplate |

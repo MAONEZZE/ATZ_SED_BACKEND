@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { FormFieldsRepository, FormFieldKind } from '@modules/events/form-fields.repository';
+import { FormsService } from '@modules/events/forms.service';
 import { EventsService } from '@modules/events/events.service';
 
 export interface CreateFormFieldInput {
@@ -27,6 +28,7 @@ export class FormFieldsService {
   constructor(
     private readonly repo: FormFieldsRepository,
     private readonly eventsService: EventsService,
+    private readonly formsService: FormsService,
   ) {}
 
   listPaginated(eventId: string, kind: FormFieldKind | undefined, page: number, limit: number) {
@@ -48,15 +50,15 @@ export class FormFieldsService {
 
   async create(eventId: string, editorId: string, input: CreateFormFieldInput) {
     await this.assertEventEditable(eventId);
+    const form = await this.formsService.getOrCreate(eventId, input.kind ?? 'registration');
     const field = await this.repo.create({
-      eventId,
+      formId: form.id,
       label: input.label,
       type: input.type as Prisma.FormFieldUncheckedCreateInput['type'],
       required: input.required ?? true,
       options: this.toJson(input.options),
       order: input.order ?? 99,
       isFixed: false,
-      kind: (input.kind ?? 'registration') as Prisma.FormFieldUncheckedCreateInput['kind'],
     });
     await this.repo.touchEvent(eventId, editorId);
     return field;
