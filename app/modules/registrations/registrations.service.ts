@@ -13,7 +13,7 @@ import { FormSubmitted } from '@modules/registrations/entities/form-submitted.ev
 import { EventsService } from '@modules/events/events.service';
 import { UserSubscriptionsService } from './user-subscriptions.service';
 import { PipedriveAdapter } from '@infra/integrations/pipedrive.adapter';
-import { validateAnswers, AnswerFieldMeta } from './answer-validation';
+import { validateAnswers, resolveAnswer, resolveAnswerByKeys, AnswerFieldMeta } from './answer-validation';
 
 @Injectable()
 export class RegistrationsService {
@@ -167,7 +167,7 @@ export class RegistrationsService {
 
     for (const field of formFields) {
       if (field.required) {
-        const val = answers[field.label];
+        const val = resolveAnswer(answers, field.label);
         if (val === undefined || val === null || String(val).trim() === '') {
           throw new BadRequestException(`Campo obrigatório ausente: "${field.label}"`);
         }
@@ -184,7 +184,7 @@ export class RegistrationsService {
     } = { answers: mergedAnswers };
 
     for (const f of formFields.filter((f) => f.isFixed)) {
-      const raw = answers[f.label];
+      const raw = resolveAnswer(answers, f.label);
       const val = typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
       if (f.type === 'text' && val !== undefined) updateData.name = val;
       else if (f.type === 'email' && val !== undefined) updateData.email = val;
@@ -271,11 +271,8 @@ export class RegistrationsService {
   }
 
   private extractString(answers: Record<string, unknown>, keys: string[]): string {
-    for (const key of keys) {
-      const val = answers[key];
-      if (typeof val === 'string' && val.trim()) return val.trim();
-    }
-    return '';
+    const val = resolveAnswerByKeys(answers, keys);
+    return typeof val === 'string' && val.trim() ? val.trim() : '';
   }
 
   private extractByFieldType(
@@ -286,7 +283,7 @@ export class RegistrationsService {
   ): string {
     const field = fields.find((f) => f.type === type);
     if (field) {
-      const val = answers[field.label];
+      const val = resolveAnswer(answers, field.label);
       if (typeof val === 'string' && val.trim()) return val.trim();
     }
     return this.extractString(answers, fallbackKeys);

@@ -130,6 +130,21 @@ describe('RegistrationsService.createPublic', () => {
     expect(userSubscriptions.markPipedrive).toHaveBeenCalledWith('us-1', false, 'skipped');
   });
 
+  it('extracts name/email/phone case-insensitively when the answer keys differ from the fixed lookup keys', async () => {
+    const { svc, regRepo } = make();
+    const answers = { NOME: 'João', Email: 'joao@b.com', Telefone: '11999990000' };
+
+    await svc.createPublic('slug-1', answers, []);
+
+    expect(regRepo.create).toHaveBeenCalledWith({
+      eventId: 'evt-1',
+      answers,
+      name: 'João',
+      email: 'joao@b.com',
+      phone: '11999990000',
+    });
+  });
+
   it('rejects when the event is not published', async () => {
     const { svc } = make('draft');
     await expect(svc.createPublic('slug-1', { nome: 'X' }, [])).rejects.toBeInstanceOf(

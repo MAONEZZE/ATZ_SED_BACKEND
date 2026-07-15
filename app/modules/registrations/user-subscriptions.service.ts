@@ -6,6 +6,7 @@ import {
   FormKind,
   PipedriveStatus,
 } from '@modules/registrations/ports/user-subscription-repository.port';
+import { resolveAnswerByKeys } from './answer-validation';
 
 @Injectable()
 export class UserSubscriptionsService {
@@ -77,10 +78,7 @@ export class UserSubscriptionsService {
   }
 
   private extractString(answers: Record<string, unknown>, keys: string[]): string {
-    for (const key of keys) {
-      const val = answers[key];
-      if (typeof val === 'string' && val.trim()) return val.trim();
-    }
-    return '';
+    const val = resolveAnswerByKeys(answers, keys);
+    return typeof val === 'string' && val.trim() ? val.trim() : '';
   }
 }

@@ -484,7 +484,8 @@ data: [DONE]                      <- sempre ao final
 - **404** se evento não publicado.
 
 ### POST `/public/events/:slug/registrations`
-- Body: objeto livre com respostas do formulário, chaveado pelo **label** dos campos. Deve conter nome, email e telefone (aceita chaves `nome`/`name`, `email`, `telefone`/`phone`):
+- Body: objeto livre com respostas do formulário, chaveado pelo **label** de cada campo (`GET /public/events/:slug/form-fields`). O casamento chave↔label é tolerante a diferença de maiúscula/minúscula e espaços nas pontas (ex.: label `"Nome"` casa com chave `"nome"` ou `" NOME "`).
+- Extração dos campos fixos (nome/email/telefone para o registro) também é tolerante a maiúscula/minúscula, tentando as chaves `nome`/`name`, `email`, `telefone`/`phone` nessa ordem contra as respostas enviadas:
 ```json
 {
   "nome": "Fulano",
@@ -494,7 +495,7 @@ data: [DONE]                      <- sempre ao final
 }
 ```
 - Retorno: **201** `Registration` (status `pending`).
-- **400** se evento não estiver `published` ou faltar nome/email/telefone.
+- **400** se evento não estiver `published` ou faltar campo obrigatório (validado contra o **label** configurado, não contra as chaves fixas acima).
 
 ---
 
