@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body, UseGuards, Query, Res } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, UseGuards, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
@@ -11,6 +11,7 @@ import { buildRegistrationsCsv } from '@modules/registrations/registrations-csv'
 import { UpdateRegistrationStatusDto } from './dto/update-registration-status.dto';
 import { UpdateRegistrationAnswersDto } from './dto/update-registration-answers.dto';
 import { ListRegistrationsQueryDto } from './dto/list-registrations-query.dto';
+import { ImportRegistrationsDto } from './dto/import-registrations.dto';
 import { Paginated } from '@shared/pagination';
 
 @ApiTags('Registrations')
@@ -62,6 +63,17 @@ export class RegistrationsController {
       search,
     );
     return { data, total, page, limit };
+  }
+
+  @Post('import')
+  @ApiOperation({ summary: 'Importar inscrições em lote (ex: planilha)' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiResponse({ status: 201, description: 'Resumo da importação: criados/pulados' })
+  importMany(
+    @Param('eventId') eventId: string,
+    @Body() dto: ImportRegistrationsDto,
+  ): Promise<{ created: number; skipped: number }> {
+    return this.registrations.importMany(eventId, dto.registrations);
   }
 
   @Get(':id')

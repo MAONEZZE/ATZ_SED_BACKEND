@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaRepositoryBase } from '@shared/prisma-repository.base';
+import { normalizePhone } from '@shared/phone';
 import {
   RegistrationRepositoryPort,
   CreateRegistrationData,
@@ -128,10 +129,10 @@ export class PrismaRegistrationRepository
       return row ? this.map(row) : null;
     }
     if (contact.phone) {
-      const digits = contact.phone.replace(/\D/g, '');
+      const digits = normalizePhone(contact.phone) ?? contact.phone.replace(/\D/g, '');
       if (!digits) return null;
       const rows = await this.prisma.registration.findMany({ where: { eventId } });
-      const match = rows.find((r) => r.phone.replace(/\D/g, '') === digits);
+      const match = rows.find((r) => (normalizePhone(r.phone) ?? r.phone.replace(/\D/g, '')) === digits);
       return match ? this.map(match) : null;
     }
     return null;

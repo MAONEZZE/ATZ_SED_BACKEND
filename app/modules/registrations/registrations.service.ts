@@ -14,6 +14,7 @@ import { EventsService } from '@modules/events/events.service';
 import { UserSubscriptionsService } from './user-subscriptions.service';
 import { PipedriveAdapter } from '@infra/integrations/pipedrive.adapter';
 import { validateAnswers, resolveAnswer, resolveAnswerByKeys, AnswerFieldMeta } from './answer-validation';
+import { normalizePhone } from '@shared/phone';
 
 @Injectable()
 export class RegistrationsService {
@@ -98,6 +99,52 @@ export class RegistrationsService {
     }
 
     return reg;
+  }
+
+  /**
+   * Bulk-imports registrations from an external list (e.g. spreadsheet).
+   * Dedups against existing registrations by normalized phone/email and
+   * skips duplicates. Does not emit `registration.status_changed` — an
+   * imported batch shouldn't trigger `on_registration` automations for
+   * every row.
+   */
+  async importMany(
+    eventId: string,
+    items: Array<{ nome: string; telefone?: string; email?: string }>,
+  ): Promise<{ created: number; skipped: number }> {
+    let created = 0;
+    let skipped = 0;
+
+    for (const item of items) {
+      const name = item.nome.trim();
+      const phone = item.telefone
+        ? (normalizePhone(item.telefone) ?? item.telefone.replace(/\D/g, ''))
+        : '';
+      const email = item.email?.trim().toLowerCase() ?? '';
+
+      if (!phone && !email) {
+        skipped++;
+        continue;
+      }
+
+      const existing = await this.regRepo.findByEventAndContact(eventId, {
+        email: email || undefined,
+        phone: phone || undefined,
+      });
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      const answers: Record<string, unknown> = { nome: name };
+      if (phone) answers.telefone = phone;
+      if (email) answers.email = email;
+
+      await this.regRepo.create({ eventId, answers, name, email, phone });
+      created++;
+    }
+
+    return { created, skipped };
   }
 
   async findAll(
@@ -233,7 +280,7 @@ export class RegistrationsService {
     const id = identifier?.trim() ?? '';
     const contact = id.includes('@')
       ? { email: id.toLowerCase() }
-      : { phone: id.replace(/\D/g, '') };
+      : { phone: normalizePhone(id) ?? id.replace(/\D/g, '') };
 
     if (!contact.email && !contact.phone) {
       throw new BadRequestException('Identificador (email ou telefone) é obrigatório');
