@@ -69,6 +69,7 @@ enum AutomationTrigger {
   before_event
   after_event
   after_approval
+  recurring
 
   @@schema("ATZ_SED")
 }
@@ -273,6 +274,8 @@ model AutomationRule {
   templateId   String            @map("template_id")
   trigger      AutomationTrigger
   delayMinutes Int?              @map("delay_minutes")
+  cron         String?
+  timezone     String?
   active       Boolean           @default(true)
   createdAt    DateTime          @default(now()) @map("created_at")
   event        Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)

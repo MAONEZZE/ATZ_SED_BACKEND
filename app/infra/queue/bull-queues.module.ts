@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 
 export const QUEUE_MESSAGE_DISPATCH = 'message-dispatch';
 export const QUEUE_SCHEDULED_AUTOMATIONS = 'scheduled-automations';
+export const QUEUE_RECURRING_AUTOMATIONS = 'recurring-automations';
 
 @Module({
   imports: [
@@ -29,6 +30,14 @@ export const QUEUE_SCHEDULED_AUTOMATIONS = 'scheduled-automations';
       },
       {
         name: QUEUE_SCHEDULED_AUTOMATIONS,
+        streams: { events: { maxLen: 200 } },
+        defaultJobOptions: {
+          removeOnComplete: true,
+          removeOnFail: { age: 86400, count: 50 },
+        },
+      },
+      {
+        name: QUEUE_RECURRING_AUTOMATIONS,
         streams: { events: { maxLen: 200 } },
         defaultJobOptions: {
           removeOnComplete: true,
