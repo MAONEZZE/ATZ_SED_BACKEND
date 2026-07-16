@@ -77,7 +77,7 @@ describe('RegistrationsService.createPublic', () => {
       email: 'joao@b.com',
       telefone: '11999990000',
       'Perfil do LinkedIn': 'https://linkedin.com/in/joao',
-      'Perfil do Instagram': 'https://instagram.com/joao',
+      'Perfil do Instagram': '@joao',
     };
     const fields = [
       { label: 'Perfil do LinkedIn', type: 'linkedin', required: false },
@@ -94,7 +94,7 @@ describe('RegistrationsService.createPublic', () => {
         email: 'joao@b.com',
         phone: '11999990000',
         linkedin: 'https://linkedin.com/in/joao',
-        instagram: 'https://instagram.com/joao',
+        instagram: '@joao',
       },
       answers,
     });

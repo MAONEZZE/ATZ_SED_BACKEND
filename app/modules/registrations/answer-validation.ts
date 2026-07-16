@@ -8,6 +8,7 @@ export interface AnswerFieldMeta {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const INSTAGRAM_HANDLE_RE = /^@?[\w.]{1,30}$/;
 
 function isValidUrl(val: string): boolean {
   try {
@@ -77,9 +78,13 @@ export function validateAnswers(
         }
         break;
       case 'linkedin':
-      case 'instagram':
         if (typeof val !== 'string' || !isValidUrl(val)) {
           throw new BadRequestException(`Campo "${field.label}" deve ser uma URL válida`);
+        }
+        break;
+      case 'instagram':
+        if (typeof val !== 'string' || !INSTAGRAM_HANDLE_RE.test(val)) {
+          throw new BadRequestException(`Campo "${field.label}" deve ser um @usuário do Instagram válido`);
         }
         break;
       case 'checkbox':
