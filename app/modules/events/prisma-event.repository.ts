@@ -18,7 +18,6 @@ export class PrismaEventRepository implements EventRepositoryPort {
     title: string;
     slug: string;
     status: string;
-    description: string | null;
     coverUrl: string | null;
     location: string | null;
     capacity: number | null;
@@ -26,7 +25,6 @@ export class PrismaEventRepository implements EventRepositoryPort {
     groupLink: string | null;
     eventDate: Date | null;
     endDate: Date | null;
-    postRegistrationMessage: string | null;
     sendToPipedrive: boolean;
     evolutionInstance: string | null;
     evolutionToken: string | null;
@@ -43,7 +41,6 @@ export class PrismaEventRepository implements EventRepositoryPort {
       row.title,
       row.slug,
       row.status as EventStatus,
-      row.description ?? undefined,
       row.coverUrl ?? undefined,
       row.location ?? undefined,
       row.capacity ?? undefined,
@@ -55,7 +52,6 @@ export class PrismaEventRepository implements EventRepositoryPort {
       row.createdAt,
       row.updatedAt,
       row.endDate ?? undefined,
-      row.postRegistrationMessage ?? undefined,
       row.lastEditedById ?? undefined,
       row.sendToPipedrive,
       row.recurrenceFreq ?? undefined,

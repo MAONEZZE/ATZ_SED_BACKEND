@@ -1,5 +1,5 @@
 import { IsString, IsIn, IsOptional, IsBoolean, IsInt, Min } from 'class-validator';
-import { PartialType, OmitType, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PartialType, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 const FORM_FIELD_TYPES = [
   'text',
@@ -45,6 +45,4 @@ export class CreateFormFieldDto {
   kind?: 'registration' | 'post_event' | 'nps';
 }
 
-export class UpdateFormFieldDto extends PartialType(
-  OmitType(CreateFormFieldDto, ['type'] as const),
-) {}
+export class UpdateFormFieldDto extends PartialType(CreateFormFieldDto) {}

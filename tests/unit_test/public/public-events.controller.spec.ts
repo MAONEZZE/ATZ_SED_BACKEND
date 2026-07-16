@@ -4,6 +4,7 @@ import { PublicEventsService } from '@modules/events/public-events.service';
 function makeService(event: any) {
   const prisma = {
     event: { findUnique: jest.fn().mockResolvedValue(event) },
+    form: { findUnique: jest.fn().mockResolvedValue(null) },
     formField: { findMany: jest.fn().mockResolvedValue([]) },
   };
   return { service: new PublicEventsService(prisma as any), prisma };

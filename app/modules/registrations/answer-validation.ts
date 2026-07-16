@@ -18,6 +18,34 @@ function isValidUrl(val: string): boolean {
   }
 }
 
+function normalizeAnswerKey(key: string): string {
+  return key.trim().toLowerCase();
+}
+
+/** Case/whitespace-tolerant map of the submitted answers, keyed by normalized key. */
+export function buildAnswerLookup(answers: Record<string, unknown>): Map<string, unknown> {
+  const map = new Map<string, unknown>();
+  for (const key of Object.keys(answers)) {
+    map.set(normalizeAnswerKey(key), answers[key]);
+  }
+  return map;
+}
+
+/** Resolves an answer by field label, tolerant of case/whitespace mismatch with the submitted key. */
+export function resolveAnswer(answers: Record<string, unknown>, label: string): unknown {
+  return buildAnswerLookup(answers).get(normalizeAnswerKey(label));
+}
+
+/** Resolves an answer trying each candidate key in order, case/whitespace-tolerant. */
+export function resolveAnswerByKeys(answers: Record<string, unknown>, keys: string[]): unknown {
+  const lookup = buildAnswerLookup(answers);
+  for (const key of keys) {
+    const val = lookup.get(normalizeAnswerKey(key));
+    if (val !== undefined) return val;
+  }
+  return undefined;
+}
+
 /**
  * Validates submitted form answers against the organizer-configured fields:
  * required presence, plus basic type/range coherence for typed fields
@@ -27,8 +55,9 @@ export function validateAnswers(
   fields: AnswerFieldMeta[],
   answers: Record<string, unknown>,
 ): void {
+  const lookup = buildAnswerLookup(answers);
   for (const field of fields) {
-    const val = answers[field.label];
+    const val = lookup.get(normalizeAnswerKey(field.label));
     const isEmpty = val === undefined || val === null || String(val).trim() === '';
 
     if (field.required && isEmpty) {

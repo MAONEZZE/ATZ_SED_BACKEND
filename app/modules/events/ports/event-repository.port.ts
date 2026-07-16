@@ -5,14 +5,12 @@ export const EVENT_REPOSITORY_PORT = Symbol('EVENT_REPOSITORY_PORT');
 export interface CreateEventData {
   ownerId: string;
   title: string;
-  description?: string;
   location?: string;
   capacity?: number;
   dressCode?: string;
   groupLink?: string;
   eventDate?: Date;
   endDate?: Date;
-  postRegistrationMessage?: string;
   sendToPipedrive?: boolean;
   recurrenceFreq?: string;
   recurrenceInterval?: number;
@@ -21,7 +19,6 @@ export interface CreateEventData {
 
 export interface UpdateEventData {
   title?: string;
-  description?: string;
   coverUrl?: string | null;
   location?: string;
   capacity?: number;
@@ -29,7 +26,6 @@ export interface UpdateEventData {
   groupLink?: string;
   eventDate?: Date;
   endDate?: Date;
-  postRegistrationMessage?: string;
   sendToPipedrive?: boolean;
   evolutionInstance?: string;
   evolutionToken?: string;

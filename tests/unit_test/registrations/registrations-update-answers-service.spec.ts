@@ -120,6 +120,19 @@ describe('RegistrationsService.updateAnswers', () => {
     });
   });
 
+  it('resolves required/fixed fields when the answer key case differs from the label', async () => {
+    const { service, regRepo } = makeService();
+    const answers = { nome: 'João', 'e-mail': 'joao@test.com', telefone: '11999' };
+
+    await expect(service.updateAnswers('reg-1', 'evt-1', answers, allFields)).resolves.not.toThrow();
+    expect(regRepo.updateAnswers).toHaveBeenCalledWith('reg-1', {
+      answers,
+      name: 'João',
+      email: 'joao@test.com',
+      phone: '11999',
+    });
+  });
+
   it('omits fixed column keys when their label is absent from answers', async () => {
     const { service, regRepo } = makeService();
     // fields: only a non-required non-fixed field — no fixed fields present

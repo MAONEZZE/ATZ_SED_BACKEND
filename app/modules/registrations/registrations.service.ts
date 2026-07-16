@@ -13,7 +13,8 @@ import { FormSubmitted } from '@modules/registrations/entities/form-submitted.ev
 import { EventsService } from '@modules/events/events.service';
 import { UserSubscriptionsService } from './user-subscriptions.service';
 import { PipedriveAdapter } from '@infra/integrations/pipedrive.adapter';
-import { validateAnswers, AnswerFieldMeta } from './answer-validation';
+import { validateAnswers, resolveAnswer, resolveAnswerByKeys, AnswerFieldMeta } from './answer-validation';
+import { normalizePhone } from '@shared/phone';
 
 @Injectable()
 export class RegistrationsService {
@@ -100,6 +101,52 @@ export class RegistrationsService {
     return reg;
   }
 
+  /**
+   * Bulk-imports registrations from an external list (e.g. spreadsheet).
+   * Dedups against existing registrations by normalized phone/email and
+   * skips duplicates. Does not emit `registration.status_changed` — an
+   * imported batch shouldn't trigger `on_registration` automations for
+   * every row.
+   */
+  async importMany(
+    eventId: string,
+    items: Array<{ nome: string; telefone?: string; email?: string }>,
+  ): Promise<{ created: number; skipped: number }> {
+    let created = 0;
+    let skipped = 0;
+
+    for (const item of items) {
+      const name = item.nome.trim();
+      const phone = item.telefone
+        ? (normalizePhone(item.telefone) ?? item.telefone.replace(/\D/g, ''))
+        : '';
+      const email = item.email?.trim().toLowerCase() ?? '';
+
+      if (!phone && !email) {
+        skipped++;
+        continue;
+      }
+
+      const existing = await this.regRepo.findByEventAndContact(eventId, {
+        email: email || undefined,
+        phone: phone || undefined,
+      });
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      const answers: Record<string, unknown> = { nome: name };
+      if (phone) answers.telefone = phone;
+      if (email) answers.email = email;
+
+      await this.regRepo.create({ eventId, answers, name, email, phone });
+      created++;
+    }
+
+    return { created, skipped };
+  }
+
   async findAll(
     eventId: string,
     status?: FunnelStatus,
@@ -167,7 +214,7 @@ export class RegistrationsService {
 
     for (const field of formFields) {
       if (field.required) {
-        const val = answers[field.label];
+        const val = resolveAnswer(answers, field.label);
         if (val === undefined || val === null || String(val).trim() === '') {
           throw new BadRequestException(`Campo obrigatório ausente: "${field.label}"`);
         }
@@ -184,7 +231,7 @@ export class RegistrationsService {
     } = { answers: mergedAnswers };
 
     for (const f of formFields.filter((f) => f.isFixed)) {
-      const raw = answers[f.label];
+      const raw = resolveAnswer(answers, f.label);
       const val = typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
       if (f.type === 'text' && val !== undefined) updateData.name = val;
       else if (f.type === 'email' && val !== undefined) updateData.email = val;
@@ -233,7 +280,7 @@ export class RegistrationsService {
     const id = identifier?.trim() ?? '';
     const contact = id.includes('@')
       ? { email: id.toLowerCase() }
-      : { phone: id.replace(/\D/g, '') };
+      : { phone: normalizePhone(id) ?? id.replace(/\D/g, '') };
 
     if (!contact.email && !contact.phone) {
       throw new BadRequestException('Identificador (email ou telefone) é obrigatório');
@@ -271,11 +318,8 @@ export class RegistrationsService {
   }
 
   private extractString(answers: Record<string, unknown>, keys: string[]): string {
-    for (const key of keys) {
-      const val = answers[key];
-      if (typeof val === 'string' && val.trim()) return val.trim();
-    }
-    return '';
+    const val = resolveAnswerByKeys(answers, keys);
+    return typeof val === 'string' && val.trim() ? val.trim() : '';
   }
 
   private extractByFieldType(
@@ -286,7 +330,7 @@ export class RegistrationsService {
   ): string {
     const field = fields.find((f) => f.type === type);
     if (field) {
-      const val = answers[field.label];
+      const val = resolveAnswer(answers, field.label);
       if (typeof val === 'string' && val.trim()) return val.trim();
     }
     return this.extractString(answers, fallbackKeys);

@@ -16,11 +16,6 @@ export class CreateEventDto {
   @MinLength(3)
   title!: string;
 
-  @ApiPropertyOptional({ example: 'Descrição do evento' })
-  @IsOptional()
-  @IsString()
-  description?: string;
-
   @ApiPropertyOptional({ example: 'São Paulo, SP' })
   @IsOptional()
   @IsString()
@@ -51,11 +46,6 @@ export class CreateEventDto {
   @IsOptional()
   @IsDateString()
   endDate?: string;
-
-  @ApiPropertyOptional({ example: 'Obrigado por se inscrever!' })
-  @IsOptional()
-  @IsString()
-  postRegistrationMessage?: string;
 
   @ApiPropertyOptional({
     example: false,

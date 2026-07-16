@@ -7,14 +7,12 @@ const PUBLIC_EVENT_SELECT = {
   id: true,
   title: true,
   slug: true,
-  description: true,
   coverUrl: true,
   location: true,
   capacity: true,
   dressCode: true,
   eventDate: true,
   endDate: true,
-  postRegistrationMessage: true,
   sendToPipedrive: true,
   status: true,
 } as const;
@@ -45,7 +43,20 @@ export class PublicEventsService {
     if (!event || (event.status !== 'published' && event.status !== 'ended')) {
       throw new NotFoundException('Event not found');
     }
-    return event;
+
+    // description/postRegistrationMessage now live on the registration Form
+    // scope, not on Event — merge them into the public payload so the
+    // public page doesn't need a second round-trip.
+    const form = await this.prisma.form.findUnique({
+      where: { eventId_kind: { eventId: event.id, kind: 'registration' } },
+      select: { description: true, postRegistrationMessage: true },
+    });
+
+    return {
+      ...event,
+      description: form?.description ?? null,
+      postRegistrationMessage: form?.postRegistrationMessage ?? null,
+    };
   }
 
   /**
@@ -63,7 +74,7 @@ export class PublicEventsService {
     if (!visible) throw new NotFoundException('Event not found');
 
     return this.prisma.formField.findMany({
-      where: { eventId: event!.id, kind },
+      where: { form: { eventId: event!.id, kind } },
       orderBy: { order: 'asc' },
       select: PUBLIC_FIELD_SELECT,
     });
@@ -72,7 +83,7 @@ export class PublicEventsService {
   /** Fields used to validate a public registration/post-event/NPS submission. */
   getSubmissionFields(slug: string, kind: PublicFormKind) {
     return this.prisma.formField.findMany({
-      where: { event: { slug }, kind },
+      where: { form: { event: { slug }, kind } },
       select: { label: true, type: true, required: true, options: true },
     });
   }

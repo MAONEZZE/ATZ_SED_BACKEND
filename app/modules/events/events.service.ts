@@ -15,14 +15,12 @@ import { ConfigService } from '@nestjs/config';
 
 export interface CreateEventInput {
   title: string;
-  description?: string;
   location?: string;
   capacity?: number;
   dressCode?: string;
   groupLink?: string;
   eventDate?: Date;
   endDate?: Date;
-  postRegistrationMessage?: string;
   sendToPipedrive?: boolean;
   recurrenceFreq?: string;
   recurrenceInterval?: number;
@@ -31,14 +29,12 @@ export interface CreateEventInput {
 
 export interface UpdateEventInput {
   title?: string;
-  description?: string;
   location?: string;
   capacity?: number;
   dressCode?: string;
   groupLink?: string;
   eventDate?: Date;
   endDate?: Date;
-  postRegistrationMessage?: string;
   sendToPipedrive?: boolean;
   evolutionInstance?: string;
   evolutionToken?: string;

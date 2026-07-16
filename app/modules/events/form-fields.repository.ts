@@ -11,7 +11,7 @@ export class FormFieldsRepository extends PrismaRepositoryBase {
     kind: FormFieldKind | undefined,
     pagination: { skip: number; take: number },
   ): Promise<{ data: object[]; total: number }> {
-    const where = { eventId, ...(kind ? { kind } : {}) };
+    const where = { form: { eventId, ...(kind ? { kind } : {}) } };
     const [data, total] = await Promise.all([
       this.prisma.formField.findMany({
         where,
@@ -25,13 +25,13 @@ export class FormFieldsRepository extends PrismaRepositoryBase {
   }
 
   findByEvent(eventId: string, id: string) {
-    return this.prisma.formField.findFirst({ where: { id, eventId } });
+    return this.prisma.formField.findFirst({ where: { id, form: { eventId } } });
   }
 
   /** Ordered labels of a kind, optionally only the dynamic (non-fixed) ones — used for CSV headers. */
   listLabels(eventId: string, kind: FormFieldKind, onlyDynamic = false) {
     return this.prisma.formField.findMany({
-      where: { eventId, kind, ...(onlyDynamic ? { isFixed: false } : {}) },
+      where: { form: { eventId, kind }, ...(onlyDynamic ? { isFixed: false } : {}) },
       orderBy: { order: 'asc' },
       select: { label: true },
     });
@@ -40,7 +40,7 @@ export class FormFieldsRepository extends PrismaRepositoryBase {
   /** Field metadata used to validate submitted answers. */
   listValidationFields(eventId: string, kind: FormFieldKind) {
     return this.prisma.formField.findMany({
-      where: { eventId, kind },
+      where: { form: { eventId, kind } },
       select: { label: true, type: true, required: true, isFixed: true, options: true },
     });
   }

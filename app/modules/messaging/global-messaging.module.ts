@@ -11,7 +11,7 @@ import { MessageAttachmentsService } from '@modules/messaging/message-attachment
 import { TemplateRenderer } from '@modules/automations/template-renderer.service';
 import { TemplatesService } from '@modules/messaging/templates.service';
 import { MessageLogsService } from '@modules/messaging/message-logs.service';
-import { AutomationsService } from '@modules/automations/automations.service';
+import { AutomationsModule } from '@modules/automations/automations.module';
 
 @Module({
   imports: [
@@ -21,6 +21,7 @@ import { AutomationsService } from '@modules/automations/automations.service';
     MessagingDbModule,
     AutomationsDbModule,
     StorageModule,
+    AutomationsModule,
   ],
   controllers: [GlobalMessagingController],
   providers: [
@@ -29,7 +30,6 @@ import { AutomationsService } from '@modules/automations/automations.service';
     TemplateRenderer,
     TemplatesService,
     MessageLogsService,
-    AutomationsService,
   ],
 })
 export class GlobalMessagingModule {}
