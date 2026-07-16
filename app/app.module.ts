@@ -4,7 +4,8 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { LoggingInterceptor } from '@shared/interceptors/logging.interceptor';
 import { validateEnv } from '@shared/config/env.validation';
 import { PrismaModule } from '@infra/prisma/prisma.module';
 import { HealthModule } from '@shared/health/health.module';
@@ -19,6 +20,7 @@ import { MessagingModule } from '@modules/messaging/messaging.module';
 import { GlobalMessagingModule } from '@modules/messaging/global-messaging.module';
 import { UsersModule } from '@modules/users/users.module';
 import { PublicModule } from '@modules/public/public.module';
+import { EvolutionInstancesModule } from '@modules/evolution-instances/evolution-instances.module';
 
 @Module({
   imports: [
@@ -28,10 +30,13 @@ import { PublicModule } from '@modules/public/public.module';
     }),
     LoggerModule.forRoot({
       pinoHttp: {
-        transport:
-          process.env.NODE_ENV !== 'production'
-            ? { target: 'pino-pretty', options: { colorize: true } }
-            : undefined,
+        autoLogging: false,
+        quietReqLogger: true,
+        redact: ['req.headers.authorization'],
+        transport: {
+          target: 'pino-pretty',
+          options: { colorize: true, singleLine: true, ignore: 'pid,hostname' },
+        },
       },
     }),
     EventEmitterModule.forRoot(),
@@ -49,8 +54,12 @@ import { PublicModule } from '@modules/public/public.module';
     GlobalMessagingModule,
     UsersModule,
     PublicModule,
+    EvolutionInstancesModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

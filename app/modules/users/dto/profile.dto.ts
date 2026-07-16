@@ -8,10 +8,4 @@ export class UpdateProfileDto {
   @MinLength(2)
   @MaxLength(120)
   name?: string;
-
-  @ApiPropertyOptional({ example: 'minha-instancia' })
-  @IsOptional()
-  @IsString()
-  @MinLength(1, { message: 'evolutionInstance não pode ser uma string vazia' })
-  evolutionInstance?: string;
 }

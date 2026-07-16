@@ -5,7 +5,6 @@ import { STORAGE_PORT, StoragePort } from '@infra/storage/storage.port';
 
 export interface UpdateProfileInput {
   name?: string;
-  evolutionInstance?: string;
 }
 
 @Injectable()
@@ -26,7 +25,6 @@ export class ProfileService {
     await this.getByUser(userId);
     return this.repo.update(userId, {
       ...(input.name !== undefined && { name: input.name }),
-      ...(input.evolutionInstance !== undefined && { evolutionInstance: input.evolutionInstance }),
     });
   }
 

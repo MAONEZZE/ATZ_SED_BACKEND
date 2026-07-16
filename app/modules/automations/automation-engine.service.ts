@@ -112,7 +112,7 @@ export class AutomationEngine {
 
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
-      include: { owner: true },
+      include: { evolutionInstance: true },
     });
 
     if (!event) {
@@ -120,7 +120,7 @@ export class AutomationEngine {
       return;
     }
 
-    const instancia = event.evolutionInstance ?? event.owner.evolutionInstance ?? undefined;
+    const instancia = event.evolutionInstance?.name ?? undefined;
 
     for (const rule of rules) {
       const vars = this.renderer.buildVariables({

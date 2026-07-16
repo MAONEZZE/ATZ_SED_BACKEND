@@ -96,11 +96,7 @@ export class MessageDispatchWorker extends WorkerHost {
           emailAttachments.length ? emailAttachments : undefined,
         );
       } else {
-        const instancia = await this.resolveWhatsAppInstance(
-          outbox.eventId,
-          outbox.ownerId,
-          outbox.instancia,
-        );
+        const instancia = await this.resolveWhatsAppInstance(outbox.eventId, outbox.instancia);
         if (!instancia) {
           throw new UnrecoverableError('WhatsApp message has no instancia configured');
         }
@@ -265,24 +261,17 @@ export class MessageDispatchWorker extends WorkerHost {
 
   private async resolveWhatsAppInstance(
     eventId: string | null,
-    ownerId: string | null,
     fallback: string | null,
   ): Promise<string | null> {
+    if (fallback) return fallback;
     if (eventId) {
       const event = await this.prisma.event.findUnique({
         where: { id: eventId },
-        select: { evolutionInstance: true, owner: { select: { evolutionInstance: true } } },
+        select: { evolutionInstance: { select: { name: true } } },
       });
-      return event?.evolutionInstance ?? event?.owner?.evolutionInstance ?? null;
+      return event?.evolutionInstance?.name ?? null;
     }
-    if (ownerId) {
-      const profile = await this.prisma.profile.findUnique({
-        where: { id: ownerId },
-        select: { evolutionInstance: true },
-      });
-      return profile?.evolutionInstance ?? null;
-    }
-    return fallback ?? null;
+    return null;
   }
 
   private mediaTypeOf(mimetype: string): 'image' | 'video' | 'audio' | 'document' {

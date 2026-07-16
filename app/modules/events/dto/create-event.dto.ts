@@ -5,6 +5,7 @@ import {
   IsDateString,
   IsBoolean,
   IsIn,
+  IsUUID,
   MinLength,
   Min,
 } from 'class-validator';
@@ -77,4 +78,9 @@ export class CreateEventDto {
   @IsOptional()
   @IsDateString()
   recurrenceUntil?: string;
+
+  @ApiPropertyOptional({ example: 'c1a2b3c4-...' })
+  @IsOptional()
+  @IsUUID()
+  evolutionInstanceId?: string;
 }

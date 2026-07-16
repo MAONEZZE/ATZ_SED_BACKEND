@@ -25,6 +25,7 @@ export interface CreateEventInput {
   recurrenceFreq?: string;
   recurrenceInterval?: number;
   recurrenceUntil?: Date;
+  evolutionInstanceId?: string;
 }
 
 export interface UpdateEventInput {
@@ -36,7 +37,7 @@ export interface UpdateEventInput {
   eventDate?: Date;
   endDate?: Date;
   sendToPipedrive?: boolean;
-  evolutionInstance?: string;
+  evolutionInstanceId?: string;
   evolutionToken?: string;
   recurrenceFreq?: string;
   recurrenceInterval?: number;

@@ -20,7 +20,7 @@ export class EventEntity {
     public dressCode?: string,
     public groupLink?: string,
     public eventDate?: Date,
-    public evolutionInstance?: string,
+    public evolutionInstanceId?: string,
     public evolutionToken?: string,
     public readonly createdAt?: Date,
     public readonly updatedAt?: Date,
