@@ -22,6 +22,6 @@ import { GuardsModule } from '@shared/guards/guards.module';
     ScheduledAutomationsWorker,
     RecurringAutomationsWorker,
   ],
-  exports: [AutomationEngine, TemplateRenderer],
+  exports: [AutomationEngine, TemplateRenderer, AutomationsService, RecurringSchedulerService],
 })
 export class AutomationsModule {}
