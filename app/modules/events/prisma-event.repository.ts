@@ -70,7 +70,6 @@ export class PrismaEventRepository implements EventRepositoryPort {
     return row ? this.map(row) : null;
   }
 
-  // Eventos acessíveis pelo usuário: dono OU colaborador.
   private accessibleWhere(userId: string) {
     return {
       OR: [{ ownerId: userId }, { collaborators: { some: { profileId: userId } } }],
