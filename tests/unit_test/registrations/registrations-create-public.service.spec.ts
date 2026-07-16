@@ -60,7 +60,7 @@ describe('RegistrationsService.createPublic', () => {
     expect(pipedrive.send).toHaveBeenCalledWith({
       event: { id: 'evt-1', slug: 'slug-1', title: 'Evento' },
       form: 'registration',
-      contact: { name: 'João', email: 'joao@b.com', phone: '11999990000' },
+      contact: { email: 'joao@b.com', phone: '11999990000' },
       answers,
     });
     expect(userSubscriptions.markPipedrive).toHaveBeenCalledWith('us-1', true, 'pending');
@@ -90,12 +90,33 @@ describe('RegistrationsService.createPublic', () => {
       event: { id: 'evt-1', slug: 'slug-1', title: 'Evento' },
       form: 'registration',
       contact: {
-        name: 'João',
         email: 'joao@b.com',
         phone: '11999990000',
         linkedin: 'https://linkedin.com/in/joao',
         instagram: '@joao',
       },
+      answers,
+    });
+  });
+
+  it('picks phone/email for Pipedrive from the typed fields, not the fixed answer keys', async () => {
+    const { svc, pipedrive } = make();
+    const answers = {
+      nome: 'João',
+      'qual o seu e-mail?': 'joao@b.com',
+      'qual o seu telefone?': '11999990000',
+    };
+    const fields = [
+      { label: 'qual o seu e-mail?', type: 'email', required: true },
+      { label: 'qual o seu telefone?', type: 'phone', required: true },
+    ];
+
+    await svc.createPublic('slug-1', answers, fields, true);
+
+    expect(pipedrive.send).toHaveBeenCalledWith({
+      event: { id: 'evt-1', slug: 'slug-1', title: 'Evento' },
+      form: 'registration',
+      contact: { email: 'joao@b.com', phone: '11999990000' },
       answers,
     });
   });

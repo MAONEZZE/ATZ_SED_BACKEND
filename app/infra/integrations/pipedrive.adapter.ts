@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 export interface PipedrivePayload {
   event: { id: string; slug: string; title: string };
   form: 'registration';
-  contact: { name: string; email: string; phone: string; linkedin?: string; instagram?: string };
+  contact: { email: string; phone: string; linkedin?: string; instagram?: string };
   answers: Record<string, unknown>;
 }
 

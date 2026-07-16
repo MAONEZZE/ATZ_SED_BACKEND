@@ -53,8 +53,8 @@ export class RegistrationsService {
     const shouldSendToPipedrive = sendToPipedrive ?? event.sendToPipedrive;
 
     const name = this.extractString(answers, ['nome', 'name']);
-    const email = this.extractString(answers, ['email']);
-    const phone = this.extractString(answers, ['telefone', 'phone']);
+    const email = this.extractByFieldType(answers, fields, 'email', ['email']);
+    const phone = this.extractByFieldType(answers, fields, 'phone', ['telefone', 'phone']);
     const linkedin = this.extractByFieldType(answers, fields, 'linkedin', [
       'linkedin',
       'Linkedin',
@@ -86,7 +86,7 @@ export class RegistrationsService {
         .send({
           event: { id: event.id, slug: event.slug, title: event.title },
           form: 'registration',
-          contact: { name, email, phone, ...(linkedin && { linkedin }), ...(instagram && { instagram }) },
+          contact: { email, phone, ...(linkedin && { linkedin }), ...(instagram && { instagram }) },
           answers,
         })
         .then(() => this.userSubscriptions.markPipedrive(subscription.id, true, 'sent'))
