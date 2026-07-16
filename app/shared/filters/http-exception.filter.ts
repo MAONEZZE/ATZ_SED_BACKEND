@@ -42,7 +42,15 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           : 'Internal server error';
 
     if (status >= 500) {
-      this.logger.error({ err: exception, path: req.url }, 'Unhandled error');
+      const stack = exception instanceof Error ? exception.stack : undefined;
+      const origin = stack?.split('\n')[1]?.trim();
+      this.logger.error({
+        timestamp: new Date().toISOString(),
+        method: req.method,
+        endpoint: req.originalUrl ?? req.url,
+        origin,
+        stack,
+      });
     }
 
     res.status(status).json({

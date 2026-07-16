@@ -24,6 +24,7 @@ export interface ManualRecipientInput {
 
 export interface SendMessageInput {
   eventId?: string;
+  instanceId?: string;
   channel: MessageChannel;
   templateId?: string;
   subject?: string;
@@ -112,6 +113,15 @@ export class ManualSendService {
       dressCode: string | null;
       groupLink: string | null;
     } | null = null;
+
+    let instancia: string | undefined;
+    if (!input.eventId && input.instanceId) {
+      const instance = await this.prisma.evolutionInstance.findUnique({
+        where: { id: input.instanceId },
+      });
+      if (!instance) throw new NotFoundException('Evolution instance not found');
+      instancia = instance.name;
+    }
 
     // Atribuição da mensagem fica sempre com o dono do evento (resolve a instância
     // Evolution e os logs). Sem evento, atribui ao próprio remetente.
@@ -262,6 +272,7 @@ export class ManualSendService {
             dedupKey,
             channel: input.channel,
             recipient: target,
+            instancia,
             renderedBody,
             renderedSubject,
             inviteConfig: input.invite ?? null,

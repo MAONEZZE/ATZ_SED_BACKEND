@@ -11,6 +11,9 @@ import {
   Min,
   Matches,
   ValidateNested,
+  registerDecorator,
+  ValidationOptions,
+  ValidationArguments,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -95,14 +98,43 @@ export class AttachmentRefDto {
   mimetype!: string;
 }
 
+function HasEventOrInstance(validationOptions?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'hasEventOrInstance',
+      target: object.constructor,
+      propertyName,
+      options: validationOptions,
+      validator: {
+        validate(_value: unknown, args: ValidationArguments) {
+          const item = args.object as SendMessageDto;
+          return Boolean(item.eventId || item.instanceId);
+        },
+        defaultMessage() {
+          return 'Informe eventId ou instanceId';
+        },
+      },
+    });
+  };
+}
+
 export class SendMessageDto {
   @ApiPropertyOptional({
     example: 'uuid-do-evento',
-    description: 'Vincula disparo a um evento. Opcional.',
+    description: 'Vincula disparo a um evento. Opcional (exige instanceId se ausente).',
   })
   @IsOptional()
   @IsUUID()
+  @HasEventOrInstance()
   eventId?: string;
+
+  @ApiPropertyOptional({
+    example: 'uuid-da-instancia',
+    description: 'Instância Evolution a usar quando não há eventId.',
+  })
+  @IsOptional()
+  @IsUUID()
+  instanceId?: string;
 
   @ApiProperty({ enum: ['whatsapp', 'email'], example: 'whatsapp' })
   @IsIn(['whatsapp', 'email'])

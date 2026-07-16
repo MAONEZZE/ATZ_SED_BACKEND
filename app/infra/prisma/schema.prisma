@@ -100,7 +100,6 @@ model Profile {
   name             String
   email            String
   photoUrl         String?   @map("photo_url")
-  evolutionInstance String?  @map("evolution_instance")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   events           Event[]   @relation("EventOwner")
@@ -131,13 +130,14 @@ model Event {
   recurrenceInterval Int?           @map("recurrence_interval")
   recurrenceUntil    DateTime?      @map("recurrence_until")
   status            EventStatus     @default(draft)
-  evolutionInstance String?         @map("evolution_instance")
+  evolutionInstanceId String?       @map("evolution_instance_id")
   evolutionToken    String?         @map("evolution_token")
   lastEditedById    String?         @map("last_edited_by")
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
   owner             Profile         @relation("EventOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   lastEditedBy      Profile?        @relation("EventLastEditor", fields: [lastEditedById], references: [id], onDelete: SetNull)
+  evolutionInstance EvolutionInstance? @relation(fields: [evolutionInstanceId], references: [id], onDelete: SetNull)
   collaborators     EventCollaborator[]
   forms             Form[]
   registrations     Registration[]
@@ -149,7 +149,20 @@ model Event {
   messageTemplates  MessageTemplate[]
 
   @@index([ownerId])
+  @@index([evolutionInstanceId])
   @@map("events")
+  @@schema("ATZ_SED")
+}
+
+model EvolutionInstance {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  nickname  String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  events    Event[]
+
+  @@map("evolution_instances")
   @@schema("ATZ_SED")
 }
 

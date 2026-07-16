@@ -15,6 +15,7 @@ export interface CreateEventData {
   recurrenceFreq?: string;
   recurrenceInterval?: number;
   recurrenceUntil?: Date;
+  evolutionInstanceId?: string;
 }
 
 export interface UpdateEventData {
@@ -27,7 +28,7 @@ export interface UpdateEventData {
   eventDate?: Date;
   endDate?: Date;
   sendToPipedrive?: boolean;
-  evolutionInstance?: string;
+  evolutionInstanceId?: string;
   evolutionToken?: string;
   lastEditedById?: string;
   recurrenceFreq?: string | null;
