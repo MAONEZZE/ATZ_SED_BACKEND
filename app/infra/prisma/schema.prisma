@@ -172,6 +172,7 @@ model Form {
   kind                    FormFieldKind @default(registration)
   description             String?
   postRegistrationMessage String?       @map("post_registration_message")
+  linkPostSubscription    String?       @map("link_post_subscription")
   createdAt               DateTime      @default(now()) @map("created_at")
   updatedAt               DateTime      @updatedAt @map("updated_at")
   event                   Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)

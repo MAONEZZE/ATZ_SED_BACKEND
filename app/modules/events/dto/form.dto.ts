@@ -1,4 +1,4 @@
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsUrl } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateFormDto {
@@ -11,4 +11,9 @@ export class UpdateFormDto {
   @IsOptional()
   @IsString()
   postRegistrationMessage?: string;
+
+  @ApiPropertyOptional({ example: 'https://exemplo.com/pos-inscricao' })
+  @IsOptional()
+  @IsUrl()
+  linkPostSubscription?: string;
 }

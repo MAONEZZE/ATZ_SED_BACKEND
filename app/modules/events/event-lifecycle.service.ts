@@ -72,6 +72,7 @@ export class EventLifecycleService {
           kind: form.kind,
           description: form.description,
           postRegistrationMessage: form.postRegistrationMessage,
+          linkPostSubscription: form.linkPostSubscription,
           fields: {
             create: form.fields.map((f) => ({
               label: f.label,

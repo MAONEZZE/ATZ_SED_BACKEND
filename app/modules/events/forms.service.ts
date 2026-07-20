@@ -5,6 +5,7 @@ import { FormFieldKind } from '@modules/events/form-fields.repository';
 export interface UpdateFormInput {
   description?: string;
   postRegistrationMessage?: string;
+  linkPostSubscription?: string;
 }
 
 @Injectable()
@@ -24,6 +25,9 @@ export class FormsService {
       ...(input.description !== undefined && { description: input.description }),
       ...(input.postRegistrationMessage !== undefined && {
         postRegistrationMessage: input.postRegistrationMessage,
+      }),
+      ...(input.linkPostSubscription !== undefined && {
+        linkPostSubscription: input.linkPostSubscription,
       }),
     });
   }
