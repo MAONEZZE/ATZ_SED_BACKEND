@@ -13,7 +13,13 @@ import { FormSubmitted } from '@modules/registrations/entities/form-submitted.ev
 import { EventsService } from '@modules/events/events.service';
 import { UserSubscriptionsService } from './user-subscriptions.service';
 import { PipedriveAdapter } from '@infra/integrations/pipedrive.adapter';
-import { validateAnswers, resolveAnswer, resolveAnswerByKeys, AnswerFieldMeta } from './answer-validation';
+import {
+  validateAnswers,
+  resolveAnswer,
+  resolveAnswerByKeys,
+  buildAnswerLookup,
+  AnswerFieldMeta,
+} from './answer-validation';
 import { normalizePhone } from '@shared/phone';
 
 @Injectable()
@@ -230,13 +236,13 @@ export class RegistrationsService {
       phone?: string;
     } = { answers: mergedAnswers };
 
-    for (const f of formFields.filter((f) => f.isFixed)) {
-      const raw = resolveAnswer(answers, f.label);
-      const val = typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
-      if (f.type === 'text' && val !== undefined) updateData.name = val;
-      else if (f.type === 'email' && val !== undefined) updateData.email = val;
-      else if (f.type === 'phone' && val !== undefined) updateData.phone = val;
-    }
+    const name = this.extractString(mergedAnswers, ['nome', 'name']);
+    const email = this.extractByFieldType(mergedAnswers, formFields, 'email', ['email']);
+    const phone = this.extractByFieldType(mergedAnswers, formFields, 'phone', ['telefone', 'phone']);
+
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+    if (phone) updateData.phone = phone;
 
     return this.regRepo.updateAnswers(id, updateData);
   }
@@ -318,8 +324,19 @@ export class RegistrationsService {
   }
 
   private extractString(answers: Record<string, unknown>, keys: string[]): string {
-    const val = resolveAnswerByKeys(answers, keys);
-    return typeof val === 'string' && val.trim() ? val.trim() : '';
+    const exact = resolveAnswerByKeys(answers, keys);
+    if (typeof exact === 'string' && exact.trim()) return exact.trim();
+
+    const lookup = buildAnswerLookup(answers);
+    for (const key of keys) {
+      const needle = key.trim().toLowerCase();
+      for (const [k, val] of lookup) {
+        if (k.includes(needle) && typeof val === 'string' && val.trim()) {
+          return val.trim();
+        }
+      }
+    }
+    return '';
   }
 
   private extractByFieldType(
