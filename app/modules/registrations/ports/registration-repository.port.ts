@@ -8,6 +8,7 @@ export interface CreateRegistrationData {
   name: string;
   email: string;
   phone: string;
+  imageAuthorization?: boolean;
 }
 
 export interface UpdateAnswersData {

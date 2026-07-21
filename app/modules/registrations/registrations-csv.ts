@@ -8,6 +8,7 @@ export interface CsvRegistration {
   status: string;
   createdAt?: Date;
   answers: Record<string, unknown>;
+  imageAuthorization: boolean;
 }
 
 export interface CsvFormField {
@@ -24,6 +25,7 @@ export function buildRegistrationsCsv(
     { header: 'telefone', value: (r) => r.phone },
     { header: 'status', value: (r) => r.status },
     { header: 'data_inscricao', value: (r) => (r.createdAt ? r.createdAt.toISOString() : '') },
+    { header: 'autorizacao_imagem', value: (r) => (r.imageAuthorization ? 'sim' : 'não') },
     ...formFields.map(
       (f): CsvColumn<CsvRegistration> => ({
         header: f.label,

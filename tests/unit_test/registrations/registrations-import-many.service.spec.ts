@@ -15,6 +15,7 @@ function make(existingByContact: Record<string, unknown> | null = null) {
     emitter as any,
     userSubscriptions as any,
     pipedrive as any,
+    {} as any,
   );
   return { svc, regRepo, emitter, userSubscriptions, pipedrive };
 }
@@ -38,6 +39,7 @@ describe('RegistrationsService.importMany', () => {
       name: 'Fulano',
       email: '',
       phone: '5511912345678',
+      imageAuthorization: false,
     });
   });
 

@@ -12,6 +12,7 @@ function makeRepo() {
     phone: '11999',
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
+    imageAuthorization: false,
   };
   const prisma = {
     registration: {

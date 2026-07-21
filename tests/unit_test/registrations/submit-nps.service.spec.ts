@@ -18,6 +18,7 @@ function make(eventStatus = 'ended', reg: any = null) {
     emitter as any,
     userSubscriptions as any,
     pipedrive as any,
+    {} as any,
   );
   return { svc, regRepo, emitter, userSubscriptions };
 }

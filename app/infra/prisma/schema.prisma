@@ -170,6 +170,7 @@ model Form {
   description             String?
   postRegistrationMessage String?       @map("post_registration_message")
   linkPostSubscription    String?       @map("link_post_subscription")
+  requireImageAuthorization Boolean     @default(false) @map("require_image_authorization")
   createdAt               DateTime      @default(now()) @map("created_at")
   updatedAt               DateTime      @updatedAt @map("updated_at")
   event                   Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -219,6 +220,7 @@ model Registration {
   name           String
   email          String
   phone          String
+  imageAuthorization Boolean    @default(false) @map("image_authorization")
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
   event          Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)

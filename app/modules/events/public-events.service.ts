@@ -49,7 +49,12 @@ export class PublicEventsService {
     // public page doesn't need a second round-trip.
     const form = await this.prisma.form.findUnique({
       where: { eventId_kind: { eventId: event.id, kind: 'registration' } },
-      select: { description: true, postRegistrationMessage: true, linkPostSubscription: true },
+      select: {
+        description: true,
+        postRegistrationMessage: true,
+        linkPostSubscription: true,
+        requireImageAuthorization: true,
+      },
     });
 
     return {
@@ -57,6 +62,7 @@ export class PublicEventsService {
       description: form?.description ?? null,
       postRegistrationMessage: form?.postRegistrationMessage ?? null,
       linkPostSubscription: form?.linkPostSubscription ?? null,
+      requireImageAuthorization: form?.requireImageAuthorization ?? false,
     };
   }
 
