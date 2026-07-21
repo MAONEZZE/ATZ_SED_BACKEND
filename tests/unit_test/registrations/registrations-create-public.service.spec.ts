@@ -21,8 +21,8 @@ function make(eventStatus = 'published', eventSendToPipedrive = false, requireIm
     markPipedrive: jest.fn().mockResolvedValue(undefined),
   };
   const pipedrive = { send: jest.fn().mockResolvedValue(undefined) };
-  const profileRepo = {
-    findById: jest.fn().mockResolvedValue({ id: 'o1', requireImageAuthorization }),
+  const formsService = {
+    getOrCreate: jest.fn().mockResolvedValue({ id: 'form-1', requireImageAuthorization }),
   };
   const svc = new RegistrationsService(
     regRepo as any,
@@ -30,9 +30,9 @@ function make(eventStatus = 'published', eventSendToPipedrive = false, requireIm
     emitter as any,
     userSubscriptions as any,
     pipedrive as any,
-    profileRepo as any,
+    formsService as any,
   );
-  return { svc, regRepo, emitter, userSubscriptions, pipedrive, profileRepo };
+  return { svc, regRepo, emitter, userSubscriptions, pipedrive, formsService };
 }
 
 describe('RegistrationsService.createPublic', () => {
@@ -180,21 +180,21 @@ describe('RegistrationsService.createPublic', () => {
   });
 
   describe('image authorization', () => {
-    it('rejects when owner requires it and the flag is omitted', async () => {
+    it('rejects when the form requires it and the flag is omitted', async () => {
       const { svc } = make('published', false, true);
       await expect(svc.createPublic('slug-1', { nome: 'X' }, [])).rejects.toBeInstanceOf(
         BadRequestException,
       );
     });
 
-    it('rejects when owner requires it and the flag is false', async () => {
+    it('rejects when the form requires it and the flag is false', async () => {
       const { svc } = make('published', false, true);
       await expect(
         svc.createPublic('slug-1', { nome: 'X' }, [], undefined, false),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('accepts and persists true when owner requires it and the flag is true', async () => {
+    it('accepts and persists true when the form requires it and the flag is true', async () => {
       const { svc, regRepo } = make('published', false, true);
       await svc.createPublic('slug-1', { nome: 'X' }, [], undefined, true);
       expect(regRepo.create).toHaveBeenCalledWith(
@@ -202,7 +202,7 @@ describe('RegistrationsService.createPublic', () => {
       );
     });
 
-    it('accepts and persists false when the owner does not require it', async () => {
+    it('accepts and persists false when the form does not require it', async () => {
       const { svc, regRepo } = make('published', false, false);
       await svc.createPublic('slug-1', { nome: 'X' }, []);
       expect(regRepo.create).toHaveBeenCalledWith(

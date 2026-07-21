@@ -13,7 +13,7 @@ import { FormSubmitted } from '@modules/registrations/entities/form-submitted.ev
 import { EventsService } from '@modules/events/events.service';
 import { UserSubscriptionsService } from './user-subscriptions.service';
 import { PipedriveAdapter } from '@infra/integrations/pipedrive.adapter';
-import { ProfileRepository } from '@modules/users/profile.repository';
+import { FormsService } from '@modules/events/forms.service';
 import {
   validateAnswers,
   resolveAnswer,
@@ -34,7 +34,7 @@ export class RegistrationsService {
     private readonly eventEmitter: EventEmitter2,
     private readonly userSubscriptions: UserSubscriptionsService,
     private readonly pipedrive: PipedriveAdapter,
-    private readonly profileRepo: ProfileRepository,
+    private readonly formsService: FormsService,
   ) {}
 
   async createPublic(
@@ -58,8 +58,8 @@ export class RegistrationsService {
       }
     }
 
-    const owner = await this.profileRepo.findById(event.ownerId);
-    if (owner?.requireImageAuthorization && imageAuthorization !== true) {
+    const form = await this.formsService.getOrCreate(event.id, 'registration');
+    if (form.requireImageAuthorization && imageAuthorization !== true) {
       throw new BadRequestException('Autorização de uso de imagem é obrigatória');
     }
 

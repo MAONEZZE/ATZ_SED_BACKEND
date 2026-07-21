@@ -53,5 +53,11 @@ describe('FormsService', () => {
         postRegistrationMessage: 'M',
       });
     });
+
+    it('patches requireImageAuthorization when provided', async () => {
+      const { service, repo } = makeService({ id: 'form-1', eventId: 'evt-1', kind: 'registration' });
+      await service.update('evt-1', 'registration', { requireImageAuthorization: true });
+      expect(repo.update).toHaveBeenCalledWith('form-1', { requireImageAuthorization: true });
+    });
   });
 });

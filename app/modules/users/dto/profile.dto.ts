@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, MinLength, MaxLength } from 'class-validator';
+import { IsString, IsOptional, MinLength, MaxLength } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateProfileDto {
@@ -8,9 +8,4 @@ export class UpdateProfileDto {
   @MinLength(2)
   @MaxLength(120)
   name?: string;
-
-  @ApiPropertyOptional({ example: true })
-  @IsOptional()
-  @IsBoolean()
-  requireImageAuthorization?: boolean;
 }

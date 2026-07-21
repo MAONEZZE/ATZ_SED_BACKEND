@@ -6,6 +6,7 @@ export interface UpdateFormInput {
   description?: string;
   postRegistrationMessage?: string;
   linkPostSubscription?: string;
+  requireImageAuthorization?: boolean;
 }
 
 @Injectable()
@@ -28,6 +29,9 @@ export class FormsService {
       }),
       ...(input.linkPostSubscription !== undefined && {
         linkPostSubscription: input.linkPostSubscription,
+      }),
+      ...(input.requireImageAuthorization !== undefined && {
+        requireImageAuthorization: input.requireImageAuthorization,
       }),
     });
   }

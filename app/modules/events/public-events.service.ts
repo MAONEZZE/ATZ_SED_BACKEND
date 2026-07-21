@@ -15,7 +15,6 @@ const PUBLIC_EVENT_SELECT = {
   endDate: true,
   sendToPipedrive: true,
   status: true,
-  owner: { select: { requireImageAuthorization: true } },
 } as const;
 
 const PUBLIC_FIELD_SELECT = {
@@ -50,17 +49,20 @@ export class PublicEventsService {
     // public page doesn't need a second round-trip.
     const form = await this.prisma.form.findUnique({
       where: { eventId_kind: { eventId: event.id, kind: 'registration' } },
-      select: { description: true, postRegistrationMessage: true, linkPostSubscription: true },
+      select: {
+        description: true,
+        postRegistrationMessage: true,
+        linkPostSubscription: true,
+        requireImageAuthorization: true,
+      },
     });
 
-    const { owner, ...rest } = event;
-
     return {
-      ...rest,
-      requireImageAuthorization: owner?.requireImageAuthorization ?? false,
+      ...event,
       description: form?.description ?? null,
       postRegistrationMessage: form?.postRegistrationMessage ?? null,
       linkPostSubscription: form?.linkPostSubscription ?? null,
+      requireImageAuthorization: form?.requireImageAuthorization ?? false,
     };
   }
 
