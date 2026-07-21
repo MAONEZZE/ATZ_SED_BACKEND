@@ -3,7 +3,6 @@ import { AutomationEngine } from '@modules/automations/automation-engine.service
 import { TemplateRenderer } from '@modules/automations/template-renderer.service';
 import { AutomationsService } from '@modules/automations/automations.service';
 import { RecurringSchedulerService } from '@modules/automations/recurring-scheduler.service';
-import { ScheduledAutomationsWorker } from '@workers/scheduled-automations.worker';
 import { RecurringAutomationsWorker } from '@workers/recurring-automations.worker';
 import { BullQueuesModule } from '@infra/queue/bull-queues.module';
 import { AutomationsDbModule } from '@modules/automations/automations-db.module';
@@ -19,7 +18,6 @@ import { GuardsModule } from '@shared/guards/guards.module';
     TemplateRenderer,
     AutomationsService,
     RecurringSchedulerService,
-    ScheduledAutomationsWorker,
     RecurringAutomationsWorker,
   ],
   exports: [AutomationEngine, TemplateRenderer, AutomationsService, RecurringSchedulerService],

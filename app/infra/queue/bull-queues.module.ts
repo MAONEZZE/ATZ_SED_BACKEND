@@ -3,7 +3,6 @@ import { BullModule } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 
 export const QUEUE_MESSAGE_DISPATCH = 'message-dispatch';
-export const QUEUE_SCHEDULED_AUTOMATIONS = 'scheduled-automations';
 export const QUEUE_RECURRING_AUTOMATIONS = 'recurring-automations';
 
 @Module({
@@ -26,14 +25,6 @@ export const QUEUE_RECURRING_AUTOMATIONS = 'recurring-automations';
           backoff: { type: 'exponential', delay: 2000 },
           removeOnComplete: { age: 3600, count: 100 },
           removeOnFail: { age: 86400, count: 500 },
-        },
-      },
-      {
-        name: QUEUE_SCHEDULED_AUTOMATIONS,
-        streams: { events: { maxLen: 200 } },
-        defaultJobOptions: {
-          removeOnComplete: true,
-          removeOnFail: { age: 86400, count: 50 },
         },
       },
       {

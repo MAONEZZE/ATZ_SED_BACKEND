@@ -49,7 +49,7 @@ describe('RecurringSchedulerService', () => {
     const { svc, queue } = make([
       { key: 'recurring-rule:r1' },
       { key: 'recurring-rule:deleted-rule' },
-      { key: 'scheduled-automations-recurring' },
+      { key: 'some-other-scheduler' },
     ]);
 
     await svc.syncAll([{ id: 'r1', cron: '0 9 * * 1', timezone: 'America/Sao_Paulo' }]);

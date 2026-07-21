@@ -66,9 +66,6 @@ enum AutomationTrigger {
   on_nps
   on_approval
   on_rejection
-  before_event
-  after_event
-  after_approval
   recurring
 
   @@schema("ATZ_SED")

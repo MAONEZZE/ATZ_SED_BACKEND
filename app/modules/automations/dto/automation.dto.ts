@@ -18,9 +18,6 @@ const AUTOMATION_TRIGGERS = [
   'on_nps',
   'on_approval',
   'on_rejection',
-  'after_approval',
-  'before_event',
-  'after_event',
   'recurring',
 ] as const;
 
