@@ -1,7 +1,7 @@
 import { RegistrationsService } from '@modules/registrations/registrations.service';
 import { BadRequestException } from '@nestjs/common';
 
-function make(eventStatus = 'published', eventSendToPipedrive = false) {
+function make(eventStatus = 'published', eventSendToPipedrive = false, requireImageAuthorization = false) {
   const regRepo = {
     create: jest.fn().mockResolvedValue({ id: 'reg-1', eventId: 'evt-1' }),
   };
@@ -21,14 +21,18 @@ function make(eventStatus = 'published', eventSendToPipedrive = false) {
     markPipedrive: jest.fn().mockResolvedValue(undefined),
   };
   const pipedrive = { send: jest.fn().mockResolvedValue(undefined) };
+  const profileRepo = {
+    findById: jest.fn().mockResolvedValue({ id: 'o1', requireImageAuthorization }),
+  };
   const svc = new RegistrationsService(
     regRepo as any,
     eventsService as any,
     emitter as any,
     userSubscriptions as any,
     pipedrive as any,
+    profileRepo as any,
   );
-  return { svc, regRepo, emitter, userSubscriptions, pipedrive };
+  return { svc, regRepo, emitter, userSubscriptions, pipedrive, profileRepo };
 }
 
 describe('RegistrationsService.createPublic', () => {
@@ -46,6 +50,7 @@ describe('RegistrationsService.createPublic', () => {
       name: 'João',
       email: 'joao@b.com',
       phone: '11999990000',
+      imageAuthorization: false,
     });
     expect(emitter.emit).toHaveBeenCalledWith('registration.status_changed', expect.anything());
     expect(userSubscriptions.upsertFromForm).toHaveBeenCalledWith('evt-1', 'registration', answers);
@@ -163,6 +168,7 @@ describe('RegistrationsService.createPublic', () => {
       name: 'João',
       email: 'joao@b.com',
       phone: '11999990000',
+      imageAuthorization: false,
     });
   });
 
@@ -171,5 +177,37 @@ describe('RegistrationsService.createPublic', () => {
     await expect(svc.createPublic('slug-1', { nome: 'X' }, [])).rejects.toBeInstanceOf(
       BadRequestException,
     );
+  });
+
+  describe('image authorization', () => {
+    it('rejects when owner requires it and the flag is omitted', async () => {
+      const { svc } = make('published', false, true);
+      await expect(svc.createPublic('slug-1', { nome: 'X' }, [])).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    });
+
+    it('rejects when owner requires it and the flag is false', async () => {
+      const { svc } = make('published', false, true);
+      await expect(
+        svc.createPublic('slug-1', { nome: 'X' }, [], undefined, false),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('accepts and persists true when owner requires it and the flag is true', async () => {
+      const { svc, regRepo } = make('published', false, true);
+      await svc.createPublic('slug-1', { nome: 'X' }, [], undefined, true);
+      expect(regRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ imageAuthorization: true }),
+      );
+    });
+
+    it('accepts and persists false when the owner does not require it', async () => {
+      const { svc, regRepo } = make('published', false, false);
+      await svc.createPublic('slug-1', { nome: 'X' }, []);
+      expect(regRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ imageAuthorization: false }),
+      );
+    });
   });
 });

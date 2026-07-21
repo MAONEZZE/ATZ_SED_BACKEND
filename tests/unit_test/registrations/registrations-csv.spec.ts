@@ -6,6 +6,7 @@ const reg = {
   phone: '+5511999999999',
   status: 'pending',
   createdAt: new Date('2026-06-01T12:00:00Z'),
+  imageAuthorization: true,
   answers: {
     nome: 'João',
     email: 'joao@test.com',
@@ -18,7 +19,7 @@ describe('buildRegistrationsCsv', () => {
   it('renders fixed header + dynamic columns from form field labels', () => {
     const csv = buildRegistrationsCsv([reg], [{ label: 'Empresa' }]);
     const lines = csv.replace(/^﻿/, '').split('\n');
-    expect(lines[0]).toBe('nome,email,telefone,status,data_inscricao,Empresa');
+    expect(lines[0]).toBe('nome,email,telefone,status,data_inscricao,autorizacao_imagem,Empresa');
   });
 
   it('escapes values containing commas/quotes and formats date as ISO', () => {
@@ -27,7 +28,7 @@ describe('buildRegistrationsCsv', () => {
     // Leading "'" neutralizes CSV-formula injection for cells starting with +/-/=/@
     // (Excel/Sheets hide the marker and render the value as plain text).
     expect(lines[1]).toBe(
-      "João,joao@test.com,'+5511999999999,pending,2026-06-01T12:00:00.000Z,\"ACME, Ltda\"",
+      "João,joao@test.com,'+5511999999999,pending,2026-06-01T12:00:00.000Z,sim,\"ACME, Ltda\"",
     );
   });
 

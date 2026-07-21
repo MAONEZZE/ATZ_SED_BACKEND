@@ -5,6 +5,7 @@ import { STORAGE_PORT, StoragePort } from '@infra/storage/storage.port';
 
 export interface UpdateProfileInput {
   name?: string;
+  requireImageAuthorization?: boolean;
 }
 
 @Injectable()
@@ -25,6 +26,9 @@ export class ProfileService {
     await this.getByUser(userId);
     return this.repo.update(userId, {
       ...(input.name !== undefined && { name: input.name }),
+      ...(input.requireImageAuthorization !== undefined && {
+        requireImageAuthorization: input.requireImageAuthorization,
+      }),
     });
   }
 

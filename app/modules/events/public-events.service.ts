@@ -15,6 +15,7 @@ const PUBLIC_EVENT_SELECT = {
   endDate: true,
   sendToPipedrive: true,
   status: true,
+  owner: { select: { requireImageAuthorization: true } },
 } as const;
 
 const PUBLIC_FIELD_SELECT = {
@@ -52,8 +53,11 @@ export class PublicEventsService {
       select: { description: true, postRegistrationMessage: true, linkPostSubscription: true },
     });
 
+    const { owner, ...rest } = event;
+
     return {
-      ...event,
+      ...rest,
+      requireImageAuthorization: owner?.requireImageAuthorization ?? false,
       description: form?.description ?? null,
       postRegistrationMessage: form?.postRegistrationMessage ?? null,
       linkPostSubscription: form?.linkPostSubscription ?? null,

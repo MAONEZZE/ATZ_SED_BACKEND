@@ -9,9 +9,10 @@ import { RegistrationsDbModule } from '@modules/registrations/registrations-db.m
 import { IntegrationsModule } from '@infra/integrations/integrations.module';
 import { GuardsModule } from '@shared/guards/guards.module';
 import { EventsModule } from '../events/events.module';
+import { UsersDbModule } from '@modules/users/users-db.module';
 
 @Module({
-  imports: [RegistrationsDbModule, IntegrationsModule, GuardsModule, EventsModule],
+  imports: [RegistrationsDbModule, IntegrationsModule, GuardsModule, EventsModule, UsersDbModule],
   controllers: [RegistrationsController, PostEventResponsesController, UserSubscriptionsController],
   providers: [RegistrationsService, UserSubscriptionsService, PostEventResponsesService],
   exports: [RegistrationsService, UserSubscriptionsService],

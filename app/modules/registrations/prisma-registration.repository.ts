@@ -28,6 +28,7 @@ export class PrismaRegistrationRepository
     phone: string;
     createdAt: Date;
     updatedAt: Date;
+    imageAuthorization: boolean;
   }): RegistrationEntity {
     return new RegistrationEntity(
       row.id,
@@ -39,6 +40,7 @@ export class PrismaRegistrationRepository
       row.phone,
       row.createdAt,
       row.updatedAt,
+      row.imageAuthorization,
     );
   }
 

@@ -13,6 +13,7 @@ export class RegistrationEntity {
     public readonly phone: string,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
+    public readonly imageAuthorization: boolean = false,
   ) {}
 
   canTransitionTo(next: FunnelStatus): boolean {

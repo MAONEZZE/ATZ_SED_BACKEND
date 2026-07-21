@@ -97,6 +97,7 @@ model Profile {
   name             String
   email            String
   photoUrl         String?   @map("photo_url")
+  requireImageAuthorization Boolean @default(false) @map("require_image_authorization")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   events           Event[]   @relation("EventOwner")
@@ -219,6 +220,7 @@ model Registration {
   name           String
   email          String
   phone          String
+  imageAuthorization Boolean    @default(false) @map("image_authorization")
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
   event          Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)

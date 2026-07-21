@@ -13,6 +13,7 @@ import { FormSubmitted } from '@modules/registrations/entities/form-submitted.ev
 import { EventsService } from '@modules/events/events.service';
 import { UserSubscriptionsService } from './user-subscriptions.service';
 import { PipedriveAdapter } from '@infra/integrations/pipedrive.adapter';
+import { ProfileRepository } from '@modules/users/profile.repository';
 import {
   validateAnswers,
   resolveAnswer,
@@ -33,6 +34,7 @@ export class RegistrationsService {
     private readonly eventEmitter: EventEmitter2,
     private readonly userSubscriptions: UserSubscriptionsService,
     private readonly pipedrive: PipedriveAdapter,
+    private readonly profileRepo: ProfileRepository,
   ) {}
 
   async createPublic(
@@ -40,6 +42,7 @@ export class RegistrationsService {
     answers: Record<string, unknown>,
     fields: AnswerFieldMeta[],
     sendToPipedrive?: boolean,
+    imageAuthorization?: boolean,
   ): Promise<RegistrationEntity> {
     const event = await this.eventsService.findBySlug(slug);
     if (event.status !== 'published') {
@@ -53,6 +56,11 @@ export class RegistrationsService {
       if (currentCount >= event.capacity) {
         throw new BadRequestException('Event has reached its registration capacity');
       }
+    }
+
+    const owner = await this.profileRepo.findById(event.ownerId);
+    if (owner?.requireImageAuthorization && imageAuthorization !== true) {
+      throw new BadRequestException('Autorização de uso de imagem é obrigatória');
     }
 
     // Body flag overrides; otherwise fall back to the event-level default.
@@ -71,7 +79,14 @@ export class RegistrationsService {
       'Instagram',
     ]);
 
-    const reg = await this.regRepo.create({ eventId: event.id, answers, name, email, phone });
+    const reg = await this.regRepo.create({
+      eventId: event.id,
+      answers,
+      name,
+      email,
+      phone,
+      imageAuthorization: imageAuthorization === true,
+    });
 
     this.eventEmitter.emit(
       'registration.status_changed',
@@ -146,7 +161,7 @@ export class RegistrationsService {
       if (phone) answers.telefone = phone;
       if (email) answers.email = email;
 
-      await this.regRepo.create({ eventId, answers, name, email, phone });
+      await this.regRepo.create({ eventId, answers, name, email, phone, imageAuthorization: false });
       created++;
     }
 
