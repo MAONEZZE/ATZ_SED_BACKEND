@@ -1,5 +1,6 @@
 import { MessageDispatchWorker } from '@workers/message-dispatch.worker';
-import { DelayedError } from 'bullmq';
+import { DelayedError, UnrecoverableError } from 'bullmq';
+import { WhatsappRestrictionError } from '@infra/integrations/uazapi.adapter';
 
 const outboxRow = {
   id: 'msg-1',
@@ -375,5 +376,42 @@ describe('MessageDispatchWorker.process — DISPATCH_GATE_ENABLED (re-pacing no 
     await worker.process(job); // sem token
     expect(pacing.nextDelayMs).not.toHaveBeenCalled();
     expect(uazapi.sendWhatsApp).toHaveBeenCalled();
+  });
+});
+
+describe('MessageDispatchWorker.process — restrição do WhatsApp (463) não-retentável', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  const waRow = {
+    ...outboxRow,
+    id: 'wa-463',
+    channel: 'whatsapp',
+    recipient: '5511999999999',
+    instancia: 'tok-1',
+    sentParts: 0,
+  };
+
+  it('WhatsappRestrictionError → marca failed e relança UnrecoverableError (sem retry)', async () => {
+    const { prisma, resend, uazapi, ics, pacing, config } = makeMocks(waRow);
+    uazapi.sendWhatsApp.mockRejectedValue(
+      new WhatsappRestrictionError('timelock', 463, new Date('2026-07-30T03:54:45Z')),
+    );
+    const worker = new MessageDispatchWorker(
+      prisma as any, resend as any, uazapi as any, ics as any, pacing as any, config as any,
+    );
+
+    await expect(worker.process({ data: { outboxId: 'wa-463' } } as any)).rejects.toBeInstanceOf(
+      UnrecoverableError,
+    );
+
+    // outbox marcado failed com a mensagem do erro
+    const failedCall = prisma.outboxMessage.update.mock.calls.find(
+      (c: any[]) => c[0]?.data?.status === 'failed',
+    );
+    expect(failedCall).toBeDefined();
+    // log de falha criado
+    expect(prisma.messageLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ status: 'failed' }),
+    });
   });
 });

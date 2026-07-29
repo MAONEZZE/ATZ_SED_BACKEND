@@ -4,6 +4,23 @@ import { randomInt } from 'crypto';
 
 const FETCH_TIMEOUT_MS = 20_000;
 
+/**
+ * Restrição temporária imposta pelo WhatsApp ao número (não é erro da API).
+ * Ex.: erro 463 / `WHATSAPP_REACHOUT_TIMELOCK` — conta bloqueada para iniciar
+ * novas conversas por volume/qualidade. Não adianta retentar antes de `until`;
+ * o worker trata isso como não-retentável para não martelar um chip restrito.
+ */
+export class WhatsappRestrictionError extends Error {
+  constructor(
+    message: string,
+    readonly providerCode: number,
+    readonly until: Date | null,
+  ) {
+    super(message);
+    this.name = 'WhatsappRestrictionError';
+  }
+}
+
 @Injectable()
 export class UazapiAdapter {
   private readonly baseUrl: string;
@@ -27,6 +44,31 @@ export class UazapiAdapter {
     if (!this.typingEnabled) return 0;
     const base = randomInt(this.typingMin, this.typingMax + 1);
     return Math.min(base + textLength * this.typingPerChar, this.typingMaxTotal);
+  }
+
+  // Classifica a falha de um /send. Corpo com provider_code 463 ou
+  // error_key WHATSAPP_REACHOUT_TIMELOCK → restrição do WhatsApp (não-retentável),
+  // carregando o `until` do timelock. Qualquer outra falha → BadGateway (retentável).
+  private buildSendError(status: number, errorText: string): Error {
+    try {
+      const body = JSON.parse(errorText) as {
+        provider_code?: number;
+        error_key?: string;
+        details?: { reachout_timelock?: { until?: string } };
+      };
+      if (body?.provider_code === 463 || body?.error_key === 'WHATSAPP_REACHOUT_TIMELOCK') {
+        const untilStr = body?.details?.reachout_timelock?.until;
+        const until = untilStr ? new Date(untilStr) : null;
+        return new WhatsappRestrictionError(
+          `WhatsApp restriction (463) — reachout timelock até ${untilStr ?? 'desconhecido'}`,
+          463,
+          until && !Number.isNaN(until.getTime()) ? until : null,
+        );
+      }
+    } catch {
+      // corpo não-JSON: cai no erro genérico abaixo
+    }
+    return new BadGatewayException(`Uazapi API error (${status}): ${errorText}`);
   }
 
   private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
@@ -118,7 +160,7 @@ export class UazapiAdapter {
     if (!response.ok) {
       const errorText = await response.text();
       this.logger.error({ status: response.status, error: errorText }, 'Uazapi API error');
-      throw new BadGatewayException(`Uazapi API error (${response.status}): ${errorText}`);
+      throw this.buildSendError(response.status, errorText);
     }
     return this.extractMessageId(await response.json().catch(() => null));
   }
@@ -159,7 +201,7 @@ export class UazapiAdapter {
     if (!response.ok) {
       const errorText = await response.text();
       this.logger.error({ status: response.status, error: errorText }, 'Uazapi API sendMedia error');
-      throw new BadGatewayException(`Uazapi API error (${response.status}): ${errorText}`);
+      throw this.buildSendError(response.status, errorText);
     }
     return this.extractMessageId(await response.json().catch(() => null));
   }

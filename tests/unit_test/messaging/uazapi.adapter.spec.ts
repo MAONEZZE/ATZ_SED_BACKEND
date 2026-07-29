@@ -1,4 +1,4 @@
-import { UazapiAdapter } from '@infra/integrations/uazapi.adapter';
+import { UazapiAdapter, WhatsappRestrictionError } from '@infra/integrations/uazapi.adapter';
 
 function makeConfig(over: Record<string, unknown> = {}) {
   const base: Record<string, unknown> = {
@@ -74,6 +74,45 @@ describe('UazapiAdapter.sendWhatsApp', () => {
 
   it('lança em resposta não-ok', async () => {
     const fn = jest.fn().mockResolvedValue({ ok: false, status: 400, text: async () => 'bad' });
+    (global as any).fetch = fn;
+    const adapter = new UazapiAdapter(makeConfig() as any);
+    await expect(adapter.sendWhatsApp('token-1', '+55', 'oi')).rejects.toThrow('Uazapi API error');
+  });
+
+  it('erro 463/timelock → WhatsappRestrictionError com until (não BadGateway genérico)', async () => {
+    const body = JSON.stringify({
+      provider_code: 463,
+      error_key: 'WHATSAPP_REACHOUT_TIMELOCK',
+      details: { reachout_timelock: { until: '2026-07-30T03:54:45Z' } },
+    });
+    const fn = jest.fn().mockResolvedValue({ ok: false, status: 500, text: async () => body });
+    (global as any).fetch = fn;
+    const adapter = new UazapiAdapter(makeConfig() as any);
+    await expect(adapter.sendWhatsApp('token-1', '+55', 'oi')).rejects.toBeInstanceOf(
+      WhatsappRestrictionError,
+    );
+    try {
+      await adapter.sendWhatsApp('token-1', '+55', 'oi');
+    } catch (e) {
+      const err = e as WhatsappRestrictionError;
+      expect(err.providerCode).toBe(463);
+      expect(err.until?.toISOString()).toBe('2026-07-30T03:54:45.000Z');
+    }
+  });
+
+  it('detecta pelo error_key mesmo sem provider_code', async () => {
+    const body = JSON.stringify({ error_key: 'WHATSAPP_REACHOUT_TIMELOCK', details: {} });
+    const fn = jest.fn().mockResolvedValue({ ok: false, status: 500, text: async () => body });
+    (global as any).fetch = fn;
+    const adapter = new UazapiAdapter(makeConfig() as any);
+    await expect(adapter.sendWhatsApp('token-1', '+55', 'oi')).rejects.toBeInstanceOf(
+      WhatsappRestrictionError,
+    );
+  });
+
+  it('erro não-463 continua sendo Uazapi API error (retentável)', async () => {
+    const body = JSON.stringify({ provider_code: 500, error: 'algo genérico' });
+    const fn = jest.fn().mockResolvedValue({ ok: false, status: 500, text: async () => body });
     (global as any).fetch = fn;
     const adapter = new UazapiAdapter(makeConfig() as any);
     await expect(adapter.sendWhatsApp('token-1', '+55', 'oi')).rejects.toThrow('Uazapi API error');

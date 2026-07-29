@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { Job, UnrecoverableError, DelayedError } from 'bullmq';
 import { PrismaService } from '@infra/prisma/prisma.service';
 import { ResendAdapter } from '@infra/integrations/resend.adapter';
-import { UazapiAdapter } from '@infra/integrations/uazapi.adapter';
+import { UazapiAdapter, WhatsappRestrictionError } from '@infra/integrations/uazapi.adapter';
 import { QUEUE_MESSAGE_DISPATCH } from '@infra/queue/bull-queues.module';
 import { WhatsappPacingService } from '@modules/messaging/whatsapp-pacing.service';
 import { IcsGeneratorService } from '@modules/automations/ics-generator.service';
@@ -206,6 +206,15 @@ export class MessageDispatchWorker extends WorkerHost {
         },
       });
       if (err instanceof UnrecoverableError) throw err;
+      // Restrição do WhatsApp (463/timelock): não adianta retentar antes do `until`
+      // — retentar só martela um chip já restrito e piora a qualidade. Não-retentável.
+      if (err instanceof WhatsappRestrictionError) {
+        this.logger.warn(
+          { id: outbox.id, providerCode: err.providerCode, until: err.until },
+          'WhatsApp restriction — dispatch marcado como não-retentável',
+        );
+        throw new UnrecoverableError(msg);
+      }
       throw new Error(msg);
     }
   }
