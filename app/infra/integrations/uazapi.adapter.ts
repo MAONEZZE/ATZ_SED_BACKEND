@@ -264,11 +264,20 @@ export class UazapiAdapter {
         return null;
       }
       const data = (await response.json()) as {
-        status?: string;
+        status?: { connected?: boolean; loggedIn?: boolean } | string;
         instance?: { status?: string };
       };
-      // Shape defensivo: status no topo ou aninhado em `instance`.
-      return data.status ?? data.instance?.status ?? null;
+      // Shape real da Uazapi: `instance.status` é a string de conexão
+      // ("connected"/"connecting"/"disconnected") e `status` é um OBJETO
+      // { connected, loggedIn, jid }. A string de conexão vem de instance.status;
+      // o objeto status expõe o booleano `connected`.
+      if (data.instance?.status) return data.instance.status;
+      if (data.status && typeof data.status === 'object') {
+        return data.status.connected ? 'connected' : 'disconnected';
+      }
+      // Fallback defensivo: shapes antigos que traziam a string no topo.
+      if (typeof data.status === 'string') return data.status;
+      return null;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error({ error: msg }, 'Uazapi API instanceStatus failure');
