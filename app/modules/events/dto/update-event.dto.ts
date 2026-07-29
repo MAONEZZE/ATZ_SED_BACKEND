@@ -8,12 +8,12 @@ export class UpdateEventDto extends PartialType(CreateEventDto) {
   @ApiPropertyOptional({ example: 'c1a2b3c4-...' })
   @IsOptional()
   @IsUUID()
-  evolutionInstanceId?: string;
+  uazapiInstanceId?: string;
 
-  @ApiPropertyOptional({ example: 'token-evolution-api' })
+  @ApiPropertyOptional({ example: 'token-uazapi' })
   @IsOptional()
   @IsString()
-  evolutionToken?: string;
+  uazapiToken?: string;
 }
 
 export class UpdateEventStatusDto {

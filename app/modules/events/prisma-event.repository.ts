@@ -26,8 +26,8 @@ export class PrismaEventRepository implements EventRepositoryPort {
     eventDate: Date | null;
     endDate: Date | null;
     sendToPipedrive: boolean;
-    evolutionInstanceId: string | null;
-    evolutionToken: string | null;
+    uazapiInstanceId: string | null;
+    uazapiToken: string | null;
     lastEditedById: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -47,8 +47,8 @@ export class PrismaEventRepository implements EventRepositoryPort {
       row.dressCode ?? undefined,
       row.groupLink ?? undefined,
       row.eventDate ?? undefined,
-      row.evolutionInstanceId ?? undefined,
-      row.evolutionToken ?? undefined,
+      row.uazapiInstanceId ?? undefined,
+      row.uazapiToken ?? undefined,
       row.createdAt,
       row.updatedAt,
       row.endDate ?? undefined,

@@ -13,8 +13,9 @@ describe('validateEnv', () => {
     SUPABASE_STORAGE_BUCKET_COVERS: 'event-covers',
     SUPABASE_STORAGE_BUCKET_UPLOADS: 'registration-uploads',
     SUPABASE_STORAGE_BUCKET_PROFILE_PHOTOS: 'profile-photo',
-    EVOLUTION_API_URL: 'https://evolution.example.com',
-    EVOLUTION_API_KEY: 'key',
+    UAZAPI_API_URL: 'https://free.uazapi.com',
+    UAZAPI_WEBHOOK_SECRET: 'webhook-secret',
+    APP_PUBLIC_URL: 'https://api.example.com',
     RESEND_API_KEY: 're_xxx',
     RESEND_FROM_EMAIL: 'no-reply@example.com',
     PIPEDRIVE_WEBHOOK_URL: 'https://n8n.example.com/webhook/x',
@@ -27,6 +28,7 @@ describe('validateEnv', () => {
     WA_AUTOMATION_GAP_MIN_MS: '40000',
     WA_AUTOMATION_GAP_MAX_MS: '60000',
     WA_DISPATCH_CONCURRENCY: '1',
+    DISPATCH_GATE_ENABLED: 'false',
     WA_TYPING_ENABLED: 'true',
     WA_TYPING_MIN_MS: '1500',
     WA_TYPING_MAX_MS: '4000',
@@ -85,5 +87,17 @@ describe('validateEnv', () => {
   it('parses WA_TYPING_ENABLED="false" as boolean false', () => {
     const result = validateEnv({ ...validEnv, WA_TYPING_ENABLED: 'false' });
     expect(result.WA_TYPING_ENABLED).toBe(false);
+  });
+
+  it('parses DISPATCH_GATE_ENABLED — true só quando "true"/true, senão false', () => {
+    expect(validateEnv({ ...validEnv, DISPATCH_GATE_ENABLED: 'true' }).DISPATCH_GATE_ENABLED).toBe(true);
+    expect(validateEnv({ ...validEnv, DISPATCH_GATE_ENABLED: true }).DISPATCH_GATE_ENABLED).toBe(true);
+    expect(validateEnv({ ...validEnv, DISPATCH_GATE_ENABLED: 'false' }).DISPATCH_GATE_ENABLED).toBe(false);
+    expect(validateEnv({ ...validEnv, DISPATCH_GATE_ENABLED: 'anything' }).DISPATCH_GATE_ENABLED).toBe(false);
+  });
+
+  it('throws when DISPATCH_GATE_ENABLED is missing (sem default escondido)', () => {
+    const { DISPATCH_GATE_ENABLED: _, ...rest } = validEnv;
+    expect(() => validateEnv(rest)).toThrow('Environment validation failed');
   });
 });

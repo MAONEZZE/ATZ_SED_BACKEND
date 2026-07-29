@@ -11,7 +11,7 @@ const event = {
   capacity: 100,
   dressCode: null,
   groupLink: null,
-  evolutionInstance: 'inst-1',
+  uazapiInstance: 'inst-1',
 };
 
 const regJoao = {
@@ -43,6 +43,8 @@ function makeService(overrides?: {
   registrations?: unknown[];
   template?: unknown;
   collaboratorCount?: number;
+  gate?: boolean;
+  eventToken?: string | null;
 }) {
   const prisma = {
     registration: {
@@ -56,12 +58,24 @@ function makeService(overrides?: {
     eventCollaborator: {
       count: jest.fn().mockResolvedValue(overrides?.collaboratorCount ?? 0),
     },
+    // Gate ON event-scoped: resolve o token da instância do evento p/ o cursor.
+    event: {
+      findUnique: jest.fn().mockResolvedValue({
+        uazapiInstance: {
+          token: overrides && 'eventToken' in overrides ? overrides.eventToken : 'tok-evt',
+        },
+      }),
+    },
+    uazapiInstance: {
+      findUnique: jest.fn().mockResolvedValue({ id: 'inst-1', token: 'tok-manual' }),
+    },
   };
   const eventsService = { findById: jest.fn().mockResolvedValue(event) };
   const outbox = { enqueue: jest.fn().mockResolvedValue(undefined) };
   const storage = { getPublicUrl: jest.fn((_b: string, p: string) => `https://cdn/${p}`), upload: jest.fn(), delete: jest.fn() };
   const cfg: Record<string, unknown> = {
     ...pacing,
+    DISPATCH_GATE_ENABLED: overrides?.gate ?? false,
     SUPABASE_STORAGE_BUCKET: 'ATZ_SED',
     SUPABASE_STORAGE_BUCKET_MESSAGE_ATTACHMENTS: 'message-attachments',
   };
@@ -439,5 +453,100 @@ describe('ManualSendService.send', () => {
       eventId: 'evt-1', channel: 'email', body: 'oi', registrationIds: ['reg-1'],
       attachments: [{ path: 'message-attachments/user-1/../user-2/secret.pdf', filename: 's.pdf', mimetype: 'application/pdf' }],
     }, 'user-1')).rejects.toThrow(BadRequestException);
+  });
+
+  it('expande groupIds em destinatários com o JID como recipient (whatsapp)', async () => {
+    const { service, outbox } = makeService({ registrations: [] });
+    const result = await service.send(
+      { eventId: 'evt-1', channel: 'whatsapp', body: 'oi grupo', groupIds: ['120363424826018469@g.us'] },
+      'user-1',
+    );
+    expect(result.queued).toBe(1);
+    expect(outbox.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ recipient: '120363424826018469@g.us', channel: 'whatsapp' }),
+      expect.any(Object),
+    );
+  });
+
+  it('rejeita groupIds em canal email', async () => {
+    const { service } = makeService({ registrations: [] });
+    await expect(
+      service.send(
+        { eventId: 'evt-1', channel: 'email', body: 'oi', groupIds: ['120363424826018469@g.us'] },
+        'user-1',
+      ),
+    ).rejects.toThrow(BadRequestException);
+  });
+});
+
+describe('ManualSendService.send — DISPATCH_GATE_ENABLED (gate ON)', () => {
+  it('whatsapp event-scoped: roteia pelo cursor (paceInstancia+extraDelayMs), NÃO delayMs', async () => {
+    const { service, prisma, outbox } = makeService({
+      gate: true,
+      eventToken: 'tok-evt',
+      registrations: [
+        { ...regJoao, id: 'r1', phone: '+5511000000001' },
+        { ...regJoao, id: 'r2', phone: '+5511000000002' },
+      ],
+    });
+    const result = await service.send(
+      { eventId: 'evt-1', channel: 'whatsapp', body: 'oi', registrationIds: ['r1', 'r2'] },
+      'user-1',
+    );
+    expect(result.queued).toBe(2);
+    // token da instância do evento resolvido p/ o cursor
+    expect(prisma.event.findUnique).toHaveBeenCalled();
+    // primeiro lote (batchDelayCursor=0) → extraDelayMs 0; sempre paceInstancia, nunca delayMs
+    for (const call of outbox.enqueue.mock.calls) {
+      expect(call[1]).toEqual({ paceInstancia: 'tok-evt', extraDelayMs: 0 });
+      expect(call[1]).not.toHaveProperty('delayMs');
+    }
+  });
+
+  it('gap de lote vira extraDelayMs no 2º lote (preserva pausa entre lotes)', async () => {
+    // MANUAL_BATCH_SIZE=3, batch delay min=max=100000 → 2º lote extraDelayMs=100000
+    const { service, outbox } = makeService({
+      gate: true,
+      eventToken: 'tok-evt',
+      registrations: [
+        { ...regJoao, id: 'r1', phone: '+5511000000001' },
+        { ...regJoao, id: 'r2', phone: '+5511000000002' },
+        { ...regJoao, id: 'r3', phone: '+5511000000003' },
+        { ...regJoao, id: 'r4', phone: '+5511000000004' },
+      ],
+    });
+    await service.send(
+      { eventId: 'evt-1', channel: 'whatsapp', body: 'oi', registrationIds: ['r1', 'r2', 'r3', 'r4'] },
+      'user-1',
+    );
+    const extras = outbox.enqueue.mock.calls.map((c: any[]) => c[1].extraDelayMs);
+    expect(extras).toEqual([0, 0, 0, 100000]); // 3 no lote 0, o 4º no lote 1
+  });
+
+  it('email ignora o gate (sempre delayMs 0, sem paceInstancia)', async () => {
+    const { service, outbox } = makeService({ gate: true });
+    await service.send(
+      { eventId: 'evt-1', channel: 'email', body: 'oi', registrationIds: ['reg-1'] },
+      'user-1',
+    );
+    expect(outbox.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ channel: 'email' }),
+      { delayMs: 0 },
+    );
+  });
+
+  it('sem token resolvível cai no legado (delayMs cumulativo)', async () => {
+    const { service, outbox } = makeService({
+      gate: true,
+      eventToken: null, // evento sem instância → sem token
+    });
+    await service.send(
+      { eventId: 'evt-1', channel: 'whatsapp', body: 'oi', registrationIds: ['reg-1'] },
+      'user-1',
+    );
+    expect(outbox.enqueue).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ delayMs: 1000 }), // legado: innerDelayCursor (min=max=1000)
+    );
   });
 });

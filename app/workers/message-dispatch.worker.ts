@@ -1,10 +1,12 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
-import { Job, UnrecoverableError } from 'bullmq';
+import { ConfigService } from '@nestjs/config';
+import { Job, UnrecoverableError, DelayedError } from 'bullmq';
 import { PrismaService } from '@infra/prisma/prisma.service';
 import { ResendAdapter } from '@infra/integrations/resend.adapter';
-import { EvolutionAdapter } from '@infra/integrations/evolution.adapter';
+import { UazapiAdapter } from '@infra/integrations/uazapi.adapter';
 import { QUEUE_MESSAGE_DISPATCH } from '@infra/queue/bull-queues.module';
+import { WhatsappPacingService } from '@modules/messaging/whatsapp-pacing.service';
 import { IcsGeneratorService } from '@modules/automations/ics-generator.service';
 import type { InviteConfigInput, OutboxAttachment } from '@modules/messaging/ports/outbox-repository.port';
 import { APP_TIMEZONE } from '@shared/timezone';
@@ -24,16 +26,21 @@ const ICS_MARKER_RECURRENT = '[[[ICS_INVITE_RECURRENT]]]';
 export class MessageDispatchWorker extends WorkerHost {
   private readonly logger = new Logger(MessageDispatchWorker.name);
 
+  private readonly gateEnabled: boolean;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly resend: ResendAdapter,
-    private readonly evolution: EvolutionAdapter,
+    private readonly uazapi: UazapiAdapter,
     private readonly ics: IcsGeneratorService,
+    private readonly pacing: WhatsappPacingService,
+    config: ConfigService,
   ) {
     super();
+    this.gateEnabled = config.get<boolean>('DISPATCH_GATE_ENABLED') ?? false;
   }
 
-  async process(job: Job): Promise<void> {
+  async process(job: Job, token?: string): Promise<void> {
     const { outboxId, registrationId, templateId, trigger } = job.data as {
       outboxId?: string;
       registrationId?: string;
@@ -65,12 +72,31 @@ export class MessageDispatchWorker extends WorkerHost {
       return;
     }
 
+    // Gate de re-pacing no retry (DISPATCH_GATE_ENABLED). A 1ª tentativa já foi
+    // espaçada no enqueue; retries (attemptsMade>=1) bypassariam o gap anti-ban, então
+    // reservam um slot novo no cursor compartilhado e são reagendados (moveToDelayed).
+    // reserve-once-and-honor: o marcador pacedForAttempt evita reservar 2x na mesma
+    // tentativa (DelayedError NÃO incrementa attemptsMade), impedindo drift do cursor.
+    if (this.gateEnabled && outbox.channel === 'whatsapp' && token) {
+      const wToken = await this.resolveWhatsAppInstance(outbox.eventId, outbox.instancia);
+      const data = job.data as { pacedForAttempt?: number };
+      if (wToken && job.attemptsMade >= 1 && data.pacedForAttempt !== job.attemptsMade) {
+        const extra = await this.pacing.nextDelayMs(wToken);
+        await job.updateData({ ...job.data, pacedForAttempt: job.attemptsMade });
+        if (extra > 0) {
+          await job.moveToDelayed(Date.now() + extra, token);
+          throw new DelayedError();
+        }
+      }
+    }
+
     await this.prisma.outboxMessage.update({
       where: { id: outbox.id },
       data: { status: 'processing', attempts: { increment: 1 } },
     });
 
     try {
+      let whatsappMessageId: string | null = null;
       if (outbox.channel === 'email') {
         let body = outbox.renderedBody;
         let icsContent: string | undefined;
@@ -96,41 +122,54 @@ export class MessageDispatchWorker extends WorkerHost {
           emailAttachments.length ? emailAttachments : undefined,
         );
       } else {
-        const instancia = await this.resolveWhatsAppInstance(outbox.eventId, outbox.instancia);
-        if (!instancia) {
-          throw new UnrecoverableError('WhatsApp message has no instancia configured');
+        const token = await this.resolveWhatsAppInstance(outbox.eventId, outbox.instancia);
+        if (!token) {
+          throw new UnrecoverableError('WhatsApp message has no Uazapi token configured');
         }
-        await this.evolution.sendWhatsApp(instancia, outbox.recipient, outbox.renderedBody, {
-          startIndex: outbox.sentParts,
-          onPartSent: async (index) => {
-            await this.prisma.outboxMessage.update({
-              where: { id: outbox.id },
-              data: { sentParts: index + 1 },
-            });
+        // track_id = outbox.id: o webhook de status devolve esse id, correlacionando
+        // a confirmação de entrega/leitura de volta com esta mensagem.
+        let providerMessageId = await this.uazapi.sendWhatsApp(
+          token,
+          outbox.recipient,
+          outbox.renderedBody,
+          {
+            startIndex: outbox.sentParts,
+            trackId: outbox.id,
+            onPartSent: async (index) => {
+              await this.prisma.outboxMessage.update({
+                where: { id: outbox.id },
+                data: { sentParts: index + 1 },
+              });
+            },
           },
-        });
+        );
 
         const attachments = (outbox.attachments as OutboxAttachment[] | null) ?? [];
         for (let i = outbox.sentAttachments; i < attachments.length; i++) {
           const a = attachments[i];
-          await this.evolution.sendMedia(
-            instancia,
+          const mediaMessageId = await this.uazapi.sendMedia(
+            token,
             outbox.recipient,
             a.url,
             this.mediaTypeOf(a.mimetype),
             a.mimetype,
             a.filename,
+            undefined,
+            outbox.id,
           );
+          providerMessageId = mediaMessageId ?? providerMessageId;
           await this.prisma.outboxMessage.update({
             where: { id: outbox.id },
             data: { sentAttachments: i + 1 },
           });
         }
+
+        whatsappMessageId = providerMessageId;
       }
 
       await this.prisma.outboxMessage.update({
         where: { id: outbox.id },
-        data: { status: 'sent', processedAt: new Date() },
+        data: { status: 'sent', processedAt: new Date(), providerMessageId: whatsappMessageId },
       });
 
       await this.prisma.messageLog.create({
@@ -142,6 +181,7 @@ export class MessageDispatchWorker extends WorkerHost {
           recipient: outbox.recipient,
           body: outbox.renderedBody,
           status: 'sent',
+          providerMessageId: whatsappMessageId,
           sentAt: new Date(),
         },
       });
@@ -259,6 +299,8 @@ export class MessageDispatchWorker extends WorkerHost {
     return undefined;
   }
 
+  // Resolve o token Uazapi da instância. `fallback` (outbox.instancia) já carrega
+  // o token quando o disparo não está vinculado a um evento.
   private async resolveWhatsAppInstance(
     eventId: string | null,
     fallback: string | null,
@@ -267,9 +309,9 @@ export class MessageDispatchWorker extends WorkerHost {
     if (eventId) {
       const event = await this.prisma.event.findUnique({
         where: { id: eventId },
-        select: { evolutionInstance: { select: { name: true } } },
+        select: { uazapiInstance: { select: { token: true } } },
       });
-      return event?.evolutionInstance?.name ?? null;
+      return event?.uazapiInstance?.token ?? null;
     }
     return null;
   }

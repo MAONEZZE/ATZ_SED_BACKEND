@@ -1,4 +1,5 @@
 import { MessageDispatchWorker } from '@workers/message-dispatch.worker';
+import { DelayedError } from 'bullmq';
 
 const outboxRow = {
   id: 'msg-1',
@@ -30,20 +31,23 @@ function makeMocks(row: unknown) {
     },
   };
   const resend = { sendEmail: jest.fn().mockResolvedValue(undefined) };
-  const evolution = {
-    sendWhatsApp: jest.fn().mockResolvedValue(undefined),
-    sendMedia: jest.fn().mockResolvedValue(undefined),
+  const uazapi = {
+    sendWhatsApp: jest.fn().mockResolvedValue('wamid.TEXT'),
+    sendMedia: jest.fn().mockResolvedValue('wamid.MEDIA'),
   };
   const ics = { generate: jest.fn().mockReturnValue('BEGIN:VCALENDAR') };
-  return { prisma, resend, evolution, ics };
+  // Gate OFF por padrão; pacing não deve ser tocado nos testes legados.
+  const pacing = { nextDelayMs: jest.fn().mockResolvedValue(0) };
+  const config = { get: jest.fn().mockReturnValue(false) };
+  return { prisma, resend, uazapi, ics, pacing, config };
 }
 
 describe('MessageDispatchWorker.process', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('resolves outbox by outboxId when present in job data', async () => {
-    const { prisma, resend, evolution, ics } = makeMocks(outboxRow);
-    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any, ics as any);
+    const { prisma, resend, uazapi, ics, pacing, config } = makeMocks(outboxRow);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, uazapi as any, ics as any, pacing as any, config as any);
     await worker.process({ data: { outboxId: 'msg-1' } } as any);
     expect(prisma.outboxMessage.findUnique).toHaveBeenCalledWith({
       where: { id: 'msg-1' },
@@ -53,8 +57,8 @@ describe('MessageDispatchWorker.process', () => {
   });
 
   it('falls back to tuple lookup for legacy jobs without outboxId', async () => {
-    const { prisma, resend, evolution, ics } = makeMocks(outboxRow);
-    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any, ics as any);
+    const { prisma, resend, uazapi, ics, pacing, config } = makeMocks(outboxRow);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, uazapi as any, ics as any, pacing as any, config as any);
     await worker.process({
       data: {
         registrationId: 'reg-1',
@@ -74,8 +78,8 @@ describe('MessageDispatchWorker.process', () => {
       templateId: null,
       trigger: 'manual',
     };
-    const { prisma, resend, evolution, ics } = makeMocks(manualRow);
-    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any, ics as any);
+    const { prisma, resend, uazapi, ics, pacing, config } = makeMocks(manualRow);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, uazapi as any, ics as any, pacing as any, config as any);
     await worker.process({ data: { outboxId: 'msg-2' } } as any);
     expect(prisma.messageLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ registrationId: null, status: 'sent' }),
@@ -97,8 +101,8 @@ describe('MessageDispatchWorker.process', () => {
         recurrence: { freq: 'WEEKLY', interval: 1, until: '2026-12-31T20:00:00.000Z' },
       },
     };
-    const { prisma, resend, evolution, ics } = makeMocks(row);
-    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any, ics as any);
+    const { prisma, resend, uazapi, ics, pacing, config } = makeMocks(row);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, uazapi as any, ics as any, pacing as any, config as any);
     await worker.process({ data: { outboxId: 'inv-1' } } as any);
 
     expect(ics.generate).toHaveBeenCalledTimes(1);
@@ -131,8 +135,8 @@ describe('MessageDispatchWorker.process', () => {
         recurrence: null,
       },
     };
-    const { prisma, resend, evolution, ics } = makeMocks(row);
-    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any, ics as any);
+    const { prisma, resend, uazapi, ics, pacing, config } = makeMocks(row);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, uazapi as any, ics as any, pacing as any, config as any);
     await worker.process({ data: { outboxId: 'inv-2' } } as any);
 
     const arg = ics.generate.mock.calls[0][0];
@@ -155,8 +159,8 @@ describe('MessageDispatchWorker.process', () => {
         recurrence: { freq: 'WEEKLY', interval: 1 },
       },
     };
-    const { prisma, resend, evolution, ics } = makeMocks(row);
-    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any, ics as any);
+    const { prisma, resend, uazapi, ics, pacing, config } = makeMocks(row);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, uazapi as any, ics as any, pacing as any, config as any);
     await worker.process({ data: { outboxId: 'inv-3' } } as any);
     expect(ics.generate.mock.calls[0][0].repeating).toBeUndefined();
   });
@@ -169,7 +173,7 @@ describe('MessageDispatchWorker.process', () => {
       renderedBody: '[[[ICS_INVITE_RECURRENT]]]',
       inviteConfig: null,
     };
-    const { prisma, resend, evolution, ics } = makeMocks(row);
+    const { prisma, resend, uazapi, ics, pacing, config } = makeMocks(row);
     prisma.event.findUnique.mockResolvedValue({
       title: 'Tech Day',
       eventDate: new Date('2026-07-01T13:00:00.000Z'),
@@ -179,7 +183,7 @@ describe('MessageDispatchWorker.process', () => {
       recurrenceInterval: 2,
       recurrenceUntil: null,
     });
-    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any, ics as any);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, uazapi as any, ics as any, pacing as any, config as any);
     await worker.process({ data: { outboxId: 'inv-4' } } as any);
 
     const arg = ics.generate.mock.calls[0][0];
@@ -200,8 +204,8 @@ describe('MessageDispatchWorker.process', () => {
       trigger: 'manual',
       channel: 'email',
     };
-    const { prisma, resend, evolution, ics } = makeMocks(globalRow);
-    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any, ics as any);
+    const { prisma, resend, uazapi, ics, pacing, config } = makeMocks(globalRow);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, uazapi as any, ics as any, pacing as any, config as any);
     await worker.process({ data: { outboxId: 'msg-3' } } as any);
     expect(prisma.messageLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ ownerId: 'user-1', eventId: null }),
@@ -217,8 +221,8 @@ describe('MessageDispatchWorker.process', () => {
       attachments: [{ url: 'https://cdn/f.pdf', filename: 'f.pdf', mimetype: 'application/pdf' }],
       sentAttachments: 0,
     };
-    const { prisma, resend, evolution, ics } = makeMocks(row);
-    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any, ics as any);
+    const { prisma, resend, uazapi, ics, pacing, config } = makeMocks(row);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, uazapi as any, ics as any, pacing as any, config as any);
     await worker.process({ data: { outboxId: 'att-email-1' } } as any);
 
     const fifthArg = resend.sendEmail.mock.calls[0][4];
@@ -240,22 +244,29 @@ describe('MessageDispatchWorker.process', () => {
       ],
       sentAttachments: 1,
     };
-    const { prisma, resend, evolution, ics } = makeMocks(row);
-    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any, ics as any);
+    const { prisma, resend, uazapi, ics, pacing, config } = makeMocks(row);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, uazapi as any, ics as any, pacing as any, config as any);
     await worker.process({ data: { outboxId: 'att-wa-1' } } as any);
 
-    expect(evolution.sendMedia).toHaveBeenCalledTimes(1);
-    expect(evolution.sendMedia).toHaveBeenCalledWith(
+    expect(uazapi.sendMedia).toHaveBeenCalledTimes(1);
+    expect(uazapi.sendMedia).toHaveBeenCalledWith(
       'inst-1',
       'a@b.com',
       'https://cdn/b.png',
       'image',
       'image/png',
       'b.png',
+      undefined,
+      'att-wa-1',
     );
     expect(prisma.outboxMessage.update).toHaveBeenCalledWith({
       where: { id: 'att-wa-1' },
       data: { sentAttachments: 2 },
+    });
+    // providerMessageId (representativo = última mídia) persistido no outbox
+    expect(prisma.outboxMessage.update).toHaveBeenCalledWith({
+      where: { id: 'att-wa-1' },
+      data: expect.objectContaining({ status: 'sent', providerMessageId: 'wamid.MEDIA' }),
     });
   });
 
@@ -271,10 +282,98 @@ describe('MessageDispatchWorker.process', () => {
       attachments: [{ url: 'https://cdn/c.jpg', filename: 'c.jpg', mimetype: 'image/jpeg' }],
       sentAttachments: 0,
     };
-    const { prisma, resend, evolution, ics } = makeMocks(row);
-    const worker = new MessageDispatchWorker(prisma as any, resend as any, evolution as any, ics as any);
+    const { prisma, resend, uazapi, ics, pacing, config } = makeMocks(row);
+    const worker = new MessageDispatchWorker(prisma as any, resend as any, uazapi as any, ics as any, pacing as any, config as any);
     await worker.process({ data: { outboxId: 'att-wa-2' } } as any);
 
-    expect(evolution.sendMedia.mock.calls[0][3]).toBe('image');
+    expect(uazapi.sendMedia.mock.calls[0][3]).toBe('image');
+  });
+});
+
+describe('MessageDispatchWorker.process — DISPATCH_GATE_ENABLED (re-pacing no retry)', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  const waRow = {
+    ...outboxRow,
+    id: 'wa-1',
+    channel: 'whatsapp',
+    recipient: '5511999999999',
+    instancia: 'tok-1', // token → resolveWhatsAppInstance devolve sem lookup de evento
+    sentParts: 0,
+  };
+
+  function gateWorker(row: unknown) {
+    const m = makeMocks(row);
+    m.config.get.mockReturnValue(true); // gate ON
+    m.pacing.nextDelayMs.mockResolvedValue(50000);
+    const worker = new MessageDispatchWorker(
+      m.prisma as any, m.resend as any, m.uazapi as any, m.ics as any, m.pacing as any, m.config as any,
+    );
+    return { worker, ...m };
+  }
+
+  function makeJob(overrides: { attemptsMade: number; data?: Record<string, unknown> }) {
+    return {
+      data: { outboxId: 'wa-1', ...(overrides.data ?? {}) },
+      attemptsMade: overrides.attemptsMade,
+      updateData: jest.fn().mockResolvedValue(undefined),
+      moveToDelayed: jest.fn().mockResolvedValue(undefined),
+    } as any;
+  }
+
+  it('1ª tentativa (attemptsMade=0): não reserva nem reagenda, envia', async () => {
+    const { worker, pacing, uazapi } = gateWorker(waRow);
+    const job = makeJob({ attemptsMade: 0 });
+    await worker.process(job, 'tok-abc');
+    expect(pacing.nextDelayMs).not.toHaveBeenCalled();
+    expect(job.moveToDelayed).not.toHaveBeenCalled();
+    expect(uazapi.sendWhatsApp).toHaveBeenCalled();
+  });
+
+  it('retry sem marcador: reserva 1x, grava pacedForAttempt, reagenda e lança DelayedError', async () => {
+    const { worker, pacing, uazapi, prisma } = gateWorker(waRow);
+    const job = makeJob({ attemptsMade: 1 });
+    await expect(worker.process(job, 'tok-abc')).rejects.toThrow(DelayedError);
+    expect(pacing.nextDelayMs).toHaveBeenCalledTimes(1);
+    expect(pacing.nextDelayMs).toHaveBeenCalledWith('tok-1');
+    expect(job.updateData).toHaveBeenCalledWith(
+      expect.objectContaining({ pacedForAttempt: 1 }),
+    );
+    expect(job.moveToDelayed).toHaveBeenCalledTimes(1);
+    // 2º arg é o token do worker (necessário p/ moveToDelayed)
+    expect(job.moveToDelayed.mock.calls[0][1]).toBe('tok-abc');
+    // deferral NÃO envia nem marca a row como processing
+    expect(uazapi.sendWhatsApp).not.toHaveBeenCalled();
+    const processingCall = prisma.outboxMessage.update.mock.calls.find(
+      (c: any[]) => c[0]?.data?.status === 'processing',
+    );
+    expect(processingCall).toBeUndefined();
+  });
+
+  it('re-pick pós-deferral (marcador == attemptsMade): NÃO reserva de novo, envia (anti-drift)', async () => {
+    const { worker, pacing, uazapi } = gateWorker(waRow);
+    const job = makeJob({ attemptsMade: 1, data: { pacedForAttempt: 1 } });
+    await worker.process(job, 'tok-abc');
+    expect(pacing.nextDelayMs).not.toHaveBeenCalled();
+    expect(job.moveToDelayed).not.toHaveBeenCalled();
+    expect(uazapi.sendWhatsApp).toHaveBeenCalled();
+  });
+
+  it('nextDelayMs retorna 0: não defere, envia', async () => {
+    const { worker, pacing, uazapi } = gateWorker(waRow);
+    pacing.nextDelayMs.mockResolvedValue(0);
+    const job = makeJob({ attemptsMade: 1 });
+    await worker.process(job, 'tok-abc');
+    expect(pacing.nextDelayMs).toHaveBeenCalledTimes(1);
+    expect(job.moveToDelayed).not.toHaveBeenCalled();
+    expect(uazapi.sendWhatsApp).toHaveBeenCalled();
+  });
+
+  it('sem token do worker (process sem 2º arg): gate não roda, envia', async () => {
+    const { worker, pacing, uazapi } = gateWorker(waRow);
+    const job = makeJob({ attemptsMade: 3 });
+    await worker.process(job); // sem token
+    expect(pacing.nextDelayMs).not.toHaveBeenCalled();
+    expect(uazapi.sendWhatsApp).toHaveBeenCalled();
   });
 });

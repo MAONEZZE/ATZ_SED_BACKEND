@@ -1,4 +1,5 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import {
@@ -18,18 +19,29 @@ export interface EnqueueOptions {
    * informado (o chamador já controla o próprio espaçamento).
    */
   paceInstancia?: string;
+  /**
+   * Offset aditivo (ms) somado ao delay do cursor de pacing. Usado com
+   * DISPATCH_GATE_ENABLED para preservar o gap de lote do envio manual por cima
+   * do espaçamento por-mensagem do cursor compartilhado. Só tem efeito com
+   * paceInstancia + gate ligado.
+   */
+  extraDelayMs?: number;
 }
 
 @Injectable()
 export class OutboxService {
   private readonly logger = new Logger(OutboxService.name);
+  private readonly gateEnabled: boolean;
 
   constructor(
     @Inject(OUTBOX_REPOSITORY_PORT)
     private readonly outboxRepo: OutboxRepositoryPort,
     @InjectQueue(QUEUE_MESSAGE_DISPATCH) private readonly dispatchQueue: Queue,
     private readonly pacing: WhatsappPacingService,
-  ) {}
+    config: ConfigService,
+  ) {
+    this.gateEnabled = config.get<boolean>('DISPATCH_GATE_ENABLED') ?? false;
+  }
 
   async enqueue(data: EnqueueMessageData, opts?: EnqueueOptions): Promise<void> {
     const dedupKey = data.dedupKey ?? `${data.registrationId}:${data.templateId}:${data.trigger}`;
@@ -37,10 +49,17 @@ export class OutboxService {
 
     const jobId = dedupKey.replace(/:/g, '_');
     let delay = opts?.delayMs ?? 0;
-    // Pacing anti-ban: só para mensagens novas, canal whatsapp e quando o chamador
-    // não definiu um delay próprio. Evita avançar o cursor em reprocessamentos.
-    if (created && delay === 0 && opts?.paceInstancia && data.channel === 'whatsapp') {
-      delay = await this.pacing.nextDelayMs(opts.paceInstancia);
+    // Pacing anti-ban: só para mensagens novas de canal whatsapp com paceInstancia.
+    // Evita avançar o cursor em reprocessamentos (created=false).
+    if (created && data.channel === 'whatsapp' && opts?.paceInstancia) {
+      if (this.gateEnabled) {
+        // Gate ligado: todo whatsapp reserva no cursor compartilhado; o offset de
+        // lote (extraDelayMs) é somado por cima do espaçamento por-mensagem.
+        delay = (await this.pacing.nextDelayMs(opts.paceInstancia)) + (opts.extraDelayMs ?? 0);
+      } else if (delay === 0) {
+        // Legado: só paceia quando o chamador não definiu delay próprio.
+        delay = await this.pacing.nextDelayMs(opts.paceInstancia);
+      }
     }
     try {
       await this.dispatchQueue.add(

@@ -127,14 +127,14 @@ model Event {
   recurrenceInterval Int?           @map("recurrence_interval")
   recurrenceUntil    DateTime?      @map("recurrence_until")
   status            EventStatus     @default(draft)
-  evolutionInstanceId String?       @map("evolution_instance_id")
-  evolutionToken    String?         @map("evolution_token")
+  uazapiInstanceId  String?         @map("uazapi_instance_id")
+  uazapiToken       String?         @map("uazapi_token")
   lastEditedById    String?         @map("last_edited_by")
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")
   owner             Profile         @relation("EventOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   lastEditedBy      Profile?        @relation("EventLastEditor", fields: [lastEditedById], references: [id], onDelete: SetNull)
-  evolutionInstance EvolutionInstance? @relation(fields: [evolutionInstanceId], references: [id], onDelete: SetNull)
+  uazapiInstance    UazapiInstance? @relation(fields: [uazapiInstanceId], references: [id], onDelete: SetNull)
   collaborators     EventCollaborator[]
   forms             Form[]
   registrations     Registration[]
@@ -146,20 +146,21 @@ model Event {
   messageTemplates  MessageTemplate[]
 
   @@index([ownerId])
-  @@index([evolutionInstanceId])
+  @@index([uazapiInstanceId])
   @@map("events")
   @@schema("ATZ_SED")
 }
 
-model EvolutionInstance {
+model UazapiInstance {
   id        String   @id @default(uuid())
   name      String   @unique
   nickname  String
+  token     String?  @map("token")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   events    Event[]
 
-  @@map("evolution_instances")
+  @@map("uazapi_instances")
   @@schema("ATZ_SED")
 }
 
@@ -332,6 +333,9 @@ model OutboxMessage {
   attachments     Json?          @map("attachments")
   sentAttachments Int            @default(0) @map("sent_attachments")
   errorMessage    String?        @map("error_message")
+  providerMessageId String?      @map("provider_message_id")
+  deliveredAt     DateTime?      @map("delivered_at")
+  readAt          DateTime?      @map("read_at")
   processedAt     DateTime?      @map("processed_at")
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
@@ -344,6 +348,7 @@ model OutboxMessage {
   @@index([status, createdAt])
   @@index([eventId])
   @@index([ownerId])
+  @@index([providerMessageId])
   @@map("outbox_messages")
   @@schema("ATZ_SED")
 }
@@ -358,6 +363,9 @@ model MessageLog {
   body           String
   status         String
   errorMessage   String?        @map("error_message")
+  providerMessageId String?     @map("provider_message_id")
+  deliveredAt    DateTime?      @map("delivered_at")
+  readAt         DateTime?      @map("read_at")
   sentAt         DateTime?      @map("sent_at")
   createdAt      DateTime       @default(now()) @map("created_at")
   registration   Registration?  @relation(fields: [registrationId], references: [id], onDelete: Cascade)
@@ -367,6 +375,7 @@ model MessageLog {
   @@index([registrationId])
   @@index([eventId])
   @@index([ownerId])
+  @@index([providerMessageId])
   @@map("message_logs")
   @@schema("ATZ_SED")
 }

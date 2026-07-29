@@ -130,7 +130,7 @@ export class SendMessageDto {
 
   @ApiPropertyOptional({
     example: 'uuid-da-instancia',
-    description: 'Instância Evolution a usar quando não há eventId.',
+    description: 'Instância Uazapi a usar quando não há eventId.',
   })
   @IsOptional()
   @IsUUID()
@@ -170,6 +170,15 @@ export class SendMessageDto {
   @ValidateNested({ each: true })
   @Type(() => ManualRecipientDto)
   manualRecipients?: ManualRecipientDto[];
+
+  @ApiPropertyOptional({
+    example: ['120363424826018469@g.us'],
+    description: 'IDs (JIDs @g.us) de grupos WhatsApp destinatários. Só canal whatsapp. Liste via GET /whatsapp/groups.',
+  })
+  @IsOptional()
+  @IsArray()
+  @Matches(/@g\.us$/, { each: true, message: 'groupIds deve conter JIDs de grupo (terminando em @g.us)' })
+  groupIds?: string[];
 
   @ApiPropertyOptional({
     type: InviteConfigDto,

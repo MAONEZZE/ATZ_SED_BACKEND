@@ -6,9 +6,10 @@ import { GuardsModule } from '@shared/guards/guards.module';
 import { StorageModule } from '@infra/storage/storage.module';
 import { IntegrationsModule } from '@infra/integrations/integrations.module';
 import { UsersDbModule } from '@modules/users/users-db.module';
+import { UazapiInstancesModule } from '@modules/uazapi-instances/uazapi-instances.module';
 
 @Module({
-  imports: [GuardsModule, StorageModule, IntegrationsModule, UsersDbModule],
+  imports: [GuardsModule, StorageModule, IntegrationsModule, UsersDbModule, UazapiInstancesModule],
   controllers: [ProfileController, WhatsappController],
   providers: [ProfileService],
 })

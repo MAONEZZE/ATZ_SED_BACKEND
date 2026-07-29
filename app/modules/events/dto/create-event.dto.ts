@@ -82,5 +82,5 @@ export class CreateEventDto {
   @ApiPropertyOptional({ example: 'c1a2b3c4-...' })
   @IsOptional()
   @IsUUID()
-  evolutionInstanceId?: string;
+  uazapiInstanceId?: string;
 }

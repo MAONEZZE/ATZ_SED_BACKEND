@@ -31,6 +31,8 @@ export interface SendMessageInput {
   body?: string;
   registrationIds?: string[];
   manualRecipients?: ManualRecipientInput[];
+  /** JIDs de grupos WhatsApp (@g.us) como destinatários. Só canal whatsapp. */
+  groupIds?: string[];
   invite?: InviteConfigInput;
   attachments?: { path: string; filename: string; mimetype: string }[];
 }
@@ -69,6 +71,10 @@ export class ManualSendService {
   async send(input: SendMessageInput, userId: string): Promise<SendMessageResult> {
     if (input.registrationIds?.length && !input.eventId) {
       throw new BadRequestException('registrationIds require an eventId');
+    }
+
+    if (input.groupIds?.length && input.channel !== 'whatsapp') {
+      throw new BadRequestException('groupIds are only valid for the whatsapp channel');
     }
 
     if (input.invite) {
@@ -114,17 +120,19 @@ export class ManualSendService {
       groupLink: string | null;
     } | null = null;
 
+    // `instancia` carrega o token Uazapi da instância (a Uazapi autentica por token).
     let instancia: string | undefined;
     if (!input.eventId && input.instanceId) {
-      const instance = await this.prisma.evolutionInstance.findUnique({
+      const instance = await this.prisma.uazapiInstance.findUnique({
         where: { id: input.instanceId },
       });
-      if (!instance) throw new NotFoundException('Evolution instance not found');
-      instancia = instance.name;
+      if (!instance) throw new NotFoundException('Uazapi instance not found');
+      if (!instance.token) throw new BadRequestException('Uazapi instance has no token configured');
+      instancia = instance.token;
     }
 
     // Atribuição da mensagem fica sempre com o dono do evento (resolve a instância
-    // Evolution e os logs). Sem evento, atribui ao próprio remetente.
+    // Uazapi e os logs). Sem evento, atribui ao próprio remetente.
     let attributionOwnerId = userId;
     if (input.eventId) {
       const event = await this.eventsService.findById(input.eventId);
@@ -192,6 +200,12 @@ export class ManualSendService {
         email: m.email ?? '',
         phone: m.phone ?? '',
       })),
+      // Grupos: o JID @g.us entra como destinatário (campo `number` da Uazapi).
+      ...(input.groupIds ?? []).map((jid) => ({
+        name: 'Grupo',
+        email: '',
+        phone: jid,
+      })),
     ];
 
     if (allRecipients.length === 0) {
@@ -224,11 +238,24 @@ export class ManualSendService {
     }
 
     const isWhatsapp = input.channel === 'whatsapp';
+    const gate = this.config.get<boolean>('DISPATCH_GATE_ENABLED') ?? false;
     const minDelay = this.config.get<number>('WA_MIN_DELAY_MS') ?? 8000;
     const maxDelay = this.config.get<number>('WA_MAX_DELAY_MS') ?? 30000;
     const batchSize = this.config.get<number>('MANUAL_BATCH_SIZE') ?? 10;
     const batchMinDelay = this.config.get<number>('MANUAL_BATCH_MIN_DELAY_MS') ?? 3_600_000;
     const batchMaxDelay = this.config.get<number>('MANUAL_BATCH_MAX_DELAY_MS') ?? 7_200_000;
+
+    // Gate ON: roteia o whatsapp pelo cursor compartilhado (mesmo de automações),
+    // em vez do delay cumulativo pré-calculado. Precisa do token da instância.
+    // Non-event já tem em `instancia`; event-scoped resolve do evento.
+    let paceToken = instancia;
+    if (gate && isWhatsapp && !paceToken && input.eventId) {
+      const ev = await this.prisma.event.findUnique({
+        where: { id: input.eventId },
+        select: { uazapiInstance: { select: { token: true } } },
+      });
+      paceToken = ev?.uazapiInstance?.token ?? undefined;
+    }
 
     const batches = chunk(validRecipients, batchSize);
     let batchDelayCursor = 0;
@@ -262,6 +289,13 @@ export class ManualSendService {
         const eventPrefix = input.eventId ?? 'global';
         const dedupKey = `manual:${eventPrefix}:${target}:${randomBytes(16).toString('hex')}`;
 
+        // Gate ON + whatsapp com token: reserva no cursor compartilhado e preserva
+        // o gap de lote como offset aditivo. Senão, legado: delay cumulativo pré-calc.
+        const opts =
+          gate && isWhatsapp && paceToken
+            ? { paceInstancia: paceToken, extraDelayMs: batchDelayCursor }
+            : { delayMs: isWhatsapp ? batchDelayCursor + innerDelayCursor : 0 };
+
         await this.outbox.enqueue(
           {
             eventId: input.eventId,
@@ -278,7 +312,7 @@ export class ManualSendService {
             inviteConfig: input.invite ?? null,
             attachments: resolvedAttachments,
           },
-          { delayMs: isWhatsapp ? batchDelayCursor + innerDelayCursor : 0 },
+          opts,
         );
         queued++;
       }
