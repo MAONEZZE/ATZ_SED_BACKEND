@@ -156,16 +156,43 @@ describe('UazapiAdapter.sendWhatsApp', () => {
 describe('UazapiAdapter.getInstanceStatus', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('GET /instance/status com header token, retorna status do topo', async () => {
-    const fn = jest
-      .fn()
-      .mockResolvedValue({ ok: true, text: jest.fn(), json: async () => ({ status: 'connected' }) });
+  it('GET /instance/status com header token, retorna instance.status (shape real Uazapi)', async () => {
+    const fn = jest.fn().mockResolvedValue({
+      ok: true,
+      text: jest.fn(),
+      json: async () => ({
+        instance: { status: 'connected' },
+        status: { connected: true, loggedIn: true, jid: { user: '551199' } },
+      }),
+    });
     (global as any).fetch = fn;
     const adapter = new UazapiAdapter(makeConfig() as any);
     const status = await adapter.getInstanceStatus('token-1');
     expect(status).toBe('connected');
     expect(fn.mock.calls[0][0]).toBe('https://free.uazapi.com/instance/status');
     expect(fn.mock.calls[0][1].headers).toEqual(expect.objectContaining({ token: 'token-1' }));
+  });
+
+  it('deriva "connected" do booleano status.connected quando instance.status ausente', async () => {
+    const fn = jest.fn().mockResolvedValue({
+      ok: true,
+      text: jest.fn(),
+      json: async () => ({ status: { connected: true, loggedIn: true } }),
+    });
+    (global as any).fetch = fn;
+    const adapter = new UazapiAdapter(makeConfig() as any);
+    expect(await adapter.getInstanceStatus('token-1')).toBe('connected');
+  });
+
+  it('deriva "disconnected" quando status.connected é false', async () => {
+    const fn = jest.fn().mockResolvedValue({
+      ok: true,
+      text: jest.fn(),
+      json: async () => ({ status: { connected: false, loggedIn: false } }),
+    });
+    (global as any).fetch = fn;
+    const adapter = new UazapiAdapter(makeConfig() as any);
+    expect(await adapter.getInstanceStatus('token-1')).toBe('disconnected');
   });
 
   it('parseia status aninhado em instance', async () => {
@@ -175,6 +202,15 @@ describe('UazapiAdapter.getInstanceStatus', () => {
     (global as any).fetch = fn;
     const adapter = new UazapiAdapter(makeConfig() as any);
     expect(await adapter.getInstanceStatus('token-1')).toBe('connecting');
+  });
+
+  it('fallback: string de status no topo (shape legado)', async () => {
+    const fn = jest
+      .fn()
+      .mockResolvedValue({ ok: true, text: jest.fn(), json: async () => ({ status: 'connected' }) });
+    (global as any).fetch = fn;
+    const adapter = new UazapiAdapter(makeConfig() as any);
+    expect(await adapter.getInstanceStatus('token-1')).toBe('connected');
   });
 
   it('retorna null em resposta não-ok (não lança)', async () => {
