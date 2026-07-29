@@ -13,7 +13,15 @@ const mockPacing = {
   nextDelayMs: jest.fn().mockResolvedValue(50000),
 };
 
-const service = new OutboxService(mockOutboxRepo as any, mockQueue as any, mockPacing as any);
+// Gate OFF por padrão (comportamento legado): config.get retorna undefined.
+const mockConfig = { get: jest.fn().mockReturnValue(undefined) };
+
+const service = new OutboxService(
+  mockOutboxRepo as any,
+  mockQueue as any,
+  mockPacing as any,
+  mockConfig as any,
+);
 
 const baseData = {
   eventId: 'evt-1',
@@ -161,6 +169,83 @@ describe('OutboxService.enqueue — pacing anti-ban WhatsApp', () => {
       'dispatch',
       expect.any(Object),
       expect.objectContaining({ delay: 12345 }),
+    );
+  });
+
+  it('flag OFF: extraDelayMs é ignorado (delayMs mantém precedência)', async () => {
+    await service.enqueue(waData, { delayMs: 12345, paceInstancia: 'wpp_atlaz', extraDelayMs: 99999 });
+    expect(mockPacing.nextDelayMs).not.toHaveBeenCalled();
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      'dispatch',
+      expect.any(Object),
+      expect.objectContaining({ delay: 12345 }),
+    );
+  });
+});
+
+describe('OutboxService.enqueue — DISPATCH_GATE_ENABLED (gate ON)', () => {
+  const waData = {
+    eventId: 'evt-1',
+    registrationId: 'reg-1',
+    templateId: 'tmpl-1',
+    trigger: 'on_registration',
+    channel: 'whatsapp' as const,
+    recipient: '5511999999999',
+    renderedBody: 'Olá',
+  };
+
+  // Serviço com gate LIGADO.
+  const gateConfig = { get: jest.fn().mockReturnValue(true) };
+  const gateService = new OutboxService(
+    mockOutboxRepo as any,
+    mockQueue as any,
+    mockPacing as any,
+    gateConfig as any,
+  );
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockOutboxRepo.enqueue.mockResolvedValue({ id: 'msg-1', created: true });
+    mockPacing.nextDelayMs.mockResolvedValue(50000);
+  });
+
+  it('soma extraDelayMs ao delay do cursor (offset de lote por cima do por-mensagem)', async () => {
+    await gateService.enqueue(waData, { paceInstancia: 'wpp_atlaz', extraDelayMs: 300000 });
+    expect(mockPacing.nextDelayMs).toHaveBeenCalledWith('wpp_atlaz');
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      'dispatch',
+      expect.any(Object),
+      expect.objectContaining({ delay: 350000 }), // 50000 (cursor) + 300000 (lote)
+    );
+  });
+
+  it('sem extraDelayMs: usa só o delay do cursor', async () => {
+    await gateService.enqueue(waData, { paceInstancia: 'wpp_atlaz' });
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      'dispatch',
+      expect.any(Object),
+      expect.objectContaining({ delay: 50000 }),
+    );
+  });
+
+  it('ignora delayMs pré-calculado e sempre reserva no cursor quando ON', async () => {
+    await gateService.enqueue(waData, { delayMs: 12345, paceInstancia: 'wpp_atlaz', extraDelayMs: 1000 });
+    expect(mockPacing.nextDelayMs).toHaveBeenCalledWith('wpp_atlaz');
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      'dispatch',
+      expect.any(Object),
+      expect.objectContaining({ delay: 51000 }), // 50000 + 1000, NÃO 12345
+    );
+  });
+
+  it('created=false não avança o cursor mesmo com gate ON', async () => {
+    mockOutboxRepo.enqueue.mockResolvedValueOnce({ id: 'msg-1', created: false });
+    await gateService.enqueue(waData, { paceInstancia: 'wpp_atlaz', extraDelayMs: 300000 });
+    expect(mockPacing.nextDelayMs).not.toHaveBeenCalled();
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      'dispatch',
+      expect.any(Object),
+      expect.objectContaining({ delay: 0 }),
     );
   });
 });

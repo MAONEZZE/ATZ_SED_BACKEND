@@ -112,7 +112,7 @@ export class AutomationEngine {
 
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
-      include: { evolutionInstance: true },
+      include: { uazapiInstance: true },
     });
 
     if (!event) {
@@ -120,7 +120,8 @@ export class AutomationEngine {
       return;
     }
 
-    const instancia = event.evolutionInstance?.name ?? undefined;
+    // `instancia` carrega o token Uazapi da instância (auth por token).
+    const instancia = event.uazapiInstance?.token ?? undefined;
 
     for (const rule of rules) {
       const vars = this.renderer.buildVariables({

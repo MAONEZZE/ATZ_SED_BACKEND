@@ -13,8 +13,9 @@ const envSchema = z.object({
   SUPABASE_STORAGE_BUCKET_COVERS: z.string().min(1),
   SUPABASE_STORAGE_BUCKET_UPLOADS: z.string().min(1),
   SUPABASE_STORAGE_BUCKET_PROFILE_PHOTOS: z.string().min(1),
-  EVOLUTION_API_URL: z.string().url(),
-  EVOLUTION_API_KEY: z.string().min(1),
+  UAZAPI_API_URL: z.string().url(),
+  UAZAPI_WEBHOOK_SECRET: z.string().min(1),
+  APP_PUBLIC_URL: z.string().url(),
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.string().email(),
   PIPEDRIVE_WEBHOOK_URL: z.string().url(),
@@ -28,6 +29,11 @@ const envSchema = z.object({
   WA_AUTOMATION_GAP_MIN_MS: z.coerce.number().int().nonnegative(),
   WA_AUTOMATION_GAP_MAX_MS: z.coerce.number().int().nonnegative(),
   WA_DISPATCH_CONCURRENCY: z.coerce.number().int().positive(),
+  // Liga o hardening de pacing no dispatch (manual roteado pelo cursor compartilhado
+  // + reconsulta de pacing no retry). OFF ⇒ comportamento legado byte-a-byte.
+  DISPATCH_GATE_ENABLED: z
+    .union([z.boolean(), z.string()])
+    .transform((v) => v === true || v === 'true'),
   WA_TYPING_ENABLED: z
     .union([z.boolean(), z.string()])
     .transform((v) => v !== false && v !== 'false'),

@@ -2,48 +2,50 @@ import { BadRequestException } from '@nestjs/common';
 import { WhatsappController } from '@modules/users/whatsapp.controller';
 
 function make() {
-  const evolution = { fetchGroups: jest.fn() };
-  const ctrl = new WhatsappController(evolution as any);
-  return { ctrl, evolution };
+  const uazapi = { fetchGroups: jest.fn() };
+  const uazapiInstances = { getToken: jest.fn().mockResolvedValue('token-abc') };
+  const ctrl = new WhatsappController(uazapi as any, uazapiInstances as any);
+  return { ctrl, uazapi, uazapiInstances };
 }
 
 describe('WhatsappController — GET /whatsapp/groups', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('retorna id e subject dos grupos da instância', async () => {
-    const { ctrl, evolution } = make();
+  it('resolve o token da instância e retorna id e subject dos grupos', async () => {
+    const { ctrl, uazapi, uazapiInstances } = make();
     const groups = [
       { id: '120363424826018469@g.us', subject: 'Evento VIP' },
       { id: '120363424826018470@g.us', subject: 'Staff' },
     ];
-    evolution.fetchGroups.mockResolvedValue(groups);
+    uazapi.fetchGroups.mockResolvedValue(groups);
 
-    const result = await ctrl.getGroups('minha-instancia');
+    const result = await ctrl.getGroups('instance-id-1');
 
     expect(result).toEqual(groups);
-    expect(evolution.fetchGroups).toHaveBeenCalledWith('minha-instancia');
+    expect(uazapiInstances.getToken).toHaveBeenCalledWith('instance-id-1');
+    expect(uazapi.fetchGroups).toHaveBeenCalledWith('token-abc');
   });
 
-  it('lança BadRequestException quando instancia está ausente', async () => {
+  it('lança BadRequestException quando instanceId está ausente', async () => {
     const { ctrl } = make();
     await expect(ctrl.getGroups(undefined as any)).rejects.toThrow(BadRequestException);
     await expect(ctrl.getGroups('')).rejects.toThrow(BadRequestException);
   });
 
-  it('propaga erro da Evolution API', async () => {
-    const { ctrl, evolution } = make();
-    evolution.fetchGroups.mockRejectedValue(new Error('Evolution API error (500): Internal'));
+  it('propaga erro da Uazapi API', async () => {
+    const { ctrl, uazapi } = make();
+    uazapi.fetchGroups.mockRejectedValue(new Error('Uazapi API error (500): Internal'));
 
-    await expect(ctrl.getGroups('inst-xyz')).rejects.toThrow('Evolution API error (500)');
+    await expect(ctrl.getGroups('instance-id-1')).rejects.toThrow('Uazapi API error (500)');
   });
 
   it('retorna lista vazia quando instância não tem grupos', async () => {
-    const { ctrl, evolution } = make();
-    evolution.fetchGroups.mockResolvedValue([]);
+    const { ctrl, uazapi } = make();
+    uazapi.fetchGroups.mockResolvedValue([]);
 
-    const result = await ctrl.getGroups('inst-sem-grupos');
+    const result = await ctrl.getGroups('instance-id-2');
 
     expect(result).toEqual([]);
-    expect(evolution.fetchGroups).toHaveBeenCalledWith('inst-sem-grupos');
+    expect(uazapi.fetchGroups).toHaveBeenCalledWith('token-abc');
   });
 });
