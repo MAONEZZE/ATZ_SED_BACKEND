@@ -8,6 +8,10 @@ export class ProfileRepository extends PrismaRepositoryBase {
     return this.prisma.profile.findUnique({ where: { userId } });
   }
 
+  findByEmail(email: string) {
+    return this.prisma.profile.findFirst({ where: { email } });
+  }
+
   create(data: Prisma.ProfileUncheckedCreateInput) {
     return this.prisma.profile.create({ data });
   }

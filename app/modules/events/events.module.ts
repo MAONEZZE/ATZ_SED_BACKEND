@@ -15,6 +15,7 @@ import { WorkersModule } from '@workers/workers.module';
 import { AutomationsDbModule } from '@modules/automations/automations-db.module';
 import { RegistrationsDbModule } from '@modules/registrations/registrations-db.module';
 import { MessagingDbModule } from '@modules/messaging/messaging-db.module';
+import { UsersDbModule } from '@modules/users/users-db.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { MessagingDbModule } from '@modules/messaging/messaging-db.module';
     AutomationsDbModule,
     RegistrationsDbModule,
     MessagingDbModule,
+    UsersDbModule,
   ],
   controllers: [EventsController, FormFieldsController, FormsController, CollaboratorsController],
   providers: [

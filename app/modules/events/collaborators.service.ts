@@ -1,28 +1,28 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@infra/prisma/prisma.service';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  EVENT_REPOSITORY_PORT,
+  EventRepositoryPort,
+} from '@modules/events/ports/event-repository.port';
+import { CollaboratorsRepository } from '@modules/events/collaborators.repository';
+import { ProfileRepository } from '@modules/users/profile.repository';
 
 @Injectable()
 export class CollaboratorsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
+    private readonly collaborators: CollaboratorsRepository,
+    private readonly profiles: ProfileRepository,
+  ) {}
 
   list(eventId: string) {
-    return this.prisma.eventCollaborator.findMany({
-      where: { eventId },
-      include: {
-        profile: { select: { id: true, name: true, email: true, photoUrl: true } },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
+    return this.collaborators.list(eventId);
   }
 
   async add(eventId: string, email: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-      select: { ownerId: true },
-    });
+    const event = await this.eventRepo.findById(eventId);
     if (!event) throw new NotFoundException('Event not found');
 
-    const profile = await this.prisma.profile.findFirst({ where: { email } });
+    const profile = await this.profiles.findByEmail(email);
     if (!profile) {
       throw new NotFoundException('No registered user with this email. Ask them to sign up first.');
     }
@@ -30,18 +30,11 @@ export class CollaboratorsService {
       throw new ConflictException('User is already the event owner');
     }
 
-    // Upsert on the (eventId, profileId) unique → idempotent: re-adding never errors.
-    return this.prisma.eventCollaborator.upsert({
-      where: { eventId_profileId: { eventId, profileId: profile.id } },
-      create: { eventId, profileId: profile.id },
-      update: {},
-    });
+    return this.collaborators.upsert(eventId, profile.id);
   }
 
   async remove(eventId: string, profileId: string): Promise<void> {
-    const { count } = await this.prisma.eventCollaborator.deleteMany({
-      where: { eventId, profileId },
-    });
+    const count = await this.collaborators.remove(eventId, profileId);
     if (count === 0) throw new NotFoundException('Collaborator not found');
   }
 }
