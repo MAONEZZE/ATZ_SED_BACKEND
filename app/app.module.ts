@@ -8,7 +8,6 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { LoggingInterceptor } from '@shared/interceptors/logging.interceptor';
 import { validateEnv } from '@shared/config/env.validation';
 import { PrismaModule } from '@infra/prisma/prisma.module';
-import { HealthModule } from '@shared/health/health.module';
 import { RequestIdMiddleware } from '@shared/middleware/request-id.middleware';
 import { AuthModule } from '@infra/auth/auth.module';
 import { GuardsModule } from '@shared/guards/guards.module';
@@ -43,7 +42,6 @@ import { UazapiInstancesModule } from '@modules/uazapi-instances/uazapi-instance
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     PrismaModule,
-    HealthModule,
     AuthModule,
     GuardsModule,
     EventsModule,
