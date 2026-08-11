@@ -6,6 +6,9 @@ import {
   CreateEventData,
   UpdateEventData,
   EventOwnership,
+  EventDuplicationSource,
+  CreateDuplicateEventData,
+  CreatedDuplicateEvent,
 } from '@modules/events/ports/event-repository.port';
 import { EventEntity, EventStatus } from '@modules/events/entities/event.entity';
 
@@ -153,5 +156,50 @@ export class PrismaEventRepository implements EventRepositoryPort {
       select: { uazapiInstance: { select: { token: true } } },
     });
     return event?.uazapiInstance?.token ?? null;
+  }
+
+  async findDuplicationSource(id: string): Promise<EventDuplicationSource | null> {
+    const row = await this.prisma.event.findUnique({
+      where: { id },
+      include: { forms: { include: { fields: true } }, automationRules: true },
+    });
+    if (!row) return null;
+    return {
+      title: row.title,
+      location: row.location,
+      capacity: row.capacity,
+      dressCode: row.dressCode,
+      groupLink: row.groupLink,
+      eventDate: row.eventDate,
+      endDate: row.endDate,
+      sendToPipedrive: row.sendToPipedrive,
+      forms: row.forms.map((form) => ({
+        kind: form.kind,
+        description: form.description,
+        postRegistrationMessage: form.postRegistrationMessage,
+        linkPostSubscription: form.linkPostSubscription,
+        fields: form.fields.map((f) => ({
+          label: f.label,
+          type: f.type,
+          required: f.required,
+          options: f.options,
+          order: f.order,
+          isFixed: f.isFixed,
+        })),
+      })),
+      automationRules: row.automationRules.map((a) => ({
+        templateId: a.templateId,
+        trigger: a.trigger,
+        delayMinutes: a.delayMinutes,
+        active: a.active,
+      })),
+    };
+  }
+
+  async createDuplicate(data: CreateDuplicateEventData): Promise<CreatedDuplicateEvent> {
+    const row = await this.prisma.event.create({
+      data: { ...data, status: 'draft' },
+    });
+    return { id: row.id, ownerId: row.ownerId, title: row.title, slug: row.slug };
   }
 }

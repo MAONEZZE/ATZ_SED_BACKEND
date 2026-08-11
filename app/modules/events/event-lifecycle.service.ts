@@ -6,7 +6,13 @@ import {
 } from '@modules/events/ports/event-repository.port';
 import { EventEntity } from '@modules/events/entities/event.entity';
 import { OutboxService } from '@modules/messaging/outbox.service';
-import { PrismaService } from '@infra/prisma/prisma.service';
+import { FormsRepository } from '@modules/events/forms.repository';
+import { AutomationsRepository } from '@modules/automations/automations.repository';
+import {
+  REGISTRATION_REPOSITORY_PORT,
+  RegistrationRepositoryPort,
+} from '@modules/registrations/ports/registration-repository.port';
+import { MessageTemplatesRepository } from '@modules/messaging/message-templates.repository';
 
 @Injectable()
 export class EventLifecycleService {
@@ -15,7 +21,11 @@ export class EventLifecycleService {
   constructor(
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
     private readonly outbox: OutboxService,
-    private readonly prisma: PrismaService,
+    private readonly forms: FormsRepository,
+    private readonly automations: AutomationsRepository,
+    @Inject(REGISTRATION_REPOSITORY_PORT)
+    private readonly registrations: RegistrationRepositoryPort,
+    private readonly templates: MessageTemplatesRepository,
   ) {}
 
   async cancel(
@@ -39,64 +49,32 @@ export class EventLifecycleService {
   }
 
   async duplicate(eventId: string, ownerId: string): Promise<EventEntity> {
-    const source = await this.prisma.event.findUnique({
-      where: { id: eventId },
-      include: { forms: { include: { fields: true } }, automationRules: true },
-    });
+    const source = await this.eventRepo.findDuplicationSource(eventId);
     if (!source) throw new NotFoundException('Event not found');
 
     const suffix = randomBytes(3).toString('hex').toUpperCase();
     const newSlug = EventEntity.generateSlug(`${source.title} copia`, suffix);
 
-    const newEvent = await this.prisma.event.create({
-      data: {
-        ownerId,
-        title: `${source.title} (cópia)`,
-        slug: newSlug,
-        location: source.location,
-        capacity: source.capacity,
-        dressCode: source.dressCode,
-        groupLink: source.groupLink,
-        eventDate: source.eventDate,
-        endDate: source.endDate,
-        sendToPipedrive: source.sendToPipedrive,
-        status: 'draft',
-        lastEditedById: ownerId,
-      },
+    const newEvent = await this.eventRepo.createDuplicate({
+      ownerId,
+      title: `${source.title} (cópia)`,
+      slug: newSlug,
+      location: source.location,
+      capacity: source.capacity,
+      dressCode: source.dressCode,
+      groupLink: source.groupLink,
+      eventDate: source.eventDate,
+      endDate: source.endDate,
+      sendToPipedrive: source.sendToPipedrive,
+      lastEditedById: ownerId,
     });
 
     for (const form of source.forms) {
-      await this.prisma.form.create({
-        data: {
-          eventId: newEvent.id,
-          kind: form.kind,
-          description: form.description,
-          postRegistrationMessage: form.postRegistrationMessage,
-          linkPostSubscription: form.linkPostSubscription,
-          fields: {
-            create: form.fields.map((f) => ({
-              label: f.label,
-              type: f.type,
-              required: f.required,
-              options: f.options ?? undefined,
-              order: f.order,
-              isFixed: f.isFixed,
-            })),
-          },
-        },
-      });
+      await this.forms.createWithFields(newEvent.id, form);
     }
 
     if (source.automationRules.length > 0) {
-      await this.prisma.automationRule.createMany({
-        data: source.automationRules.map((a) => ({
-          eventId: newEvent.id,
-          templateId: a.templateId,
-          trigger: a.trigger,
-          delayMinutes: a.delayMinutes ?? undefined,
-          active: a.active,
-        })),
-      });
+      await this.automations.createManyForDuplication(newEvent.id, source.automationRules);
     }
 
     this.logger.log({ sourceId: eventId, newId: newEvent.id }, 'Event duplicated');
@@ -104,13 +82,8 @@ export class EventLifecycleService {
   }
 
   private async notifyCancellation(event: EventEntity): Promise<void> {
-    const registrations = await this.prisma.registration.findMany({
-      where: { eventId: event.id, status: { in: ['approved', 'pending'] } },
-    });
-
-    const template = await this.prisma.messageTemplate.findFirst({
-      where: { ownerId: event.ownerId },
-    });
+    const registrations = await this.registrations.findActiveByEvent(event.id);
+    const template = await this.templates.findFirstForOwner(event.ownerId);
 
     if (!template) {
       this.logger.warn({ eventId: event.id }, 'No template found for cancellation notification');

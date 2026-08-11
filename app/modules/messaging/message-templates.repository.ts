@@ -12,6 +12,10 @@ export class MessageTemplatesRepository extends PrismaRepositoryBase {
     return this.prisma.messageTemplate.findFirst({ where: { id, ownerId } });
   }
 
+  findFirstForOwner(ownerId: string) {
+    return this.prisma.messageTemplate.findFirst({ where: { ownerId } });
+  }
+
   async findAllForOwnerPaginated(
     ownerId: string,
     eventFilter: Prisma.MessageTemplateWhereInput,

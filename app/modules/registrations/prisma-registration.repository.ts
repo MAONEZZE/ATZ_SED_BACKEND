@@ -155,4 +155,11 @@ export class PrismaRegistrationRepository
   countByEvent(eventId: string): Promise<number> {
     return this.prisma.registration.count({ where: { eventId } });
   }
+
+  async findActiveByEvent(eventId: string): Promise<RegistrationEntity[]> {
+    const rows = await this.prisma.registration.findMany({
+      where: { eventId, status: { in: ['approved', 'pending'] } },
+    });
+    return rows.map((r) => this.map(r));
+  }
 }

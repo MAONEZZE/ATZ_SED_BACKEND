@@ -12,9 +12,20 @@ import { EventsDbModule } from '@modules/events/events-db.module';
 import { StorageModule } from '@infra/storage/storage.module';
 import { GuardsModule } from '@shared/guards/guards.module';
 import { WorkersModule } from '@workers/workers.module';
+import { AutomationsDbModule } from '@modules/automations/automations-db.module';
+import { RegistrationsDbModule } from '@modules/registrations/registrations-db.module';
+import { MessagingDbModule } from '@modules/messaging/messaging-db.module';
 
 @Module({
-  imports: [EventsDbModule, StorageModule, GuardsModule, WorkersModule],
+  imports: [
+    EventsDbModule,
+    StorageModule,
+    GuardsModule,
+    WorkersModule,
+    AutomationsDbModule,
+    RegistrationsDbModule,
+    MessagingDbModule,
+  ],
   controllers: [EventsController, FormFieldsController, FormsController, CollaboratorsController],
   providers: [
     EventsService,

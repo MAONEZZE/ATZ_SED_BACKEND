@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaRepositoryBase } from '@shared/prisma-repository.base';
+import { EventDuplicationAutomationRule } from '@modules/events/ports/event-repository.port';
 
 const TEMPLATE_SUMMARY = {
   template: { select: { id: true, name: true, channel: true } },
@@ -85,5 +86,17 @@ export class AutomationsRepository extends PrismaRepositoryBase {
 
   async delete(id: string): Promise<void> {
     await this.prisma.automationRule.delete({ where: { id } });
+  }
+
+  createManyForDuplication(eventId: string, rules: EventDuplicationAutomationRule[]) {
+    return this.prisma.automationRule.createMany({
+      data: rules.map((a) => ({
+        eventId,
+        templateId: a.templateId,
+        trigger: a.trigger as Prisma.AutomationRuleUncheckedCreateInput['trigger'],
+        delayMinutes: a.delayMinutes ?? undefined,
+        active: a.active,
+      })),
+    });
   }
 }

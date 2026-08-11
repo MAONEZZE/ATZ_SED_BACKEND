@@ -41,6 +41,62 @@ export interface EventOwnership {
   isCollaborator: boolean;
 }
 
+export interface EventDuplicationForm {
+  kind: string;
+  description: string | null;
+  postRegistrationMessage: string | null;
+  linkPostSubscription: string | null;
+  fields: Array<{
+    label: string;
+    type: string;
+    required: boolean;
+    options: unknown;
+    order: number;
+    isFixed: boolean;
+  }>;
+}
+
+export interface EventDuplicationAutomationRule {
+  templateId: string;
+  trigger: string;
+  delayMinutes: number | null;
+  active: boolean;
+}
+
+export interface EventDuplicationSource {
+  title: string;
+  location: string | null;
+  capacity: number | null;
+  dressCode: string | null;
+  groupLink: string | null;
+  eventDate: Date | null;
+  endDate: Date | null;
+  sendToPipedrive: boolean;
+  forms: EventDuplicationForm[];
+  automationRules: EventDuplicationAutomationRule[];
+}
+
+export interface CreateDuplicateEventData {
+  ownerId: string;
+  title: string;
+  slug: string;
+  location: string | null;
+  capacity: number | null;
+  dressCode: string | null;
+  groupLink: string | null;
+  eventDate: Date | null;
+  endDate: Date | null;
+  sendToPipedrive: boolean;
+  lastEditedById: string;
+}
+
+export interface CreatedDuplicateEvent {
+  id: string;
+  ownerId: string;
+  title: string;
+  slug: string;
+}
+
 export interface EventRepositoryPort {
   findById(id: string): Promise<EventEntity | null>;
   findBySlug(slug: string): Promise<EventEntity | null>;
@@ -56,4 +112,6 @@ export interface EventRepositoryPort {
   findOwnershipById(id: string, profileId: string): Promise<EventOwnership | null>;
   /** Token da instância WhatsApp vinculada ao evento (relação uazapiInstance, não a coluna uazapiToken). */
   findWhatsappInstanceToken(id: string): Promise<string | null>;
+  findDuplicationSource(id: string): Promise<EventDuplicationSource | null>;
+  createDuplicate(data: CreateDuplicateEventData): Promise<CreatedDuplicateEvent>;
 }

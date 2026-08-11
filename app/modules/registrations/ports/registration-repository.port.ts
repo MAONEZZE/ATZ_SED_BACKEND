@@ -46,4 +46,6 @@ export interface RegistrationRepositoryPort {
   ): Promise<RegistrationEntity | null>;
   upsertPostEventResponse(data: PostEventResponseData): Promise<void>;
   countByEvent(eventId: string): Promise<number>;
+  /** Registrations still in the funnel (approved/pending) — used for cancellation notices. */
+  findActiveByEvent(eventId: string): Promise<RegistrationEntity[]>;
 }
