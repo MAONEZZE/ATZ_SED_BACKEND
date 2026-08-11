@@ -36,6 +36,11 @@ export interface UpdateEventData {
   recurrenceUntil?: Date | null;
 }
 
+export interface EventOwnership {
+  ownerId: string;
+  isCollaborator: boolean;
+}
+
 export interface EventRepositoryPort {
   findById(id: string): Promise<EventEntity | null>;
   findBySlug(slug: string): Promise<EventEntity | null>;
@@ -48,4 +53,5 @@ export interface EventRepositoryPort {
   update(id: string, data: UpdateEventData): Promise<EventEntity>;
   updateStatus(id: string, status: EventStatus, editorId?: string): Promise<EventEntity>;
   delete(id: string): Promise<void>;
+  findOwnershipById(id: string, profileId: string): Promise<EventOwnership | null>;
 }

@@ -1,20 +1,21 @@
 import {
   Injectable,
+  Inject,
   CanActivate,
   ExecutionContext,
   ForbiddenException,
   NotFoundException,
   UnauthorizedException,
-  Logger,
 } from '@nestjs/common';
-import { PrismaService } from '@infra/prisma/prisma.service';
+import {
+  EVENT_REPOSITORY_PORT,
+  EventRepositoryPort,
+} from '@modules/events/ports/event-repository.port';
 import { AuthenticatedUser } from '@shared/authenticated-user.entity';
 
 @Injectable()
 export class OwnershipGuard implements CanActivate {
-  private readonly logger = new Logger(OwnershipGuard.name);
-
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Record<string, unknown>>();
@@ -28,25 +29,10 @@ export class OwnershipGuard implements CanActivate {
     const eventId = params['eventId'] ?? params['id'];
     if (!eventId) return true;
 
-    const prismaEvent = (this.prisma as any)['event'];
-    if (!prismaEvent?.findUnique) {
-      this.logger.warn(
-        'OwnershipGuard: Prisma event model not available — skipping ownership check',
-      );
-      return true;
-    }
-
-    const event = await prismaEvent.findUnique({
-      where: { id: eventId },
-      select: {
-        ownerId: true,
-        collaborators: { where: { profileId: user.id }, select: { id: true }, take: 1 },
-      },
-    });
-    if (!event) throw new NotFoundException('Event not found');
-    const isOwner = event.ownerId === user.id;
-    const isCollaborator = (event.collaborators?.length ?? 0) > 0;
-    if (!isOwner && !isCollaborator) throw new ForbiddenException('Not your event');
+    const ownership = await this.eventRepo.findOwnershipById(eventId, user.id);
+    if (!ownership) throw new NotFoundException('Event not found');
+    const isOwner = ownership.ownerId === user.id;
+    if (!isOwner && !ownership.isCollaborator) throw new ForbiddenException('Not your event');
     return true;
   }
 }

@@ -5,6 +5,7 @@ import {
   EventRepositoryPort,
   CreateEventData,
   UpdateEventData,
+  EventOwnership,
 } from '@modules/events/ports/event-repository.port';
 import { EventEntity, EventStatus } from '@modules/events/entities/event.entity';
 
@@ -132,5 +133,17 @@ export class PrismaEventRepository implements EventRepositoryPort {
 
   async delete(id: string): Promise<void> {
     await this.prisma.event.delete({ where: { id } });
+  }
+
+  async findOwnershipById(id: string, profileId: string): Promise<EventOwnership | null> {
+    const event = await this.prisma.event.findUnique({
+      where: { id },
+      select: {
+        ownerId: true,
+        collaborators: { where: { profileId }, select: { id: true }, take: 1 },
+      },
+    });
+    if (!event) return null;
+    return { ownerId: event.ownerId, isCollaborator: event.collaborators.length > 0 };
   }
 }
