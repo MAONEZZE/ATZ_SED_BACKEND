@@ -1,6 +1,6 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ProfileRepository } from '@modules/users/profile.repository';
+import { ProfileRepository } from '@modules/profile/profile.repository';
 import { STORAGE_PORT, StoragePort } from '@infra/storage/storage.port';
 
 export interface UpdateProfileInput {

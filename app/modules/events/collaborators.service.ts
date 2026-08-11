@@ -4,7 +4,7 @@ import {
   EventRepositoryPort,
 } from '@modules/events/ports/event-repository.port';
 import { CollaboratorsRepository } from '@modules/events/collaborators.repository';
-import { ProfileRepository } from '@modules/users/profile.repository';
+import { ProfileRepository } from '@modules/profile/profile.repository';
 
 @Injectable()
 export class CollaboratorsService {

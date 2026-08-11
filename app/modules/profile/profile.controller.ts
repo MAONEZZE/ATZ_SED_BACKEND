@@ -27,7 +27,7 @@ import {
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { AuthenticatedUser } from '@shared/authenticated-user.entity';
-import { ProfileService } from '@modules/users/profile.service';
+import { ProfileService } from '@modules/profile/profile.service';
 import { UpdateProfileDto } from './dto/profile.dto';
 
 @ApiTags('Profile')

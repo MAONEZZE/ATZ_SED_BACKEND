@@ -6,4 +6,4 @@ import { ProfileRepository } from './profile.repository';
   providers: [ProfileRepository],
   exports: [ProfileRepository],
 })
-export class UsersDbModule {}
+export class ProfileDbModule {}
