@@ -3,11 +3,13 @@ import { EventsController } from './events.controller';
 import { FormFieldsController } from './form-fields.controller';
 import { FormsController } from './forms.controller';
 import { CollaboratorsController } from './collaborators.controller';
+import { PublicEventsController } from './public-events.controller';
 import { EventsService } from '@modules/events/events.service';
 import { EventLifecycleService } from '@modules/events/event-lifecycle.service';
 import { CollaboratorsService } from '@modules/events/collaborators.service';
 import { FormFieldsService } from '@modules/events/form-fields.service';
 import { FormsService } from '@modules/events/forms.service';
+import { PublicEventsService } from '@modules/events/public-events.service';
 import { EventsDbModule } from '@modules/events/events-db.module';
 import { StorageModule } from '@infra/storage/storage.module';
 import { GuardsModule } from '@shared/guards/guards.module';
@@ -28,14 +30,21 @@ import { ProfileDbModule } from '@modules/profile/profile-db.module';
     MessagingDbModule,
     ProfileDbModule,
   ],
-  controllers: [EventsController, FormFieldsController, FormsController, CollaboratorsController],
+  controllers: [
+    EventsController,
+    FormFieldsController,
+    FormsController,
+    CollaboratorsController,
+    PublicEventsController,
+  ],
   providers: [
     EventsService,
     EventLifecycleService,
     CollaboratorsService,
     FormFieldsService,
     FormsService,
+    PublicEventsService,
   ],
-  exports: [EventsService, FormFieldsService, FormsService],
+  exports: [EventsService, FormFieldsService, FormsService, PublicEventsService],
 })
 export class EventsModule {}

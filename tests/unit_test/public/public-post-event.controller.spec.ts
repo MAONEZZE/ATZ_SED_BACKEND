@@ -1,4 +1,4 @@
-import { PublicPostEventController } from '@modules/public/public-post-event.controller';
+import { PublicPostEventController } from '@modules/registrations/public-post-event.controller';
 
 function make() {
   const publicEvents = {

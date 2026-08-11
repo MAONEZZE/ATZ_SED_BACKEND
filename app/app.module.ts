@@ -18,7 +18,6 @@ import { AutomationsModule } from '@modules/automations/automations.module';
 import { MessagingModule } from '@modules/messaging/messaging.module';
 import { GlobalMessagingModule } from '@modules/messaging/global-messaging.module';
 import { ProfileModule } from '@modules/profile/profile.module';
-import { PublicModule } from '@modules/public/public.module';
 import { WhatsappInstancesModule } from '@modules/whatsapp-instances/whatsapp-instances.module';
 
 @Module({
@@ -51,7 +50,6 @@ import { WhatsappInstancesModule } from '@modules/whatsapp-instances/whatsapp-in
     MessagingModule,
     GlobalMessagingModule,
     ProfileModule,
-    PublicModule,
     WhatsappInstancesModule,
   ],
   providers: [

@@ -1,5 +1,5 @@
 import { UnauthorizedException } from '@nestjs/common';
-import { WhatsappWebhookController } from '@modules/public/whatsapp-webhook.controller';
+import { WhatsappWebhookController } from '@modules/whatsapp-instances/whatsapp-webhook.controller';
 
 function make(secret = 'sekret') {
   const config = { get: jest.fn((k: string) => (k === 'WHATSAPP_WEBHOOK_SECRET' ? secret : undefined)) };
