@@ -11,7 +11,10 @@ import { PrismaModule } from '@infra/prisma/prisma.module';
 import { RequestIdMiddleware } from '@api/config/middlewares/request-id.middleware';
 import { AuthModule } from '@api/adapters/modules/auth.module';
 import { GuardsModule } from '@api/config/modules/guards.module';
-import { EventsModule } from '@modules/events/events.module';
+import { EventsModule } from '@domain/event_module/events.module';
+import { FormsModule } from '@domain/form_module/forms.module';
+import { FormFieldsModule } from '@domain/form_field_module/form-fields.module';
+import { CollaboratorsModule } from '@domain/collaborator_module/collaborators.module';
 import { RegistrationsModule } from '@modules/registrations/registrations.module';
 import { WorkersModule } from '@application/workers/workers.module';
 import { AutomationsModule } from '@modules/automations/automations.module';
@@ -44,6 +47,9 @@ import { WhatsappInstancesModule } from '@modules/whatsapp-instances/whatsapp-in
     AuthModule,
     GuardsModule,
     EventsModule,
+    FormsModule,
+    FormFieldsModule,
+    CollaboratorsModule,
     RegistrationsModule,
     WorkersModule,
     AutomationsModule,

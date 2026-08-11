@@ -10,10 +10,10 @@ import {
 } from '@modules/registrations/entities/registration.entity';
 import { RegistrationStatusChanged } from '@modules/registrations/entities/registration-status-changed.event';
 import { FormSubmitted } from '@modules/registrations/entities/form-submitted.event';
-import { EventsService } from '@modules/events/events.service';
+import { EventsService } from '@application/event_module/events.service';
 import { UserSubscriptionsService } from './user-subscriptions.service';
 import { PipedriveAdapter } from '@api/adapters/pipedrive.adapter';
-import { FormsService } from '@modules/events/forms.service';
+import { FormsService } from '@application/form_module/forms.service';
 import {
   validateAnswers,
   resolveAnswer,

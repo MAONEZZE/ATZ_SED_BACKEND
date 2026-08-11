@@ -1,4 +1,4 @@
-import { PublicEventsService } from '@modules/events/public-events.service';
+import { PublicEventsService } from '@application/event_module/public-events.service';
 
 function makeService(eventRow: any) {
   const eventRepo = { findStatusBySlug: jest.fn().mockResolvedValue(eventRow) };

@@ -1,5 +1,5 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { CollaboratorsService } from '@modules/events/collaborators.service';
+import { CollaboratorsService } from '@application/collaborator_module/collaborators.service';
 
 function makeService() {
   const eventRepo = { findById: jest.fn() };

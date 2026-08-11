@@ -2,7 +2,7 @@ import { PartialType } from '@nestjs/swagger';
 import { IsBoolean, IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
 import { ApiPropertyOptional, ApiProperty } from '@nestjs/swagger';
 import { CreateEventDto } from './create-event.dto';
-import { EventStatus } from '@modules/events/entities/event.entity';
+import { EventStatus } from '@domain/event_module/event.entity';
 
 export class UpdateEventDto extends PartialType(CreateEventDto) {
   @ApiPropertyOptional({ example: 'c1a2b3c4-...' })

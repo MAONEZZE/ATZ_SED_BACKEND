@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
-import { EventsService } from '@modules/events/events.service';
-import { EventEntity } from '@modules/events/entities/event.entity';
+import { EventsService } from '@application/event_module/events.service';
+import { EventEntity } from '@domain/event_module/event.entity';
 
 const existing = new EventEntity(
   'evt-1',

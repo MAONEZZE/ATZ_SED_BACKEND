@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-repository.base';
-import { FormFieldKind } from '@modules/events/form-fields.repository';
-import { EventDuplicationForm } from '@modules/events/ports/event-repository.port';
+import { FormFieldKind } from '@infra/repositories/form_field_module/form-fields.repository';
+import { EventDuplicationForm } from '@domain/event_module/i-repository-event';
 
 @Injectable()
 export class FormsRepository extends PrismaRepositoryBase {

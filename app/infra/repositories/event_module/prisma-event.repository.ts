@@ -11,7 +11,7 @@ import {
   CreatedDuplicateEvent,
   PublicEventSummary,
   EventAutomationContext,
-} from '@modules/events/ports/event-repository.port';
+} from '@domain/event_module/i-repository-event';
 
 const PUBLIC_EVENT_SELECT = {
   id: true,
@@ -26,7 +26,7 @@ const PUBLIC_EVENT_SELECT = {
   sendToPipedrive: true,
   status: true,
 } as const;
-import { EventEntity, EventStatus } from '@modules/events/entities/event.entity';
+import { EventEntity, EventStatus } from '@domain/event_module/event.entity';
 
 @Injectable()
 export class PrismaEventRepository implements EventRepositoryPort {

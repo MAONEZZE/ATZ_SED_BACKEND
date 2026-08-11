@@ -2,9 +2,9 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
-} from '@modules/events/ports/event-repository.port';
-import { FormsRepository } from '@modules/events/forms.repository';
-import { FormFieldsRepository } from '@modules/events/form-fields.repository';
+} from '@domain/event_module/i-repository-event';
+import { FormsRepository } from '@infra/repositories/form_module/forms.repository';
+import { FormFieldsRepository } from '@infra/repositories/form_field_module/form-fields.repository';
 
 export type PublicFormKind = 'registration' | 'post_event' | 'nps';
 

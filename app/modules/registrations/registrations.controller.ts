@@ -6,7 +6,7 @@ import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { CurrentUser } from '@api/config/decorators/current-user.decorator';
 import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
 import { RegistrationsService } from '@modules/registrations/registrations.service';
-import { FormFieldsService } from '@modules/events/form-fields.service';
+import { FormFieldsService } from '@application/form_field_module/form-fields.service';
 import { buildRegistrationsCsv } from '@modules/registrations/registrations-csv';
 import { UpdateRegistrationStatusDto } from './dto/update-registration-status.dto';
 import { UpdateRegistrationAnswersDto } from './dto/update-registration-answers.dto';

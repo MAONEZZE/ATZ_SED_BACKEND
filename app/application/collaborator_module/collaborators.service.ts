@@ -2,8 +2,8 @@ import { ConflictException, Inject, Injectable, NotFoundException } from '@nestj
 import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
-} from '@modules/events/ports/event-repository.port';
-import { CollaboratorsRepository } from '@modules/events/collaborators.repository';
+} from '@domain/event_module/i-repository-event';
+import { CollaboratorsRepository } from '@infra/repositories/collaborator_module/collaborators.repository';
 import { ProfileRepository } from '@modules/profile/profile.repository';
 
 @Injectable()

@@ -2,9 +2,9 @@ import { Controller, Get, Patch, Param, Body, UseGuards, ParseEnumPipe } from '@
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
-import { FormsService } from '@modules/events/forms.service';
-import { UpdateFormDto } from './dto/form.dto';
-import { FormFieldKind } from '@modules/events/form-fields.repository';
+import { FormsService } from '@application/form_module/forms.service';
+import { UpdateFormDto } from '@api/dto/form_module/form.dto';
+import { FormFieldKind } from '@infra/repositories/form_field_module/form-fields.repository';
 
 const FORM_KINDS = ['registration', 'post_event', 'nps'] as const;
 

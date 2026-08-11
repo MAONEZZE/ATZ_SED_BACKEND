@@ -10,7 +10,7 @@ import {
 import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
-} from '@modules/events/ports/event-repository.port';
+} from '@domain/event_module/i-repository-event';
 import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
 
 @Injectable()

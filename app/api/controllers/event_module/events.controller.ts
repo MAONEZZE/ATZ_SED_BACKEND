@@ -30,10 +30,10 @@ import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { CurrentUser } from '@api/config/decorators/current-user.decorator';
 import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
-import { EventsService } from '@modules/events/events.service';
-import { EventLifecycleService } from '@modules/events/event-lifecycle.service';
-import { CreateEventDto } from './dto/create-event.dto';
-import { UpdateEventDto, UpdateEventStatusDto } from './dto/update-event.dto';
+import { EventsService } from '@application/event_module/events.service';
+import { EventLifecycleService } from '@application/event_module/event-lifecycle.service';
+import { CreateEventDto } from '@api/dto/event_module/create-event.dto';
+import { UpdateEventDto, UpdateEventStatusDto } from '@api/dto/event_module/update-event.dto';
 import { PaginationQueryDto, Paginated } from '@api/dto/shared/pagination';
 
 @ApiTags('Events')

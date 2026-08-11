@@ -3,10 +3,10 @@ import { randomBytes } from 'crypto';
 import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
-} from '@modules/events/ports/event-repository.port';
-import { EventEntity } from '@modules/events/entities/event.entity';
+} from '@domain/event_module/i-repository-event';
+import { EventEntity } from '@domain/event_module/event.entity';
 import { OutboxService } from '@modules/messaging/outbox.service';
-import { FormsRepository } from '@modules/events/forms.repository';
+import { FormsRepository } from '@infra/repositories/form_module/forms.repository';
 import { AutomationsRepository } from '@modules/automations/automations.repository';
 import {
   REGISTRATION_REPOSITORY_PORT,

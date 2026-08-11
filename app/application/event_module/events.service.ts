@@ -8,9 +8,9 @@ import {
 import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
-} from '@modules/events/ports/event-repository.port';
+} from '@domain/event_module/i-repository-event';
 import { STORAGE_PORT, StoragePort } from '@api/adapters/ports/i-storage';
-import { EventEntity, EventStatus } from '@modules/events/entities/event.entity';
+import { EventEntity, EventStatus } from '@domain/event_module/event.entity';
 import { ConfigService } from '@nestjs/config';
 
 export interface CreateEventInput {

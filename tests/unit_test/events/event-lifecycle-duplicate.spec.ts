@@ -1,4 +1,4 @@
-import { EventLifecycleService } from '@modules/events/event-lifecycle.service';
+import { EventLifecycleService } from '@application/event_module/event-lifecycle.service';
 
 function makeService(source: any) {
   const eventRepo = {

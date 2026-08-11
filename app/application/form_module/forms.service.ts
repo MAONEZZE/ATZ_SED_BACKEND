@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { FormsRepository } from '@modules/events/forms.repository';
-import { FormFieldKind } from '@modules/events/form-fields.repository';
+import { FormsRepository } from '@infra/repositories/form_module/forms.repository';
+import { FormFieldKind } from '@infra/repositories/form_field_module/form-fields.repository';
 
 export interface UpdateFormInput {
   description?: string;

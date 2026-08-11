@@ -9,7 +9,7 @@ import { AutomationsDbModule } from '@modules/automations/automations-db.module'
 import { WorkersModule } from '@application/workers/workers.module';
 import { AutomationsController } from './automations.controller';
 import { GuardsModule } from '@api/config/modules/guards.module';
-import { EventsDbModule } from '@modules/events/events-db.module';
+import { EventsDbModule } from '@infra/repositories/event_module/events-db.module';
 import { RegistrationsDbModule } from '@modules/registrations/registrations-db.module';
 
 @Module({

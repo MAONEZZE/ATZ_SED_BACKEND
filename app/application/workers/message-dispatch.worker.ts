@@ -18,7 +18,7 @@ import { MessageLogsRepository } from '@modules/messaging/message-logs.repositor
 import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
-} from '@modules/events/ports/event-repository.port';
+} from '@domain/event_module/i-repository-event';
 import { APP_TIMEZONE } from '@handlers/timezone';
 import { DateTime } from 'luxon';
 

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-repository.base';
-import { EventDuplicationAutomationRule } from '@modules/events/ports/event-repository.port';
+import { EventDuplicationAutomationRule } from '@domain/event_module/i-repository-event';
 
 const TEMPLATE_SUMMARY = {
   template: { select: { id: true, name: true, channel: true } },

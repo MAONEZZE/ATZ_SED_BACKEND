@@ -9,16 +9,16 @@ import { ConfigService } from '@nestjs/config';
 import { randomBytes, randomInt } from 'crypto';
 import { DateTime } from 'luxon';
 import { STORAGE_PORT, StoragePort } from '@api/adapters/ports/i-storage';
-import { EventsService } from '@modules/events/events.service';
+import { EventsService } from '@application/event_module/events.service';
 import { OutboxService } from '@modules/messaging/outbox.service';
 import { TemplateRenderer } from '@modules/automations/template-renderer.service';
 import { MessageTemplatesRepository } from '@modules/messaging/message-templates.repository';
 import { WhatsappInstancesRepository } from '@modules/whatsapp-instances/whatsapp-instances.repository';
-import { CollaboratorsRepository } from '@modules/events/collaborators.repository';
+import { CollaboratorsRepository } from '@infra/repositories/collaborator_module/collaborators.repository';
 import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
-} from '@modules/events/ports/event-repository.port';
+} from '@domain/event_module/i-repository-event';
 import {
   REGISTRATION_REPOSITORY_PORT,
   RegistrationRepositoryPort,

@@ -1,6 +1,6 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { PublicEventsService } from '@modules/events/public-events.service';
+import { PublicEventsService } from '@application/event_module/public-events.service';
 
 @ApiTags('Public')
 @Controller('public/events')

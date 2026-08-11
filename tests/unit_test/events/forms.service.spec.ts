@@ -1,4 +1,4 @@
-import { FormsService } from '@modules/events/forms.service';
+import { FormsService } from '@application/form_module/forms.service';
 
 function makeService(existing: Record<string, unknown> | null = null) {
   const repo = {

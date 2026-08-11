@@ -1,8 +1,8 @@
 import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { FormFieldsRepository, FormFieldKind } from '@modules/events/form-fields.repository';
-import { FormsService } from '@modules/events/forms.service';
-import { EventsService } from '@modules/events/events.service';
+import { FormFieldsRepository, FormFieldKind } from '@infra/repositories/form_field_module/form-fields.repository';
+import { FormsService } from '@application/form_module/forms.service';
+import { EventsService } from '@application/event_module/events.service';
 
 export interface CreateFormFieldInput {
   label: string;

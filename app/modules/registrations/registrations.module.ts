@@ -11,10 +11,19 @@ import { PostEventResponsesService } from '@modules/registrations/post-event-res
 import { RegistrationsDbModule } from '@modules/registrations/registrations-db.module';
 import { AdaptersModule } from '@api/adapters/modules/adapters.module';
 import { GuardsModule } from '@api/config/modules/guards.module';
-import { EventsModule } from '../events/events.module';
+import { EventsModule } from '@domain/event_module/events.module';
+import { FormsModule } from '@domain/form_module/forms.module';
+import { FormFieldsModule } from '@domain/form_field_module/form-fields.module';
 
 @Module({
-  imports: [RegistrationsDbModule, AdaptersModule, GuardsModule, EventsModule],
+  imports: [
+    RegistrationsDbModule,
+    AdaptersModule,
+    GuardsModule,
+    EventsModule,
+    FormsModule,
+    FormFieldsModule,
+  ],
   controllers: [
     RegistrationsController,
     PostEventResponsesController,

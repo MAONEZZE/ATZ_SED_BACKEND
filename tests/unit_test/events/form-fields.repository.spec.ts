@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '@infra/prisma/prisma.service';
-import { FormFieldsRepository } from '@modules/events/form-fields.repository';
+import { FormFieldsRepository } from '@infra/repositories/form_field_module/form-fields.repository';
 
 // Boots Nest DI (not `new Repo(mock)`) to prove the inherited
 // PrismaRepositoryBase constructor injects PrismaService. See profile.repository

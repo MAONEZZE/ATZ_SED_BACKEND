@@ -1,4 +1,4 @@
-import { FormFieldsService } from '@modules/events/form-fields.service';
+import { FormFieldsService } from '@application/form_field_module/form-fields.service';
 
 function makeService(existingField: Record<string, unknown> = { id: 'f1', label: 'Campo', type: 'text', options: null }) {
   const repo = {

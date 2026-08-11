@@ -22,9 +22,9 @@ import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { CurrentUser } from '@api/config/decorators/current-user.decorator';
 import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
-import { FormFieldsService } from '@modules/events/form-fields.service';
-import { CreateFormFieldDto, UpdateFormFieldDto } from './dto/form-field.dto';
-import { ListFormFieldsQueryDto } from './dto/list-form-fields-query.dto';
+import { FormFieldsService } from '@application/form_field_module/form-fields.service';
+import { CreateFormFieldDto, UpdateFormFieldDto } from '@api/dto/form_field_module/form-field.dto';
+import { ListFormFieldsQueryDto } from '@api/dto/form_field_module/list-form-fields-query.dto';
 import { Paginated } from '@api/dto/shared/pagination';
 
 @ApiTags('Form Fields')

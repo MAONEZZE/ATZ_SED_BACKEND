@@ -12,7 +12,7 @@ import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { Paginated } from '@api/dto/shared/pagination';
 import { UserSubscriptionsService } from '@modules/registrations/user-subscriptions.service';
-import { FormFieldsService } from '@modules/events/form-fields.service';
+import { FormFieldsService } from '@application/form_field_module/form-fields.service';
 import { buildUserSubscriptionsCsv } from '@modules/registrations/user-subscriptions-csv';
 import { ListUserSubscriptionsQueryDto } from './dto/list-user-subscriptions-query.dto';
 

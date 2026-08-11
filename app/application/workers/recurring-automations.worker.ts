@@ -5,7 +5,7 @@ import { AutomationsRepository } from '@modules/automations/automations.reposito
 import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
-} from '@modules/events/ports/event-repository.port';
+} from '@domain/event_module/i-repository-event';
 import { AutomationEngine } from '@modules/automations/automation-engine.service';
 import { RecurringSchedulerService } from '@modules/automations/recurring-scheduler.service';
 import { QUEUE_RECURRING_AUTOMATIONS } from '@infra/queue/bull-queues.module';

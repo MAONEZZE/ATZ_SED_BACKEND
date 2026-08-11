@@ -1,4 +1,4 @@
-import { EventEntity, EventStatus } from '../entities/event.entity';
+import { EventEntity, EventStatus } from './event.entity';
 
 export const EVENT_REPOSITORY_PORT = Symbol('EVENT_REPOSITORY_PORT');
 

@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import { PublicEventsService } from '@modules/events/public-events.service';
+import { PublicEventsService } from '@application/event_module/public-events.service';
 
 function makeService(event: any) {
   const eventRepo = { findPublicBySlug: jest.fn().mockResolvedValue(event) };
