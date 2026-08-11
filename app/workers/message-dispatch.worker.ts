@@ -1,14 +1,24 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Job, UnrecoverableError, DelayedError } from 'bullmq';
-import { PrismaService } from '@infra/prisma/prisma.service';
 import { ResendAdapter } from '@infra/integrations/resend.adapter';
 import { UazapiAdapter, WhatsappRestrictionError } from '@infra/integrations/uazapi.adapter';
 import { QUEUE_MESSAGE_DISPATCH } from '@infra/queue/bull-queues.module';
 import { WhatsappPacingService } from '@modules/messaging/whatsapp-pacing.service';
 import { IcsGeneratorService } from '@modules/automations/ics-generator.service';
-import type { InviteConfigInput, OutboxAttachment } from '@modules/messaging/ports/outbox-repository.port';
+import {
+  OUTBOX_REPOSITORY_PORT,
+  OutboxRepositoryPort,
+  OutboxDispatchMessage,
+  InviteConfigInput,
+  OutboxAttachment,
+} from '@modules/messaging/ports/outbox-repository.port';
+import { MessageLogsRepository } from '@modules/messaging/message-logs.repository';
+import {
+  EVENT_REPOSITORY_PORT,
+  EventRepositoryPort,
+} from '@modules/events/ports/event-repository.port';
 import { APP_TIMEZONE } from '@shared/timezone';
 import { DateTime } from 'luxon';
 
@@ -29,7 +39,9 @@ export class MessageDispatchWorker extends WorkerHost {
   private readonly gateEnabled: boolean;
 
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(OUTBOX_REPOSITORY_PORT) private readonly outboxRepo: OutboxRepositoryPort,
+    private readonly messageLogs: MessageLogsRepository,
+    @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
     private readonly resend: ResendAdapter,
     private readonly uazapi: UazapiAdapter,
     private readonly ics: IcsGeneratorService,
@@ -49,15 +61,8 @@ export class MessageDispatchWorker extends WorkerHost {
     };
 
     const outbox = outboxId
-      ? await this.prisma.outboxMessage.findUnique({ where: { id: outboxId } })
-      : await this.prisma.outboxMessage.findFirst({
-          where: {
-            registrationId,
-            templateId,
-            trigger,
-            status: { in: ['pending', 'processing'] },
-          },
-        });
+      ? await this.outboxRepo.findDispatchById(outboxId)
+      : await this.outboxRepo.findPendingDispatchByTrigger(registrationId, templateId, trigger);
 
     if (!outbox) {
       this.logger.warn(
@@ -90,10 +95,7 @@ export class MessageDispatchWorker extends WorkerHost {
       }
     }
 
-    await this.prisma.outboxMessage.update({
-      where: { id: outbox.id },
-      data: { status: 'processing', attempts: { increment: 1 } },
-    });
+    await this.outboxRepo.markProcessingAttempt(outbox.id);
 
     try {
       let whatsappMessageId: string | null = null;
@@ -136,10 +138,7 @@ export class MessageDispatchWorker extends WorkerHost {
             startIndex: outbox.sentParts,
             trackId: outbox.id,
             onPartSent: async (index) => {
-              await this.prisma.outboxMessage.update({
-                where: { id: outbox.id },
-                data: { sentParts: index + 1 },
-              });
+              await this.outboxRepo.updateSentParts(outbox.id, index + 1);
             },
           },
         );
@@ -158,52 +157,39 @@ export class MessageDispatchWorker extends WorkerHost {
             outbox.id,
           );
           providerMessageId = mediaMessageId ?? providerMessageId;
-          await this.prisma.outboxMessage.update({
-            where: { id: outbox.id },
-            data: { sentAttachments: i + 1 },
-          });
+          await this.outboxRepo.updateSentAttachments(outbox.id, i + 1);
         }
 
         whatsappMessageId = providerMessageId;
       }
 
-      await this.prisma.outboxMessage.update({
-        where: { id: outbox.id },
-        data: { status: 'sent', processedAt: new Date(), providerMessageId: whatsappMessageId },
-      });
+      await this.outboxRepo.markDispatchSent(outbox.id, whatsappMessageId);
 
-      await this.prisma.messageLog.create({
-        data: {
-          eventId: outbox.eventId ?? null,
-          ownerId: outbox.ownerId ?? null,
-          registrationId: outbox.registrationId ?? null,
-          channel: outbox.channel,
-          recipient: outbox.recipient,
-          body: outbox.renderedBody,
-          status: 'sent',
-          providerMessageId: whatsappMessageId,
-          sentAt: new Date(),
-        },
+      await this.messageLogs.create({
+        eventId: outbox.eventId ?? null,
+        ownerId: outbox.ownerId ?? null,
+        registrationId: outbox.registrationId ?? null,
+        channel: outbox.channel,
+        recipient: outbox.recipient,
+        body: outbox.renderedBody,
+        status: 'sent',
+        providerMessageId: whatsappMessageId,
+        sentAt: new Date(),
       });
 
       this.logger.log({ id: outbox.id, channel: outbox.channel }, 'Message dispatched');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
-      await this.prisma.outboxMessage.update({
-        where: { id: outbox.id },
-        data: { status: 'failed', errorMessage: msg },
-      });
-      await this.prisma.messageLog.create({
-        data: {
-          eventId: outbox.eventId ?? null,
-          ownerId: outbox.ownerId ?? null,
-          registrationId: outbox.registrationId ?? null,
-          channel: outbox.channel,
-          recipient: outbox.recipient,
-          body: outbox.renderedBody,
-          status: 'failed',
-          errorMessage: msg,
-        },
+      await this.outboxRepo.markDispatchFailed(outbox.id, msg);
+      await this.messageLogs.create({
+        eventId: outbox.eventId ?? null,
+        ownerId: outbox.ownerId ?? null,
+        registrationId: outbox.registrationId ?? null,
+        channel: outbox.channel,
+        recipient: outbox.recipient,
+        body: outbox.renderedBody,
+        status: 'failed',
+        errorMessage: msg,
       });
       if (err instanceof UnrecoverableError) throw err;
       // Restrição do WhatsApp (463/timelock): não adianta retentar antes do `until`
@@ -228,28 +214,10 @@ export class MessageDispatchWorker extends WorkerHost {
    * UID estável por (eventId + destinatário) evita duplicação no calendário em reenvios.
    */
   private async buildInvite(
-    outbox: {
-      eventId: string | null;
-      recipient: string;
-      renderedSubject: string | null;
-      inviteConfig: unknown;
-    },
+    outbox: OutboxDispatchMessage,
     wantsRecurrent: boolean,
   ): Promise<string | undefined> {
-    const event = outbox.eventId
-      ? await this.prisma.event.findUnique({
-          where: { id: outbox.eventId },
-          select: {
-            title: true,
-            eventDate: true,
-            endDate: true,
-            location: true,
-            recurrenceFreq: true,
-            recurrenceInterval: true,
-            recurrenceUntil: true,
-          },
-        })
-      : null;
+    const event = outbox.eventId ? await this.eventRepo.findById(outbox.eventId) : null;
 
     const uid = `invite-${outbox.eventId ?? 'global'}-${outbox.recipient}`;
     const cfg = (outbox.inviteConfig as InviteConfigInput | null) ?? null;
@@ -316,11 +284,7 @@ export class MessageDispatchWorker extends WorkerHost {
   ): Promise<string | null> {
     if (fallback) return fallback;
     if (eventId) {
-      const event = await this.prisma.event.findUnique({
-        where: { id: eventId },
-        select: { uazapiInstance: { select: { token: true } } },
-      });
-      return event?.uazapiInstance?.token ?? null;
+      return this.eventRepo.findWhatsappInstanceToken(eventId);
     }
     return null;
   }

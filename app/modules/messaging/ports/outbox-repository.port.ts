@@ -64,6 +64,23 @@ export interface OutboxDeliveryTarget {
   trackId?: string | null;
 }
 
+export interface OutboxDispatchMessage {
+  id: string;
+  eventId: string | null;
+  ownerId: string | null;
+  registrationId: string | null;
+  channel: MessageChannel;
+  recipient: string;
+  instancia: string | null;
+  renderedBody: string;
+  renderedSubject: string | null;
+  inviteConfig: unknown;
+  attachments: unknown;
+  sentParts: number;
+  sentAttachments: number;
+  status: string;
+}
+
 export interface OutboxRepositoryPort {
   enqueue(
     data: EnqueueMessageData & { dedupKey: string },
@@ -76,4 +93,15 @@ export interface OutboxRepositoryPort {
   markDeliveredIfUnset(target: OutboxDeliveryTarget, at: Date): Promise<void>;
   markReadIfUnset(target: OutboxDeliveryTarget, at: Date): Promise<void>;
   markFailedIfUndelivered(target: OutboxDeliveryTarget, error: string): Promise<void>;
+  findDispatchById(id: string): Promise<OutboxDispatchMessage | null>;
+  findPendingDispatchByTrigger(
+    registrationId: string | undefined,
+    templateId: string | undefined,
+    trigger: string | undefined,
+  ): Promise<OutboxDispatchMessage | null>;
+  markProcessingAttempt(id: string): Promise<void>;
+  updateSentParts(id: string, sentParts: number): Promise<void>;
+  updateSentAttachments(id: string, sentAttachments: number): Promise<void>;
+  markDispatchSent(id: string, providerMessageId: string | null): Promise<void>;
+  markDispatchFailed(id: string, error: string): Promise<void>;
 }

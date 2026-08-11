@@ -1,8 +1,26 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaRepositoryBase } from '@shared/prisma-repository.base';
+import type { MessageChannel } from '@modules/messaging/message-channel.type';
+
+export interface CreateMessageLogData {
+  eventId: string | null;
+  ownerId: string | null;
+  registrationId: string | null;
+  channel: MessageChannel;
+  recipient: string;
+  body: string;
+  status: string;
+  providerMessageId?: string | null;
+  sentAt?: Date;
+  errorMessage?: string;
+}
 
 @Injectable()
 export class MessageLogsRepository extends PrismaRepositoryBase {
+  async create(data: CreateMessageLogData): Promise<void> {
+    await this.prisma.messageLog.create({ data });
+  }
+
   async findByEventPaginated(
     eventId: string,
     pagination: { skip: number; take: number },

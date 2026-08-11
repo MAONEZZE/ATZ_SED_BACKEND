@@ -146,4 +146,12 @@ export class PrismaEventRepository implements EventRepositoryPort {
     if (!event) return null;
     return { ownerId: event.ownerId, isCollaborator: event.collaborators.length > 0 };
   }
+
+  async findWhatsappInstanceToken(id: string): Promise<string | null> {
+    const event = await this.prisma.event.findUnique({
+      where: { id },
+      select: { uazapiInstance: { select: { token: true } } },
+    });
+    return event?.uazapiInstance?.token ?? null;
+  }
 }

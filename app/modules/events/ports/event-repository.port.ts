@@ -54,4 +54,6 @@ export interface EventRepositoryPort {
   updateStatus(id: string, status: EventStatus, editorId?: string): Promise<EventEntity>;
   delete(id: string): Promise<void>;
   findOwnershipById(id: string, profileId: string): Promise<EventOwnership | null>;
+  /** Token da instância WhatsApp vinculada ao evento (relação uazapiInstance, não a coluna uazapiToken). */
+  findWhatsappInstanceToken(id: string): Promise<string | null>;
 }

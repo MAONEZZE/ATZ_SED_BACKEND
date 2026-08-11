@@ -6,7 +6,25 @@ import {
   EnqueueMessageData,
   PendingOutboxMessage,
   OutboxDeliveryTarget,
+  OutboxDispatchMessage,
 } from '@modules/messaging/ports/outbox-repository.port';
+
+const DISPATCH_SELECT = {
+  id: true,
+  eventId: true,
+  ownerId: true,
+  registrationId: true,
+  channel: true,
+  recipient: true,
+  instancia: true,
+  renderedBody: true,
+  renderedSubject: true,
+  inviteConfig: true,
+  attachments: true,
+  sentParts: true,
+  sentAttachments: true,
+  status: true,
+} as const;
 
 @Injectable()
 export class PrismaOutboxRepository implements OutboxRepositoryPort {
@@ -130,6 +148,50 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
     // não rebaixa uma mensagem já entregue/lida
     await this.prisma.outboxMessage.updateMany({
       where: { ...this.deliveryWhere(target), deliveredAt: null, readAt: null },
+      data: { status: 'failed', errorMessage: error },
+    });
+  }
+
+  async findDispatchById(id: string): Promise<OutboxDispatchMessage | null> {
+    return this.prisma.outboxMessage.findUnique({ where: { id }, select: DISPATCH_SELECT });
+  }
+
+  async findPendingDispatchByTrigger(
+    registrationId: string | undefined,
+    templateId: string | undefined,
+    trigger: string | undefined,
+  ): Promise<OutboxDispatchMessage | null> {
+    return this.prisma.outboxMessage.findFirst({
+      where: { registrationId, templateId, trigger, status: { in: ['pending', 'processing'] } },
+      select: DISPATCH_SELECT,
+    });
+  }
+
+  async markProcessingAttempt(id: string): Promise<void> {
+    await this.prisma.outboxMessage.update({
+      where: { id },
+      data: { status: 'processing', attempts: { increment: 1 } },
+    });
+  }
+
+  async updateSentParts(id: string, sentParts: number): Promise<void> {
+    await this.prisma.outboxMessage.update({ where: { id }, data: { sentParts } });
+  }
+
+  async updateSentAttachments(id: string, sentAttachments: number): Promise<void> {
+    await this.prisma.outboxMessage.update({ where: { id }, data: { sentAttachments } });
+  }
+
+  async markDispatchSent(id: string, providerMessageId: string | null): Promise<void> {
+    await this.prisma.outboxMessage.update({
+      where: { id },
+      data: { status: 'sent', processedAt: new Date(), providerMessageId },
+    });
+  }
+
+  async markDispatchFailed(id: string, error: string): Promise<void> {
+    await this.prisma.outboxMessage.update({
+      where: { id },
       data: { status: 'failed', errorMessage: error },
     });
   }
