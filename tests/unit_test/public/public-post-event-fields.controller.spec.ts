@@ -2,30 +2,29 @@ import { PublicEventsService } from '@modules/events/public-events.service';
 import { NotFoundException } from '@nestjs/common';
 
 function makeService(eventRow: any) {
-  const prisma = {
-    event: { findUnique: jest.fn().mockResolvedValue(eventRow) },
-    formField: { findMany: jest.fn().mockResolvedValue([]) },
+  const eventRepo = { findStatusBySlug: jest.fn().mockResolvedValue(eventRow) };
+  const forms = {};
+  const formFields = { listPublicByEventAndKind: jest.fn().mockResolvedValue([]) };
+  return {
+    service: new PublicEventsService(eventRepo as any, forms as any, formFields as any),
+    eventRepo,
+    formFields,
   };
-  return { service: new PublicEventsService(prisma as any), prisma };
 }
 
 describe('PublicEventsService.getPublicFormFields (post_event)', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('returns post_event fields for a published event', async () => {
-    const { service, prisma } = makeService({ id: 'evt-1', status: 'published' });
+    const { service, formFields } = makeService({ id: 'evt-1', status: 'published' });
     await service.getPublicFormFields('slug-1', 'post_event', true);
-    expect(prisma.formField.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { form: { eventId: 'evt-1', kind: 'post_event' } } }),
-    );
+    expect(formFields.listPublicByEventAndKind).toHaveBeenCalledWith('evt-1', 'post_event');
   });
 
   it('returns post_event fields for an ended event', async () => {
-    const { service, prisma } = makeService({ id: 'evt-1', status: 'ended' });
+    const { service, formFields } = makeService({ id: 'evt-1', status: 'ended' });
     await expect(service.getPublicFormFields('slug-1', 'post_event', true)).resolves.toBeDefined();
-    expect(prisma.formField.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { form: { eventId: 'evt-1', kind: 'post_event' } } }),
-    );
+    expect(formFields.listPublicByEventAndKind).toHaveBeenCalledWith('evt-1', 'post_event');
   });
 
   it('throws 404 for a draft event', async () => {

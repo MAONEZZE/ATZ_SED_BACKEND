@@ -7,9 +7,10 @@ import { UazapiWebhookController } from './uazapi-webhook.controller';
 import { PublicEventsService } from '@modules/events/public-events.service';
 import { RegistrationsModule } from '../registrations/registrations.module';
 import { MessagingDbModule } from '@modules/messaging/messaging-db.module';
+import { EventsDbModule } from '@modules/events/events-db.module';
 
 @Module({
-  imports: [RegistrationsModule, MessagingDbModule],
+  imports: [RegistrationsModule, MessagingDbModule, EventsDbModule],
   controllers: [
     PublicRegistrationsController,
     PublicEventsController,

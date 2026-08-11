@@ -1,30 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@infra/prisma/prisma.service';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  EVENT_REPOSITORY_PORT,
+  EventRepositoryPort,
+} from '@modules/events/ports/event-repository.port';
+import { FormsRepository } from '@modules/events/forms.repository';
+import { FormFieldsRepository } from '@modules/events/form-fields.repository';
 
 export type PublicFormKind = 'registration' | 'post_event' | 'nps';
-
-const PUBLIC_EVENT_SELECT = {
-  id: true,
-  title: true,
-  slug: true,
-  coverUrl: true,
-  location: true,
-  capacity: true,
-  dressCode: true,
-  eventDate: true,
-  endDate: true,
-  sendToPipedrive: true,
-  status: true,
-} as const;
-
-const PUBLIC_FIELD_SELECT = {
-  id: true,
-  label: true,
-  type: true,
-  required: true,
-  options: true,
-  order: true,
-} as const;
 
 /**
  * Read-only queries backing the public (unauthenticated) event pages.
@@ -33,13 +15,14 @@ const PUBLIC_FIELD_SELECT = {
  */
 @Injectable()
 export class PublicEventsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
+    private readonly forms: FormsRepository,
+    private readonly formFields: FormFieldsRepository,
+  ) {}
 
   async getPublicEvent(slug: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { slug },
-      select: PUBLIC_EVENT_SELECT,
-    });
+    const event = await this.eventRepo.findPublicBySlug(slug);
     if (!event || (event.status !== 'published' && event.status !== 'ended')) {
       throw new NotFoundException('Event not found');
     }
@@ -47,15 +30,7 @@ export class PublicEventsService {
     // description/postRegistrationMessage now live on the registration Form
     // scope, not on Event — merge them into the public payload so the
     // public page doesn't need a second round-trip.
-    const form = await this.prisma.form.findUnique({
-      where: { eventId_kind: { eventId: event.id, kind: 'registration' } },
-      select: {
-        description: true,
-        postRegistrationMessage: true,
-        linkPostSubscription: true,
-        requireImageAuthorization: true,
-      },
-    });
+    const form = await this.forms.findByEventAndKind(event.id, 'registration');
 
     return {
       ...event,
@@ -72,26 +47,16 @@ export class PublicEventsService {
    * fields (`allowEnded`) stay visible after the event has `ended`.
    */
   async getPublicFormFields(slug: string, kind: PublicFormKind, allowEnded: boolean) {
-    const event = await this.prisma.event.findUnique({
-      where: { slug },
-      select: { id: true, status: true },
-    });
+    const event = await this.eventRepo.findStatusBySlug(slug);
     const visible =
       !!event && (event.status === 'published' || (allowEnded && event.status === 'ended'));
     if (!visible) throw new NotFoundException('Event not found');
 
-    return this.prisma.formField.findMany({
-      where: { form: { eventId: event!.id, kind } },
-      orderBy: { order: 'asc' },
-      select: PUBLIC_FIELD_SELECT,
-    });
+    return this.formFields.listPublicByEventAndKind(event!.id, kind);
   }
 
   /** Fields used to validate a public registration/post-event/NPS submission. */
   getSubmissionFields(slug: string, kind: PublicFormKind) {
-    return this.prisma.formField.findMany({
-      where: { form: { event: { slug }, kind } },
-      select: { label: true, type: true, required: true, options: true },
-    });
+    return this.formFields.listValidationFieldsBySlug(slug, kind);
   }
 }

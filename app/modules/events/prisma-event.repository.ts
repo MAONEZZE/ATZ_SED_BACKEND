@@ -9,7 +9,22 @@ import {
   EventDuplicationSource,
   CreateDuplicateEventData,
   CreatedDuplicateEvent,
+  PublicEventSummary,
 } from '@modules/events/ports/event-repository.port';
+
+const PUBLIC_EVENT_SELECT = {
+  id: true,
+  title: true,
+  slug: true,
+  coverUrl: true,
+  location: true,
+  capacity: true,
+  dressCode: true,
+  eventDate: true,
+  endDate: true,
+  sendToPipedrive: true,
+  status: true,
+} as const;
 import { EventEntity, EventStatus } from '@modules/events/entities/event.entity';
 
 @Injectable()
@@ -201,5 +216,13 @@ export class PrismaEventRepository implements EventRepositoryPort {
       data: { ...data, status: 'draft' },
     });
     return { id: row.id, ownerId: row.ownerId, title: row.title, slug: row.slug };
+  }
+
+  findPublicBySlug(slug: string): Promise<PublicEventSummary | null> {
+    return this.prisma.event.findUnique({ where: { slug }, select: PUBLIC_EVENT_SELECT });
+  }
+
+  findStatusBySlug(slug: string): Promise<{ id: string; status: EventStatus } | null> {
+    return this.prisma.event.findUnique({ where: { slug }, select: { id: true, status: true } });
   }
 }

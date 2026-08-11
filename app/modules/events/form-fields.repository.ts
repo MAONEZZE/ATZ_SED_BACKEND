@@ -61,4 +61,21 @@ export class FormFieldsRepository extends PrismaRepositoryBase {
   touchEvent(eventId: string, userId: string) {
     return this.prisma.event.update({ where: { id: eventId }, data: { lastEditedById: userId } });
   }
+
+  /** Public (unauthenticated) field list for a form kind, ordered for rendering. */
+  listPublicByEventAndKind(eventId: string, kind: FormFieldKind) {
+    return this.prisma.formField.findMany({
+      where: { form: { eventId, kind } },
+      orderBy: { order: 'asc' },
+      select: { id: true, label: true, type: true, required: true, options: true, order: true },
+    });
+  }
+
+  /** Field metadata used to validate a public submission, resolved directly by event slug. */
+  listValidationFieldsBySlug(slug: string, kind: FormFieldKind) {
+    return this.prisma.formField.findMany({
+      where: { form: { event: { slug }, kind } },
+      select: { label: true, type: true, required: true, options: true },
+    });
+  }
 }

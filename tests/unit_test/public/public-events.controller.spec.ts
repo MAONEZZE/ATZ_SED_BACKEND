@@ -2,12 +2,15 @@ import { NotFoundException } from '@nestjs/common';
 import { PublicEventsService } from '@modules/events/public-events.service';
 
 function makeService(event: any) {
-  const prisma = {
-    event: { findUnique: jest.fn().mockResolvedValue(event) },
-    form: { findUnique: jest.fn().mockResolvedValue(null) },
-    formField: { findMany: jest.fn().mockResolvedValue([]) },
+  const eventRepo = { findPublicBySlug: jest.fn().mockResolvedValue(event) };
+  const forms = { findByEventAndKind: jest.fn().mockResolvedValue(null) };
+  const formFields = { listPublicByEventAndKind: jest.fn().mockResolvedValue([]) };
+  return {
+    service: new PublicEventsService(eventRepo as any, forms as any, formFields as any),
+    eventRepo,
+    forms,
+    formFields,
   };
-  return { service: new PublicEventsService(prisma as any), prisma };
 }
 
 describe('PublicEventsService.getPublicEvent status gating', () => {

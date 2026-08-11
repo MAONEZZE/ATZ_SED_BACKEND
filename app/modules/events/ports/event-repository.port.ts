@@ -97,6 +97,21 @@ export interface CreatedDuplicateEvent {
   slug: string;
 }
 
+/** Projeção pública do evento — só os campos seguros para expor sem autenticação. */
+export interface PublicEventSummary {
+  id: string;
+  title: string;
+  slug: string;
+  coverUrl: string | null;
+  location: string | null;
+  capacity: number | null;
+  dressCode: string | null;
+  eventDate: Date | null;
+  endDate: Date | null;
+  sendToPipedrive: boolean;
+  status: EventStatus;
+}
+
 export interface EventRepositoryPort {
   findById(id: string): Promise<EventEntity | null>;
   findBySlug(slug: string): Promise<EventEntity | null>;
@@ -114,4 +129,6 @@ export interface EventRepositoryPort {
   findWhatsappInstanceToken(id: string): Promise<string | null>;
   findDuplicationSource(id: string): Promise<EventDuplicationSource | null>;
   createDuplicate(data: CreateDuplicateEventData): Promise<CreatedDuplicateEvent>;
+  findPublicBySlug(slug: string): Promise<PublicEventSummary | null>;
+  findStatusBySlug(slug: string): Promise<{ id: string; status: EventStatus } | null>;
 }
