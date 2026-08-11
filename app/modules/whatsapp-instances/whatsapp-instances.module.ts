@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { WhatsappInstancesController } from './whatsapp-instances.controller';
 import { WhatsappWebhookController } from './whatsapp-webhook.controller';
+import { WhatsappController } from './whatsapp.controller';
 import { WhatsappInstancesService } from './whatsapp-instances.service';
 import { WhatsappInstancesRepository } from './whatsapp-instances.repository';
 import { GuardsModule } from '@api/config/modules/guards.module';
@@ -10,7 +11,7 @@ import { OutboxModule } from '@domain/outbox_module/outbox.module';
 @Global()
 @Module({
   imports: [GuardsModule, AdaptersModule, OutboxModule],
-  controllers: [WhatsappInstancesController, WhatsappWebhookController],
+  controllers: [WhatsappInstancesController, WhatsappWebhookController, WhatsappController],
   providers: [WhatsappInstancesService, WhatsappInstancesRepository],
   exports: [WhatsappInstancesService, WhatsappInstancesRepository],
 })

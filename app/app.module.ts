@@ -23,7 +23,7 @@ import { AutomationsModule } from '@domain/automation_module/automations.module'
 import { OutboxModule } from '@domain/outbox_module/outbox.module';
 import { MessageTemplatesModule } from '@domain/message_template_module/message-templates.module';
 import { MessageLogsModule } from '@domain/message_log_module/message-logs.module';
-import { ProfileModule } from '@modules/profile/profile.module';
+import { ProfileModule } from '@domain/profile_module/profile.module';
 import { WhatsappInstancesModule } from '@modules/whatsapp-instances/whatsapp-instances.module';
 
 @Module({

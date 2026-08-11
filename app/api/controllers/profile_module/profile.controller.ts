@@ -27,8 +27,8 @@ import {
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { CurrentUser } from '@api/config/decorators/current-user.decorator';
 import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
-import { ProfileService } from '@modules/profile/profile.service';
-import { UpdateProfileDto } from './dto/profile.dto';
+import { ProfileService } from '@application/profile_module/profile.service';
+import { UpdateProfileDto } from '@api/dto/profile_module/profile.dto';
 
 @ApiTags('Profile')
 @ApiBearerAuth()

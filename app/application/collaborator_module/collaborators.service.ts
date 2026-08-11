@@ -4,7 +4,7 @@ import {
   EventRepositoryPort,
 } from '@domain/event_module/i-repository-event';
 import { CollaboratorsRepository } from '@infra/repositories/collaborator_module/collaborators.repository';
-import { ProfileRepository } from '@modules/profile/profile.repository';
+import { ProfileRepository } from '@infra/repositories/profile_module/profile.repository';
 
 @Injectable()
 export class CollaboratorsService {

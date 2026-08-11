@@ -11,7 +11,7 @@ import { OutboxModule } from '@domain/outbox_module/outbox.module';
 import { AutomationsDbModule } from '@infra/repositories/automation_module/automations-db.module';
 import { RegistrationsDbModule } from '@infra/repositories/registration_module/registrations-db.module';
 import { MessageTemplatesDbModule } from '@infra/repositories/message_template_module/message-templates-db.module';
-import { ProfileDbModule } from '@modules/profile/profile-db.module';
+import { ProfileDbModule } from '@infra/repositories/profile_module/profile-db.module';
 
 @Module({
   imports: [

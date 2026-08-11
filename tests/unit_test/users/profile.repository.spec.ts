@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '@infra/prisma/prisma.service';
-import { ProfileRepository } from '@modules/profile/profile.repository';
+import { ProfileRepository } from '@infra/repositories/profile_module/profile.repository';
 
 // Repositories extend PrismaRepositoryBase without declaring their own
 // constructor. This test boots Nest DI (not manual `new`) to prove the base's
