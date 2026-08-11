@@ -20,8 +20,9 @@ import { UserSubscriptionsModule } from '@domain/user_subscription_module/user-s
 import { PostEventResponsesModule } from '@domain/post_event_response_module/post-event-responses.module';
 import { WorkersModule } from '@application/workers/workers.module';
 import { AutomationsModule } from '@modules/automations/automations.module';
-import { MessagingModule } from '@modules/messaging/messaging.module';
-import { GlobalMessagingModule } from '@modules/messaging/global-messaging.module';
+import { OutboxModule } from '@domain/outbox_module/outbox.module';
+import { MessageTemplatesModule } from '@domain/message_template_module/message-templates.module';
+import { MessageLogsModule } from '@domain/message_log_module/message-logs.module';
 import { ProfileModule } from '@modules/profile/profile.module';
 import { WhatsappInstancesModule } from '@modules/whatsapp-instances/whatsapp-instances.module';
 
@@ -57,8 +58,9 @@ import { WhatsappInstancesModule } from '@modules/whatsapp-instances/whatsapp-in
     PostEventResponsesModule,
     WorkersModule,
     AutomationsModule,
-    MessagingModule,
-    GlobalMessagingModule,
+    OutboxModule,
+    MessageTemplatesModule,
+    MessageLogsModule,
     ProfileModule,
     WhatsappInstancesModule,
   ],

@@ -1,6 +1,6 @@
-import { DeliveryStatusService } from '@modules/messaging/delivery-status.service';
-import { OutboxRepositoryPort } from '@modules/messaging/ports/outbox-repository.port';
-import { MessageLogsRepository } from '@modules/messaging/message-logs.repository';
+import { DeliveryStatusService } from '@application/outbox_module/delivery-status.service';
+import { OutboxRepositoryPort } from '@domain/outbox_module/i-repository-outbox';
+import { MessageLogsRepository } from '@infra/repositories/message_log_module/message-logs.repository';
 
 function makeRepos() {
   const outboxRepo = {

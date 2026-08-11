@@ -1,6 +1,6 @@
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
-import { SendMessageDto } from '@modules/messaging/dto/send-message.dto';
+import { SendMessageDto } from '@api/dto/outbox_module/send-message.dto';
 
 describe('SendMessageDto attachments', () => {
   it('accepts a well-formed attachment array', async () => {

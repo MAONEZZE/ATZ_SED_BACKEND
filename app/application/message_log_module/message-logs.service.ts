@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { MessageLogsRepository } from '@modules/messaging/message-logs.repository';
+import { MessageLogsRepository } from '@infra/repositories/message_log_module/message-logs.repository';
 
 type LogRow = { deliveredAt?: Date | null; readAt?: Date | null } & Record<string, unknown>;
 

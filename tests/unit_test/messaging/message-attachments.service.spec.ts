@@ -1,4 +1,4 @@
-import { MessageAttachmentsService } from '@modules/messaging/message-attachments.service';
+import { MessageAttachmentsService } from '@application/outbox_module/message-attachments.service';
 
 describe('MessageAttachmentsService.upload', () => {
   it('uploads under {folder}/{userId}/ and returns metadata', async () => {

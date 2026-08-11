@@ -2,8 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   OUTBOX_REPOSITORY_PORT,
   OutboxRepositoryPort,
-} from '@modules/messaging/ports/outbox-repository.port';
-import { MessageLogsRepository } from '@modules/messaging/message-logs.repository';
+} from '@domain/outbox_module/i-repository-outbox';
+import { MessageLogsRepository } from '@infra/repositories/message_log_module/message-logs.repository';
 
 export type WhatsappStatus =
   | 'Queued'

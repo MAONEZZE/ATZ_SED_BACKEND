@@ -1,4 +1,4 @@
-import { PrismaOutboxRepository } from '@modules/messaging/prisma-outbox.repository';
+import { PrismaOutboxRepository } from '@infra/repositories/outbox_module/prisma-outbox.repository';
 
 describe('PrismaOutboxRepository.enqueue attachments', () => {
   it('persists attachments as JSON', async () => {

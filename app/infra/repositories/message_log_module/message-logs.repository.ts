@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-repository.base';
-import type { MessageChannel } from '@modules/messaging/message-channel.type';
+import type { MessageChannel } from '@domain/shared/message-channel.type';
 
 export interface CreateMessageLogData {
   eventId: string | null;

@@ -1,4 +1,4 @@
-import { TemplatesService } from '@modules/messaging/templates.service';
+import { TemplatesService } from '@application/message_template_module/templates.service';
 
 function make() {
   const repo = {

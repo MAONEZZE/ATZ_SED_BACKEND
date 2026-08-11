@@ -5,14 +5,14 @@ import {
   EventRepositoryPort,
 } from '@domain/event_module/i-repository-event';
 import { EventEntity } from '@domain/event_module/event.entity';
-import { OutboxService } from '@modules/messaging/outbox.service';
+import { OutboxService } from '@application/outbox_module/outbox.service';
 import { FormsRepository } from '@infra/repositories/form_module/forms.repository';
 import { AutomationsRepository } from '@modules/automations/automations.repository';
 import {
   REGISTRATION_REPOSITORY_PORT,
   RegistrationRepositoryPort,
 } from '@domain/registration_module/i-repository-registration';
-import { MessageTemplatesRepository } from '@modules/messaging/message-templates.repository';
+import { MessageTemplatesRepository } from '@infra/repositories/message_template_module/message-templates.repository';
 
 @Injectable()
 export class EventLifecycleService {

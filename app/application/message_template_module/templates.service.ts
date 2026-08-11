@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { MessageTemplatesRepository } from '@modules/messaging/message-templates.repository';
+import { MessageTemplatesRepository } from '@infra/repositories/message_template_module/message-templates.repository';
 
 export interface CreateTemplateInput {
   name: string;

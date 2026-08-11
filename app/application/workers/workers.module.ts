@@ -1,23 +1,23 @@
 import { Module } from '@nestjs/common';
 import { MessageDispatchWorker } from './message-dispatch.worker';
-import { MessagingDbModule } from '@modules/messaging/messaging-db.module';
+import { OutboxDbModule } from '@infra/repositories/outbox_module/outbox-db.module';
+import { MessageLogsDbModule } from '@infra/repositories/message_log_module/message-logs-db.module';
 import { EventsDbModule } from '@infra/repositories/event_module/events-db.module';
 import { AdaptersModule } from '@api/adapters/modules/adapters.module';
 import { BullQueuesModule } from '@infra/queue/bull-queues.module';
-import { OutboxService } from '@modules/messaging/outbox.service';
-import { WhatsappPacingService } from '@modules/messaging/whatsapp-pacing.service';
+import { OutboxModule } from '@domain/outbox_module/outbox.module';
 import { IcsGeneratorService } from '@modules/automations/ics-generator.service';
 import { RedisMaintenanceService } from './redis-maintenance.service';
 
 @Module({
-  imports: [BullQueuesModule, MessagingDbModule, EventsDbModule, AdaptersModule],
-  providers: [
-    MessageDispatchWorker,
-    OutboxService,
-    WhatsappPacingService,
-    IcsGeneratorService,
-    RedisMaintenanceService,
+  imports: [
+    BullQueuesModule,
+    OutboxDbModule,
+    MessageLogsDbModule,
+    EventsDbModule,
+    AdaptersModule,
+    OutboxModule,
   ],
-  exports: [OutboxService],
+  providers: [MessageDispatchWorker, IcsGeneratorService, RedisMaintenanceService],
 })
 export class WorkersModule {}

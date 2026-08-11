@@ -7,7 +7,7 @@ import {
   PendingOutboxMessage,
   OutboxDeliveryTarget,
   OutboxDispatchMessage,
-} from '@modules/messaging/ports/outbox-repository.port';
+} from '@domain/outbox_module/i-repository-outbox';
 
 const DISPATCH_SELECT = {
   id: true,

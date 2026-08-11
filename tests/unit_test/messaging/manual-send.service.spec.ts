@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { ManualSendService } from '@modules/messaging/manual-send.service';
-import { TemplateRenderer } from '@modules/automations/template-renderer.service';
+import { ManualSendService } from '@application/outbox_module/manual-send.service';
+import { TemplateRenderer } from '@application/shared/template-renderer.service';
 
 const event = {
   id: 'evt-1',
@@ -59,6 +59,7 @@ function makeService(overrides?: {
   };
   // Gate ON event-scoped: resolve o token da instância do evento p/ o cursor.
   const eventRepo = {
+    findById: jest.fn().mockResolvedValue(event),
     findWhatsappInstanceToken: jest
       .fn()
       .mockResolvedValue(overrides && 'eventToken' in overrides ? overrides.eventToken : 'tok-evt'),
@@ -66,7 +67,6 @@ function makeService(overrides?: {
   const whatsappInstances = {
     findById: jest.fn().mockResolvedValue({ id: 'inst-1', token: 'tok-manual' }),
   };
-  const eventsService = { findById: jest.fn().mockResolvedValue(event) };
   const outbox = { enqueue: jest.fn().mockResolvedValue(undefined) };
   const storage = { getPublicUrl: jest.fn((_b: string, p: string) => `https://cdn/${p}`), upload: jest.fn(), delete: jest.fn() };
   const cfg: Record<string, unknown> = {
@@ -77,7 +77,6 @@ function makeService(overrides?: {
   };
   const config = { get: jest.fn((key: string) => cfg[key]) };
   const service = new ManualSendService(
-    eventsService as any,
     outbox as any,
     new TemplateRenderer(),
     config as any,
@@ -88,7 +87,7 @@ function makeService(overrides?: {
     eventRepo as any,
     registrations as any,
   );
-  return { service, registrations, templates, collaborators, eventRepo, whatsappInstances, eventsService, outbox, storage };
+  return { service, registrations, templates, collaborators, eventRepo, whatsappInstances, outbox, storage };
 }
 
 describe('ManualSendService.send', () => {
@@ -312,7 +311,7 @@ describe('ManualSendService.send', () => {
   });
 
   it('enqueues whatsapp without eventId (instancia resolved from DB at dispatch time)', async () => {
-    const { service, eventsService, outbox } = makeService({ registrations: [] });
+    const { service, eventRepo, outbox } = makeService({ registrations: [] });
     const result = await service.send(
       {
         channel: 'whatsapp',
@@ -321,7 +320,7 @@ describe('ManualSendService.send', () => {
       },
       'user-1',
     );
-    expect(eventsService.findById).not.toHaveBeenCalled();
+    expect(eventRepo.findById).not.toHaveBeenCalled();
     expect(result.queued).toBe(1);
     expect(outbox.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -350,8 +349,8 @@ describe('ManualSendService.send', () => {
     );
   });
 
-  it('does not call eventsService.findById when no eventId', async () => {
-    const { service, eventsService } = makeService({ registrations: [] });
+  it('does not call eventRepo.findById when no eventId', async () => {
+    const { service, eventRepo } = makeService({ registrations: [] });
     await service.send(
       {
         channel: 'whatsapp',
@@ -360,7 +359,7 @@ describe('ManualSendService.send', () => {
       },
       'user-1',
     );
-    expect(eventsService.findById).not.toHaveBeenCalled();
+    expect(eventRepo.findById).not.toHaveBeenCalled();
   });
 
   it('result.batches === 1 quando ≤ MANUAL_BATCH_SIZE destinatários', async () => {

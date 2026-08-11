@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '@infra/prisma/prisma.service';
-import { MessageTemplatesRepository } from '@modules/messaging/message-templates.repository';
+import { MessageTemplatesRepository } from '@infra/repositories/message_template_module/message-templates.repository';
 
 // Boots Nest DI (not `new Repo(mock)`) to prove the inherited
 // PrismaRepositoryBase constructor injects PrismaService. See profile.repository

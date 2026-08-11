@@ -9,10 +9,9 @@ import { ConfigService } from '@nestjs/config';
 import { randomBytes, randomInt } from 'crypto';
 import { DateTime } from 'luxon';
 import { STORAGE_PORT, StoragePort } from '@api/adapters/ports/i-storage';
-import { EventsService } from '@application/event_module/events.service';
-import { OutboxService } from '@modules/messaging/outbox.service';
-import { TemplateRenderer } from '@modules/automations/template-renderer.service';
-import { MessageTemplatesRepository } from '@modules/messaging/message-templates.repository';
+import { OutboxService } from '@application/outbox_module/outbox.service';
+import { TemplateRenderer } from '@application/shared/template-renderer.service';
+import { MessageTemplatesRepository } from '@infra/repositories/message_template_module/message-templates.repository';
 import { WhatsappInstancesRepository } from '@modules/whatsapp-instances/whatsapp-instances.repository';
 import { CollaboratorsRepository } from '@infra/repositories/collaborator_module/collaborators.repository';
 import {
@@ -23,8 +22,8 @@ import {
   REGISTRATION_REPOSITORY_PORT,
   RegistrationRepositoryPort,
 } from '@domain/registration_module/i-repository-registration';
-import type { MessageChannel } from '@modules/messaging/message-channel.type';
-import type { InviteConfigInput, OutboxAttachment } from '@modules/messaging/ports/outbox-repository.port';
+import type { MessageChannel } from '@domain/shared/message-channel.type';
+import type { InviteConfigInput, OutboxAttachment } from '@domain/outbox_module/i-repository-outbox';
 
 export interface ManualRecipientInput {
   name: string;
@@ -70,7 +69,6 @@ function chunk<T>(arr: T[], size: number): T[][] {
 @Injectable()
 export class ManualSendService {
   constructor(
-    private readonly eventsService: EventsService,
     private readonly outbox: OutboxService,
     private readonly renderer: TemplateRenderer,
     private readonly config: ConfigService,
@@ -148,7 +146,8 @@ export class ManualSendService {
     // Whatsapp e os logs). Sem evento, atribui ao próprio remetente.
     let attributionOwnerId = userId;
     if (input.eventId) {
-      const event = await this.eventsService.findById(input.eventId);
+      const event = await this.eventRepo.findById(input.eventId);
+      if (!event) throw new NotFoundException('Event not found');
       const isOwner = event.ownerId === userId;
       const isCollaborator = isOwner
         ? false

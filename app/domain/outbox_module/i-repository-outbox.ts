@@ -1,4 +1,4 @@
-import type { MessageChannel } from '@modules/messaging/message-channel.type';
+import type { MessageChannel } from '@domain/shared/message-channel.type';
 
 export const OUTBOX_REPOSITORY_PORT = Symbol('OUTBOX_REPOSITORY_PORT');
 

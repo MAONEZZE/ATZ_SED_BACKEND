@@ -5,7 +5,7 @@ import { Job, UnrecoverableError, DelayedError } from 'bullmq';
 import { ResendAdapter } from '@api/adapters/resend.adapter';
 import { WhatsappAdapter, WhatsappRestrictionError } from '@api/adapters/whatsapp.adapter';
 import { QUEUE_MESSAGE_DISPATCH } from '@infra/queue/bull-queues.module';
-import { WhatsappPacingService } from '@modules/messaging/whatsapp-pacing.service';
+import { WhatsappPacingService } from '@application/outbox_module/whatsapp-pacing.service';
 import { IcsGeneratorService } from '@modules/automations/ics-generator.service';
 import {
   OUTBOX_REPOSITORY_PORT,
@@ -13,8 +13,8 @@ import {
   OutboxDispatchMessage,
   InviteConfigInput,
   OutboxAttachment,
-} from '@modules/messaging/ports/outbox-repository.port';
-import { MessageLogsRepository } from '@modules/messaging/message-logs.repository';
+} from '@domain/outbox_module/i-repository-outbox';
+import { MessageLogsRepository } from '@infra/repositories/message_log_module/message-logs.repository';
 import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,

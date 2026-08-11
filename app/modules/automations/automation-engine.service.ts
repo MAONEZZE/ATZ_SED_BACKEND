@@ -9,8 +9,8 @@ import {
   REGISTRATION_REPOSITORY_PORT,
   RegistrationRepositoryPort,
 } from '@domain/registration_module/i-repository-registration';
-import { OutboxService } from '@modules/messaging/outbox.service';
-import { TemplateRenderer } from './template-renderer.service';
+import { OutboxService } from '@application/outbox_module/outbox.service';
+import { TemplateRenderer } from '@application/shared/template-renderer.service';
 import { RegistrationStatusChanged } from '@domain/registration_module/registration-status-changed.event';
 import { FormSubmitted } from '@domain/registration_module/form-submitted.event';
 

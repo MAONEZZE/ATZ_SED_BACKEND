@@ -11,14 +11,14 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
-import { MessageLogsService } from '@modules/messaging/message-logs.service';
+import { MessageLogsService } from '@application/message_log_module/message-logs.service';
 import { PaginationQueryDto, Paginated } from '@api/dto/shared/pagination';
 
 @ApiTags('Messaging')
 @ApiBearerAuth()
 @Controller('events/:eventId/message-logs')
 @UseGuards(JwtAuthGuard, OwnershipGuard)
-export class MessagingController {
+export class MessageLogsController {
   constructor(private readonly logs: MessageLogsService) {}
 
   @Get()

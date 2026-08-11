@@ -6,7 +6,7 @@ import {
   OUTBOX_REPOSITORY_PORT,
   OutboxRepositoryPort,
   EnqueueMessageData,
-} from '@modules/messaging/ports/outbox-repository.port';
+} from '@domain/outbox_module/i-repository-outbox';
 import { QUEUE_MESSAGE_DISPATCH } from '@infra/queue/bull-queues.module';
 import { WhatsappPacingService } from './whatsapp-pacing.service';
 

@@ -5,10 +5,11 @@ import { WhatsappInstancesService } from './whatsapp-instances.service';
 import { WhatsappInstancesRepository } from './whatsapp-instances.repository';
 import { GuardsModule } from '@api/config/modules/guards.module';
 import { AdaptersModule } from '@api/adapters/modules/adapters.module';
+import { OutboxModule } from '@domain/outbox_module/outbox.module';
 
 @Global()
 @Module({
-  imports: [GuardsModule, AdaptersModule],
+  imports: [GuardsModule, AdaptersModule, OutboxModule],
   controllers: [WhatsappInstancesController, WhatsappWebhookController],
   providers: [WhatsappInstancesService, WhatsappInstancesRepository],
   exports: [WhatsappInstancesService, WhatsappInstancesRepository],

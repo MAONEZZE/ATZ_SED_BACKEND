@@ -1,4 +1,4 @@
-import { TemplateRenderer } from '@modules/automations/template-renderer.service';
+import { TemplateRenderer } from '@application/shared/template-renderer.service';
 
 describe('TemplateRenderer', () => {
   const renderer = new TemplateRenderer();

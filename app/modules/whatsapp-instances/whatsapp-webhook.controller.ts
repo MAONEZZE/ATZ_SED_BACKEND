@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
-import { DeliveryStatusService } from '@modules/messaging/delivery-status.service';
+import { DeliveryStatusService } from '@application/outbox_module/delivery-status.service';
 
 interface WhatsappWebhookBody {
   event?: string;
