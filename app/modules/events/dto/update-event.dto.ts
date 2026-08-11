@@ -8,12 +8,12 @@ export class UpdateEventDto extends PartialType(CreateEventDto) {
   @ApiPropertyOptional({ example: 'c1a2b3c4-...' })
   @IsOptional()
   @IsUUID()
-  uazapiInstanceId?: string;
+  whatsappInstanceId?: string;
 
-  @ApiPropertyOptional({ example: 'token-uazapi' })
+  @ApiPropertyOptional({ example: 'token-whatsapp' })
   @IsOptional()
   @IsString()
-  uazapiToken?: string;
+  whatsappToken?: string;
 }
 
 export class UpdateEventStatusDto {

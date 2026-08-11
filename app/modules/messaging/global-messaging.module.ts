@@ -7,7 +7,7 @@ import { EventsDbModule } from '@modules/events/events-db.module';
 import { MessagingDbModule } from '@modules/messaging/messaging-db.module';
 import { AutomationsDbModule } from '@modules/automations/automations-db.module';
 import { RegistrationsDbModule } from '@modules/registrations/registrations-db.module';
-import { UazapiInstancesModule } from '@modules/uazapi-instances/uazapi-instances.module';
+import { WhatsappInstancesModule } from '@modules/whatsapp-instances/whatsapp-instances.module';
 import { StorageModule } from '@infra/storage/storage.module';
 import { ManualSendService } from '@modules/messaging/manual-send.service';
 import { MessageAttachmentsService } from '@modules/messaging/message-attachments.service';
@@ -25,7 +25,7 @@ import { AutomationsModule } from '@modules/automations/automations.module';
     MessagingDbModule,
     AutomationsDbModule,
     RegistrationsDbModule,
-    UazapiInstancesModule,
+    WhatsappInstancesModule,
     StorageModule,
     AutomationsModule,
   ],

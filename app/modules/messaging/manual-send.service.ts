@@ -13,7 +13,7 @@ import { EventsService } from '@modules/events/events.service';
 import { OutboxService } from '@modules/messaging/outbox.service';
 import { TemplateRenderer } from '@modules/automations/template-renderer.service';
 import { MessageTemplatesRepository } from '@modules/messaging/message-templates.repository';
-import { UazapiInstancesRepository } from '@modules/uazapi-instances/uazapi-instances.repository';
+import { WhatsappInstancesRepository } from '@modules/whatsapp-instances/whatsapp-instances.repository';
 import { CollaboratorsRepository } from '@modules/events/collaborators.repository';
 import {
   EVENT_REPOSITORY_PORT,
@@ -76,7 +76,7 @@ export class ManualSendService {
     private readonly config: ConfigService,
     @Inject(STORAGE_PORT) private readonly storage: StoragePort,
     private readonly templates: MessageTemplatesRepository,
-    private readonly uazapiInstances: UazapiInstancesRepository,
+    private readonly whatsappInstances: WhatsappInstancesRepository,
     private readonly collaborators: CollaboratorsRepository,
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
     @Inject(REGISTRATION_REPOSITORY_PORT)
@@ -135,17 +135,17 @@ export class ManualSendService {
       groupLink: string | null;
     } | null = null;
 
-    // `instancia` carrega o token Uazapi da instância (a Uazapi autentica por token).
+    // `instancia` carrega o token Whatsapp da instância (a Whatsapp autentica por token).
     let instancia: string | undefined;
     if (!input.eventId && input.instanceId) {
-      const instance = await this.uazapiInstances.findById(input.instanceId);
-      if (!instance) throw new NotFoundException('Uazapi instance not found');
-      if (!instance.token) throw new BadRequestException('Uazapi instance has no token configured');
+      const instance = await this.whatsappInstances.findById(input.instanceId);
+      if (!instance) throw new NotFoundException('Whatsapp instance not found');
+      if (!instance.token) throw new BadRequestException('Whatsapp instance has no token configured');
       instancia = instance.token;
     }
 
     // Atribuição da mensagem fica sempre com o dono do evento (resolve a instância
-    // Uazapi e os logs). Sem evento, atribui ao próprio remetente.
+    // Whatsapp e os logs). Sem evento, atribui ao próprio remetente.
     let attributionOwnerId = userId;
     if (input.eventId) {
       const event = await this.eventsService.findById(input.eventId);
@@ -207,7 +207,7 @@ export class ManualSendService {
         email: m.email ?? '',
         phone: m.phone ?? '',
       })),
-      // Grupos: o JID @g.us entra como destinatário (campo `number` da Uazapi).
+      // Grupos: o JID @g.us entra como destinatário (campo `number` da Whatsapp).
       ...(input.groupIds ?? []).map((jid) => ({
         name: 'Grupo',
         email: '',

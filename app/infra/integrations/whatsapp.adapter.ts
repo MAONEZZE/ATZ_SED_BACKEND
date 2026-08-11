@@ -22,17 +22,17 @@ export class WhatsappRestrictionError extends Error {
 }
 
 @Injectable()
-export class UazapiAdapter {
+export class WhatsappAdapter {
   private readonly baseUrl: string;
   private readonly typingEnabled: boolean;
   private readonly typingMin: number;
   private readonly typingMax: number;
   private readonly typingPerChar: number;
   private readonly typingMaxTotal: number;
-  private readonly logger = new Logger(UazapiAdapter.name);
+  private readonly logger = new Logger(WhatsappAdapter.name);
 
   constructor(config: ConfigService) {
-    this.baseUrl = config.get<string>('UAZAPI_API_URL')!;
+    this.baseUrl = config.get<string>('WHATSAPP_API_URL')!;
     this.typingEnabled = config.get<boolean>('WA_TYPING_ENABLED') ?? true;
     this.typingMin = config.get<number>('WA_TYPING_MIN_MS') ?? 1500;
     this.typingMax = config.get<number>('WA_TYPING_MAX_MS') ?? 4000;
@@ -68,7 +68,7 @@ export class UazapiAdapter {
     } catch {
       // corpo não-JSON: cai no erro genérico abaixo
     }
-    return new BadGatewayException(`Uazapi API error (${status}): ${errorText}`);
+    return new BadGatewayException(`Whatsapp API error (${status}): ${errorText}`);
   }
 
   private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
@@ -78,7 +78,7 @@ export class UazapiAdapter {
       return await fetch(url, { ...init, signal: controller.signal });
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
-        throw new BadGatewayException('Uazapi API timeout');
+        throw new BadGatewayException('Whatsapp API timeout');
       }
       throw err;
     } finally {
@@ -102,7 +102,7 @@ export class UazapiAdapter {
     return typeof id === 'string' ? id : null;
   }
 
-  // A Uazapi identifica a instância pelo header `token` (um por instância),
+  // A Whatsapp identifica a instância pelo header `token` (um por instância),
   // diferente da Evolution que usava o nome da instância no path da URL.
   // Retorna o providerMessageId representativo (última parte enviada) ou null.
   async sendWhatsApp(
@@ -159,7 +159,7 @@ export class UazapiAdapter {
 
     if (!response.ok) {
       const errorText = await response.text();
-      this.logger.error({ status: response.status, error: errorText }, 'Uazapi API error');
+      this.logger.error({ status: response.status, error: errorText }, 'Whatsapp API error');
       throw this.buildSendError(response.status, errorText);
     }
     return this.extractMessageId(await response.json().catch(() => null));
@@ -200,7 +200,7 @@ export class UazapiAdapter {
 
     if (!response.ok) {
       const errorText = await response.text();
-      this.logger.error({ status: response.status, error: errorText }, 'Uazapi API sendMedia error');
+      this.logger.error({ status: response.status, error: errorText }, 'Whatsapp API sendMedia error');
       throw this.buildSendError(response.status, errorText);
     }
     return this.extractMessageId(await response.json().catch(() => null));
@@ -216,8 +216,8 @@ export class UazapiAdapter {
     });
     if (!response.ok) {
       const errorText = await response.text();
-      this.logger.error({ status: response.status, error: errorText }, 'Uazapi API setWebhook error');
-      throw new BadGatewayException(`Uazapi API error (${response.status}): ${errorText}`);
+      this.logger.error({ status: response.status, error: errorText }, 'Whatsapp API setWebhook error');
+      throw new BadGatewayException(`Whatsapp API error (${response.status}): ${errorText}`);
     }
   }
 
@@ -228,8 +228,8 @@ export class UazapiAdapter {
     });
     if (!response.ok) {
       const errorText = await response.text();
-      this.logger.error({ status: response.status, error: errorText }, 'Uazapi API fetchGroups error');
-      throw new BadGatewayException(`Uazapi API error (${response.status}): ${errorText}`);
+      this.logger.error({ status: response.status, error: errorText }, 'Whatsapp API fetchGroups error');
+      throw new BadGatewayException(`Whatsapp API error (${response.status}): ${errorText}`);
     }
     const data = (await response.json()) as {
       groups?: Array<{
@@ -259,7 +259,7 @@ export class UazapiAdapter {
         const errorText = await response.text();
         this.logger.error(
           { status: response.status, error: errorText },
-          'Uazapi API instanceStatus error',
+          'Whatsapp API instanceStatus error',
         );
         return null;
       }
@@ -267,7 +267,7 @@ export class UazapiAdapter {
         status?: { connected?: boolean; loggedIn?: boolean } | string;
         instance?: { status?: string };
       };
-      // Shape real da Uazapi: `instance.status` é a string de conexão
+      // Shape real da Whatsapp: `instance.status` é a string de conexão
       // ("connected"/"connecting"/"disconnected") e `status` é um OBJETO
       // { connected, loggedIn, jid }. A string de conexão vem de instance.status;
       // o objeto status expõe o booleano `connected`.
@@ -280,7 +280,7 @@ export class UazapiAdapter {
       return null;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.logger.error({ error: msg }, 'Uazapi API instanceStatus failure');
+      this.logger.error({ error: msg }, 'Whatsapp API instanceStatus failure');
       return null;
     }
   }

@@ -1,6 +1,6 @@
 import { MessageDispatchWorker } from '@workers/message-dispatch.worker';
 import { DelayedError, UnrecoverableError } from 'bullmq';
-import { WhatsappRestrictionError } from '@infra/integrations/uazapi.adapter';
+import { WhatsappRestrictionError } from '@infra/integrations/whatsapp.adapter';
 
 const outboxRow = {
   id: 'msg-1',
@@ -35,7 +35,7 @@ function makeMocks(row: unknown) {
     findWhatsappInstanceToken: jest.fn().mockResolvedValue(null),
   };
   const resend = { sendEmail: jest.fn().mockResolvedValue(undefined) };
-  const uazapi = {
+  const whatsapp = {
     sendWhatsApp: jest.fn().mockResolvedValue('wamid.TEXT'),
     sendMedia: jest.fn().mockResolvedValue('wamid.MEDIA'),
   };
@@ -43,7 +43,7 @@ function makeMocks(row: unknown) {
   // Gate OFF por padrão; pacing não deve ser tocado nos testes legados.
   const pacing = { nextDelayMs: jest.fn().mockResolvedValue(0) };
   const config = { get: jest.fn().mockReturnValue(false) };
-  return { outboxRepo, messageLogs, eventRepo, resend, uazapi, ics, pacing, config };
+  return { outboxRepo, messageLogs, eventRepo, resend, whatsapp, ics, pacing, config };
 }
 
 function makeWorker(m: ReturnType<typeof makeMocks>) {
@@ -52,7 +52,7 @@ function makeWorker(m: ReturnType<typeof makeMocks>) {
     m.messageLogs as any,
     m.eventRepo as any,
     m.resend as any,
-    m.uazapi as any,
+    m.whatsapp as any,
     m.ics as any,
     m.pacing as any,
     m.config as any,
@@ -263,8 +263,8 @@ describe('MessageDispatchWorker.process', () => {
     const worker = makeWorker(m);
     await worker.process({ data: { outboxId: 'att-wa-1' } } as any);
 
-    expect(m.uazapi.sendMedia).toHaveBeenCalledTimes(1);
-    expect(m.uazapi.sendMedia).toHaveBeenCalledWith(
+    expect(m.whatsapp.sendMedia).toHaveBeenCalledTimes(1);
+    expect(m.whatsapp.sendMedia).toHaveBeenCalledWith(
       'inst-1',
       'a@b.com',
       'https://cdn/b.png',
@@ -295,7 +295,7 @@ describe('MessageDispatchWorker.process', () => {
     const worker = makeWorker(m);
     await worker.process({ data: { outboxId: 'att-wa-2' } } as any);
 
-    expect(m.uazapi.sendMedia.mock.calls[0][3]).toBe('image');
+    expect(m.whatsapp.sendMedia.mock.calls[0][3]).toBe('image');
   });
 });
 
@@ -329,16 +329,16 @@ describe('MessageDispatchWorker.process — DISPATCH_GATE_ENABLED (re-pacing no 
   }
 
   it('1ª tentativa (attemptsMade=0): não reserva nem reagenda, envia', async () => {
-    const { worker, pacing, uazapi } = gateWorker(waRow);
+    const { worker, pacing, whatsapp } = gateWorker(waRow);
     const job = makeJob({ attemptsMade: 0 });
     await worker.process(job, 'tok-abc');
     expect(pacing.nextDelayMs).not.toHaveBeenCalled();
     expect(job.moveToDelayed).not.toHaveBeenCalled();
-    expect(uazapi.sendWhatsApp).toHaveBeenCalled();
+    expect(whatsapp.sendWhatsApp).toHaveBeenCalled();
   });
 
   it('retry sem marcador: reserva 1x, grava pacedForAttempt, reagenda e lança DelayedError', async () => {
-    const { worker, pacing, uazapi, outboxRepo } = gateWorker(waRow);
+    const { worker, pacing, whatsapp, outboxRepo } = gateWorker(waRow);
     const job = makeJob({ attemptsMade: 1 });
     await expect(worker.process(job, 'tok-abc')).rejects.toThrow(DelayedError);
     expect(pacing.nextDelayMs).toHaveBeenCalledTimes(1);
@@ -350,35 +350,35 @@ describe('MessageDispatchWorker.process — DISPATCH_GATE_ENABLED (re-pacing no 
     // 2º arg é o token do worker (necessário p/ moveToDelayed)
     expect(job.moveToDelayed.mock.calls[0][1]).toBe('tok-abc');
     // deferral NÃO envia nem marca a row como processing
-    expect(uazapi.sendWhatsApp).not.toHaveBeenCalled();
+    expect(whatsapp.sendWhatsApp).not.toHaveBeenCalled();
     expect(outboxRepo.markProcessingAttempt).not.toHaveBeenCalled();
   });
 
   it('re-pick pós-deferral (marcador == attemptsMade): NÃO reserva de novo, envia (anti-drift)', async () => {
-    const { worker, pacing, uazapi } = gateWorker(waRow);
+    const { worker, pacing, whatsapp } = gateWorker(waRow);
     const job = makeJob({ attemptsMade: 1, data: { pacedForAttempt: 1 } });
     await worker.process(job, 'tok-abc');
     expect(pacing.nextDelayMs).not.toHaveBeenCalled();
     expect(job.moveToDelayed).not.toHaveBeenCalled();
-    expect(uazapi.sendWhatsApp).toHaveBeenCalled();
+    expect(whatsapp.sendWhatsApp).toHaveBeenCalled();
   });
 
   it('nextDelayMs retorna 0: não defere, envia', async () => {
-    const { worker, pacing, uazapi } = gateWorker(waRow);
+    const { worker, pacing, whatsapp } = gateWorker(waRow);
     pacing.nextDelayMs.mockResolvedValue(0);
     const job = makeJob({ attemptsMade: 1 });
     await worker.process(job, 'tok-abc');
     expect(pacing.nextDelayMs).toHaveBeenCalledTimes(1);
     expect(job.moveToDelayed).not.toHaveBeenCalled();
-    expect(uazapi.sendWhatsApp).toHaveBeenCalled();
+    expect(whatsapp.sendWhatsApp).toHaveBeenCalled();
   });
 
   it('sem token do worker (process sem 2º arg): gate não roda, envia', async () => {
-    const { worker, pacing, uazapi } = gateWorker(waRow);
+    const { worker, pacing, whatsapp } = gateWorker(waRow);
     const job = makeJob({ attemptsMade: 3 });
     await worker.process(job); // sem token
     expect(pacing.nextDelayMs).not.toHaveBeenCalled();
-    expect(uazapi.sendWhatsApp).toHaveBeenCalled();
+    expect(whatsapp.sendWhatsApp).toHaveBeenCalled();
   });
 });
 
@@ -396,7 +396,7 @@ describe('MessageDispatchWorker.process — restrição do WhatsApp (463) não-r
 
   it('WhatsappRestrictionError → marca failed e relança UnrecoverableError (sem retry)', async () => {
     const m = makeMocks(waRow);
-    m.uazapi.sendWhatsApp.mockRejectedValue(
+    m.whatsapp.sendWhatsApp.mockRejectedValue(
       new WhatsappRestrictionError('timelock', 463, new Date('2026-07-30T03:54:45Z')),
     );
     const worker = makeWorker(m);

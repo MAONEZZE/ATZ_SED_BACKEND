@@ -130,7 +130,7 @@ export class SendMessageDto {
 
   @ApiPropertyOptional({
     example: 'uuid-da-instancia',
-    description: 'Instância Uazapi a usar quando não há eventId.',
+    description: 'Instância Whatsapp a usar quando não há eventId.',
   })
   @IsOptional()
   @IsUUID()

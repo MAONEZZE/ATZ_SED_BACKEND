@@ -3,7 +3,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Job, UnrecoverableError, DelayedError } from 'bullmq';
 import { ResendAdapter } from '@infra/integrations/resend.adapter';
-import { UazapiAdapter, WhatsappRestrictionError } from '@infra/integrations/uazapi.adapter';
+import { WhatsappAdapter, WhatsappRestrictionError } from '@infra/integrations/whatsapp.adapter';
 import { QUEUE_MESSAGE_DISPATCH } from '@infra/queue/bull-queues.module';
 import { WhatsappPacingService } from '@modules/messaging/whatsapp-pacing.service';
 import { IcsGeneratorService } from '@modules/automations/ics-generator.service';
@@ -43,7 +43,7 @@ export class MessageDispatchWorker extends WorkerHost {
     private readonly messageLogs: MessageLogsRepository,
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
     private readonly resend: ResendAdapter,
-    private readonly uazapi: UazapiAdapter,
+    private readonly whatsapp: WhatsappAdapter,
     private readonly ics: IcsGeneratorService,
     private readonly pacing: WhatsappPacingService,
     config: ConfigService,
@@ -126,11 +126,11 @@ export class MessageDispatchWorker extends WorkerHost {
       } else {
         const token = await this.resolveWhatsAppInstance(outbox.eventId, outbox.instancia);
         if (!token) {
-          throw new UnrecoverableError('WhatsApp message has no Uazapi token configured');
+          throw new UnrecoverableError('WhatsApp message has no Whatsapp token configured');
         }
         // track_id = outbox.id: o webhook de status devolve esse id, correlacionando
         // a confirmação de entrega/leitura de volta com esta mensagem.
-        let providerMessageId = await this.uazapi.sendWhatsApp(
+        let providerMessageId = await this.whatsapp.sendWhatsApp(
           token,
           outbox.recipient,
           outbox.renderedBody,
@@ -146,7 +146,7 @@ export class MessageDispatchWorker extends WorkerHost {
         const attachments = (outbox.attachments as OutboxAttachment[] | null) ?? [];
         for (let i = outbox.sentAttachments; i < attachments.length; i++) {
           const a = attachments[i];
-          const mediaMessageId = await this.uazapi.sendMedia(
+          const mediaMessageId = await this.whatsapp.sendMedia(
             token,
             outbox.recipient,
             a.url,
@@ -276,7 +276,7 @@ export class MessageDispatchWorker extends WorkerHost {
     return undefined;
   }
 
-  // Resolve o token Uazapi da instância. `fallback` (outbox.instancia) já carrega
+  // Resolve o token Whatsapp da instância. `fallback` (outbox.instancia) já carrega
   // o token quando o disparo não está vinculado a um evento.
   private async resolveWhatsAppInstance(
     eventId: string | null,

@@ -25,7 +25,7 @@ export interface CreateEventInput {
   recurrenceFreq?: string;
   recurrenceInterval?: number;
   recurrenceUntil?: Date;
-  uazapiInstanceId?: string;
+  whatsappInstanceId?: string;
 }
 
 export interface UpdateEventInput {
@@ -37,8 +37,8 @@ export interface UpdateEventInput {
   eventDate?: Date;
   endDate?: Date;
   sendToPipedrive?: boolean;
-  uazapiInstanceId?: string;
-  uazapiToken?: string;
+  whatsappInstanceId?: string;
+  whatsappToken?: string;
   recurrenceFreq?: string;
   recurrenceInterval?: number;
   recurrenceUntil?: Date;

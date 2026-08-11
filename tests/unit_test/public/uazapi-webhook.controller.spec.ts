@@ -1,10 +1,10 @@
 import { UnauthorizedException } from '@nestjs/common';
-import { UazapiWebhookController } from '@modules/public/uazapi-webhook.controller';
+import { WhatsappWebhookController } from '@modules/public/whatsapp-webhook.controller';
 
 function make(secret = 'sekret') {
-  const config = { get: jest.fn((k: string) => (k === 'UAZAPI_WEBHOOK_SECRET' ? secret : undefined)) };
+  const config = { get: jest.fn((k: string) => (k === 'WHATSAPP_WEBHOOK_SECRET' ? secret : undefined)) };
   const delivery = { applyStatusUpdate: jest.fn().mockResolvedValue(undefined) };
-  const ctrl = new UazapiWebhookController(config as any, delivery as any);
+  const ctrl = new WhatsappWebhookController(config as any, delivery as any);
   return { ctrl, delivery };
 }
 
@@ -14,7 +14,7 @@ const statusEvent = {
   data: { messageid: 'wamid.1', status: 'Delivered', track_id: 'outbox-1', messageTimestamp: 1234 },
 };
 
-describe('UazapiWebhookController.receive', () => {
+describe('WhatsappWebhookController.receive', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('rejeita secret inválido', async () => {

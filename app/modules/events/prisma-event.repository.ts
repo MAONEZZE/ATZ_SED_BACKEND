@@ -46,8 +46,8 @@ export class PrismaEventRepository implements EventRepositoryPort {
     eventDate: Date | null;
     endDate: Date | null;
     sendToPipedrive: boolean;
-    uazapiInstanceId: string | null;
-    uazapiToken: string | null;
+    whatsappInstanceId: string | null;
+    whatsappToken: string | null;
     lastEditedById: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -67,8 +67,8 @@ export class PrismaEventRepository implements EventRepositoryPort {
       row.dressCode ?? undefined,
       row.groupLink ?? undefined,
       row.eventDate ?? undefined,
-      row.uazapiInstanceId ?? undefined,
-      row.uazapiToken ?? undefined,
+      row.whatsappInstanceId ?? undefined,
+      row.whatsappToken ?? undefined,
       row.createdAt,
       row.updatedAt,
       row.endDate ?? undefined,
@@ -169,9 +169,9 @@ export class PrismaEventRepository implements EventRepositoryPort {
   async findWhatsappInstanceToken(id: string): Promise<string | null> {
     const event = await this.prisma.event.findUnique({
       where: { id },
-      select: { uazapiInstance: { select: { token: true } } },
+      select: { whatsappInstance: { select: { token: true } } },
     });
-    return event?.uazapiInstance?.token ?? null;
+    return event?.whatsappInstance?.token ?? null;
   }
 
   async findDuplicationSource(id: string): Promise<EventDuplicationSource | null> {
@@ -230,7 +230,7 @@ export class PrismaEventRepository implements EventRepositoryPort {
   async findAutomationContext(id: string): Promise<EventAutomationContext | null> {
     const row = await this.prisma.event.findUnique({
       where: { id },
-      include: { uazapiInstance: true },
+      include: { whatsappInstance: true },
     });
     if (!row) return null;
     return {
@@ -242,7 +242,7 @@ export class PrismaEventRepository implements EventRepositoryPort {
       capacity: row.capacity,
       dressCode: row.dressCode,
       groupLink: row.groupLink,
-      whatsappToken: row.uazapiInstance?.token ?? null,
+      whatsappToken: row.whatsappInstance?.token ?? null,
     };
   }
 

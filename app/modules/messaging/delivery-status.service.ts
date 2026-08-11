@@ -5,7 +5,7 @@ import {
 } from '@modules/messaging/ports/outbox-repository.port';
 import { MessageLogsRepository } from '@modules/messaging/message-logs.repository';
 
-export type UazapiStatus =
+export type WhatsappStatus =
   | 'Queued'
   | 'Canceled'
   | 'Failed'
@@ -15,11 +15,11 @@ export type UazapiStatus =
   | string;
 
 export interface StatusUpdateInput {
-  /** id da mensagem no provedor (uazapi messageid) */
+  /** id da mensagem no provedor (whatsapp messageid) */
   providerMessageId?: string | null;
   /** track_id que enviamos = OutboxMessage.id */
   trackId?: string | null;
-  status: UazapiStatus;
+  status: WhatsappStatus;
   /** timestamp do evento (ms epoch) */
   at?: number | null;
   /** motivo quando status = Failed */

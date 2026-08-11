@@ -11,7 +11,7 @@ const event = {
   capacity: 100,
   dressCode: null,
   groupLink: null,
-  uazapiInstance: 'inst-1',
+  whatsappInstance: 'inst-1',
 };
 
 const regJoao = {
@@ -63,7 +63,7 @@ function makeService(overrides?: {
       .fn()
       .mockResolvedValue(overrides && 'eventToken' in overrides ? overrides.eventToken : 'tok-evt'),
   };
-  const uazapiInstances = {
+  const whatsappInstances = {
     findById: jest.fn().mockResolvedValue({ id: 'inst-1', token: 'tok-manual' }),
   };
   const eventsService = { findById: jest.fn().mockResolvedValue(event) };
@@ -83,12 +83,12 @@ function makeService(overrides?: {
     config as any,
     storage as any,
     templates as any,
-    uazapiInstances as any,
+    whatsappInstances as any,
     collaborators as any,
     eventRepo as any,
     registrations as any,
   );
-  return { service, registrations, templates, collaborators, eventRepo, uazapiInstances, eventsService, outbox, storage };
+  return { service, registrations, templates, collaborators, eventRepo, whatsappInstances, eventsService, outbox, storage };
 }
 
 describe('ManualSendService.send', () => {

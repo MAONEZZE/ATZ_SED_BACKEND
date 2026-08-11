@@ -11,7 +11,7 @@ import { ApiTags, ApiOperation, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { DeliveryStatusService } from '@modules/messaging/delivery-status.service';
 
-interface UazapiWebhookBody {
+interface WhatsappWebhookBody {
   event?: string;
   instance?: string;
   data?: {
@@ -25,10 +25,13 @@ interface UazapiWebhookBody {
 }
 
 // Rota pública (sem JwtAuthGuard, só ThrottlerGuard global). Protegida por shared
-// secret na query/header, verificado contra UAZAPI_WEBHOOK_SECRET.
+// secret na query/header, verificado contra WHATSAPP_WEBHOOK_SECRET.
+// TODO(remover alias): 'public/webhooks/uazapi' é o path legado — instâncias já
+// conectadas antes do rename ainda apontam pra ele do lado da Uazapi. Remover
+// quando todas as instâncias forem re-registradas com o novo path.
 @ApiTags('Public')
-@Controller('public/webhooks/uazapi')
-export class UazapiWebhookController {
+@Controller(['public/webhooks/whatsapp', 'public/webhooks/uazapi'])
+export class WhatsappWebhookController {
   constructor(
     private readonly config: ConfigService,
     private readonly delivery: DeliveryStatusService,
@@ -37,13 +40,13 @@ export class UazapiWebhookController {
   @Post()
   @HttpCode(200)
   @ApiExcludeEndpoint()
-  @ApiOperation({ summary: 'Recebe eventos de status da Uazapi (messages_update)' })
+  @ApiOperation({ summary: 'Recebe eventos de status da Whatsapp (messages_update)' })
   async receive(
     @Query('secret') secretQuery: string | undefined,
     @Headers('x-webhook-secret') secretHeader: string | undefined,
-    @Body() body: UazapiWebhookBody,
+    @Body() body: WhatsappWebhookBody,
   ) {
-    const expected = this.config.get<string>('UAZAPI_WEBHOOK_SECRET');
+    const expected = this.config.get<string>('WHATSAPP_WEBHOOK_SECRET');
     const provided = secretQuery ?? secretHeader;
     if (!expected || provided !== expected) {
       throw new UnauthorizedException('invalid webhook secret');

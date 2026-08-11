@@ -1,10 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { OUTBOX_REPOSITORY_PORT } from '@modules/messaging/ports/outbox-repository.port';
 import { PrismaOutboxRepository } from './prisma-outbox.repository';
 import { MessageLogsRepository } from './message-logs.repository';
 import { MessageTemplatesRepository } from './message-templates.repository';
 import { DeliveryStatusService } from './delivery-status.service';
 
+@Global()
 @Module({
   providers: [
     { provide: OUTBOX_REPOSITORY_PORT, useClass: PrismaOutboxRepository },

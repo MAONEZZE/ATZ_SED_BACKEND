@@ -58,7 +58,7 @@ export interface PendingOutboxMessage {
 }
 
 export interface OutboxDeliveryTarget {
-  /** id da mensagem no provedor (uazapi messageid) */
+  /** id da mensagem no provedor (whatsapp messageid) */
   providerMessageId?: string | null;
   /** track_id que enviamos = OutboxMessage.id */
   trackId?: string | null;

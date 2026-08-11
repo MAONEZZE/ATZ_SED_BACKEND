@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ResendAdapter } from './resend.adapter';
-import { UazapiAdapter } from './uazapi.adapter';
+import { WhatsappAdapter } from './whatsapp.adapter';
 import { PipedriveAdapter } from './pipedrive.adapter';
 
 @Module({
-  providers: [ResendAdapter, UazapiAdapter, PipedriveAdapter],
-  exports: [ResendAdapter, UazapiAdapter, PipedriveAdapter],
+  providers: [ResendAdapter, WhatsappAdapter, PipedriveAdapter],
+  exports: [ResendAdapter, WhatsappAdapter, PipedriveAdapter],
 })
 export class IntegrationsModule {}

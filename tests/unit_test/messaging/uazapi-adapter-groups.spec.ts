@@ -1,9 +1,9 @@
-import { UazapiAdapter } from '@infra/integrations/uazapi.adapter';
+import { WhatsappAdapter } from '@infra/integrations/whatsapp.adapter';
 
 const config = {
   get: (key: string) => {
     const map: Record<string, unknown> = {
-      UAZAPI_API_URL: 'https://uaz.test',
+      WHATSAPP_API_URL: 'https://uaz.test',
       WA_TYPING_ENABLED: false,
     };
     return map[key];
@@ -11,10 +11,10 @@ const config = {
 };
 
 function makeAdapter() {
-  return new UazapiAdapter(config as any);
+  return new WhatsappAdapter(config as any);
 }
 
-describe('UazapiAdapter — fetchGroups', () => {
+describe('WhatsappAdapter — fetchGroups', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('retorna id e subject dos grupos (a partir de JID/Name)', async () => {
@@ -48,7 +48,7 @@ describe('UazapiAdapter — fetchGroups', () => {
     );
   });
 
-  it('lança erro quando Uazapi API retorna status de erro', async () => {
+  it('lança erro quando Whatsapp API retorna status de erro', async () => {
     global.fetch = jest.fn(async () => ({
       ok: false,
       status: 401,
@@ -56,7 +56,7 @@ describe('UazapiAdapter — fetchGroups', () => {
     })) as any;
 
     await expect(makeAdapter().fetchGroups('token-xyz')).rejects.toThrow(
-      'Uazapi API error (401): Unauthorized',
+      'Whatsapp API error (401): Unauthorized',
     );
   });
 });

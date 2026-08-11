@@ -1,10 +1,10 @@
-import { UazapiAdapter } from '@infra/integrations/uazapi.adapter';
+import { WhatsappAdapter } from '@infra/integrations/whatsapp.adapter';
 
 // ConfigService falso: typing desabilitado para envios determinísticos (sem delay aleatório).
 const config = {
   get: (key: string) => {
     const map: Record<string, unknown> = {
-      UAZAPI_API_URL: 'https://uaz.test',
+      WHATSAPP_API_URL: 'https://uaz.test',
       WA_TYPING_ENABLED: false,
     };
     return map[key];
@@ -12,10 +12,10 @@ const config = {
 };
 
 function makeAdapter() {
-  return new UazapiAdapter(config as any);
+  return new WhatsappAdapter(config as any);
 }
 
-// Captura os textos enviados em cada POST à Uazapi.
+// Captura os textos enviados em cada POST à Whatsapp.
 function mockFetchOk() {
   const sentTexts: string[] = [];
   const fetchMock = jest.fn(async (_url: string, init: { body: string }) => {
@@ -27,7 +27,7 @@ function mockFetchOk() {
   return { sentTexts, fetchMock };
 }
 
-describe('UazapiAdapter — split de mensagens em \\n\\n', () => {
+describe('WhatsappAdapter — split de mensagens em \\n\\n', () => {
   beforeEach(() => jest.clearAllMocks());
 
   // Cenário 1: sem \n\n → uma única mensagem (comportamento atual preservado).

@@ -2,16 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { PrismaRepositoryBase } from '@shared/prisma-repository.base';
 
 @Injectable()
-export class UazapiInstancesRepository extends PrismaRepositoryBase {
+export class WhatsappInstancesRepository extends PrismaRepositoryBase {
   list() {
-    return this.prisma.uazapiInstance.findMany({
+    return this.prisma.whatsappInstance.findMany({
       select: { id: true, nickname: true, token: true },
       orderBy: { nickname: 'asc' },
     });
   }
 
   async findTokenById(id: string): Promise<string | null> {
-    const row = await this.prisma.uazapiInstance.findUnique({
+    const row = await this.prisma.whatsappInstance.findUnique({
       where: { id },
       select: { token: true },
     });
@@ -19,7 +19,7 @@ export class UazapiInstancesRepository extends PrismaRepositoryBase {
   }
 
   findById(id: string): Promise<{ id: string; token: string | null } | null> {
-    return this.prisma.uazapiInstance.findUnique({
+    return this.prisma.whatsappInstance.findUnique({
       where: { id },
       select: { id: true, token: true },
     });

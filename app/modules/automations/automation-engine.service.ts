@@ -115,7 +115,7 @@ export class AutomationEngine {
       return;
     }
 
-    // `instancia` carrega o token Uazapi da instância (auth por token).
+    // `instancia` carrega o token Whatsapp da instância (auth por token).
     const instancia = event.whatsappToken ?? undefined;
 
     for (const rule of rules) {

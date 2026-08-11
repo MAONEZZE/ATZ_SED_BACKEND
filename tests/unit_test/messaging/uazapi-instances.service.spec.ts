@@ -1,19 +1,19 @@
-import { UazapiInstancesService } from '@modules/uazapi-instances/uazapi-instances.service';
+import { WhatsappInstancesService } from '@modules/whatsapp-instances/whatsapp-instances.service';
 
 function makeService(
   rows: Array<{ id: string; nickname: string; token: string | null }>,
   getInstanceStatus: jest.Mock = jest.fn().mockResolvedValue('connected'),
 ) {
   const repo = { list: jest.fn().mockResolvedValue(rows) };
-  const uazapi = { getInstanceStatus };
+  const whatsapp = { getInstanceStatus };
   return {
-    service: new UazapiInstancesService(repo as any, {} as any, uazapi as any),
+    service: new WhatsappInstancesService(repo as any, {} as any, whatsapp as any),
     repo,
-    uazapi,
+    whatsapp,
   };
 }
 
-describe('UazapiInstancesService — list (active = conexão real via /instance/status)', () => {
+describe('WhatsappInstancesService — list (active = conexão real via /instance/status)', () => {
   it('active=true quando status "connected", sem vazar token', async () => {
     const getStatus = jest.fn().mockResolvedValue('connected');
     const { service } = makeService(

@@ -1,10 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { REGISTRATION_REPOSITORY_PORT } from '@modules/registrations/ports/registration-repository.port';
 import { USER_SUBSCRIPTION_REPOSITORY_PORT } from '@modules/registrations/ports/user-subscription-repository.port';
 import { PrismaRegistrationRepository } from './prisma-registration.repository';
 import { PrismaUserSubscriptionRepository } from './prisma-user-subscription.repository';
 import { PostEventResponsesRepository } from './post-event-responses.repository';
 
+@Global()
 @Module({
   providers: [
     {

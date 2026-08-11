@@ -15,7 +15,7 @@ export interface CreateEventData {
   recurrenceFreq?: string;
   recurrenceInterval?: number;
   recurrenceUntil?: Date;
-  uazapiInstanceId?: string;
+  whatsappInstanceId?: string;
 }
 
 export interface UpdateEventData {
@@ -28,8 +28,8 @@ export interface UpdateEventData {
   eventDate?: Date;
   endDate?: Date;
   sendToPipedrive?: boolean;
-  uazapiInstanceId?: string;
-  uazapiToken?: string;
+  whatsappInstanceId?: string;
+  whatsappToken?: string;
   lastEditedById?: string;
   recurrenceFreq?: string | null;
   recurrenceInterval?: number | null;
@@ -138,7 +138,7 @@ export interface EventRepositoryPort {
   updateStatus(id: string, status: EventStatus, editorId?: string): Promise<EventEntity>;
   delete(id: string): Promise<void>;
   findOwnershipById(id: string, profileId: string): Promise<EventOwnership | null>;
-  /** Token da instância WhatsApp vinculada ao evento (relação uazapiInstance, não a coluna uazapiToken). */
+  /** Token da instância WhatsApp vinculada ao evento (relação whatsappInstance, não a coluna whatsappToken). */
   findWhatsappInstanceToken(id: string): Promise<string | null>;
   findDuplicationSource(id: string): Promise<EventDuplicationSource | null>;
   createDuplicate(data: CreateDuplicateEventData): Promise<CreatedDuplicateEvent>;

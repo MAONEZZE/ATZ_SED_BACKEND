@@ -19,7 +19,7 @@ import { MessagingModule } from '@modules/messaging/messaging.module';
 import { GlobalMessagingModule } from '@modules/messaging/global-messaging.module';
 import { UsersModule } from '@modules/users/users.module';
 import { PublicModule } from '@modules/public/public.module';
-import { UazapiInstancesModule } from '@modules/uazapi-instances/uazapi-instances.module';
+import { WhatsappInstancesModule } from '@modules/whatsapp-instances/whatsapp-instances.module';
 
 @Module({
   imports: [
@@ -52,7 +52,7 @@ import { UazapiInstancesModule } from '@modules/uazapi-instances/uazapi-instance
     GlobalMessagingModule,
     UsersModule,
     PublicModule,
-    UazapiInstancesModule,
+    WhatsappInstancesModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
