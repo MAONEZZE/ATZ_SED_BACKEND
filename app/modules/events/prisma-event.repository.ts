@@ -10,6 +10,7 @@ import {
   CreateDuplicateEventData,
   CreatedDuplicateEvent,
   PublicEventSummary,
+  EventAutomationContext,
 } from '@modules/events/ports/event-repository.port';
 
 const PUBLIC_EVENT_SELECT = {
@@ -224,5 +225,35 @@ export class PrismaEventRepository implements EventRepositoryPort {
 
   findStatusBySlug(slug: string): Promise<{ id: string; status: EventStatus } | null> {
     return this.prisma.event.findUnique({ where: { slug }, select: { id: true, status: true } });
+  }
+
+  async findAutomationContext(id: string): Promise<EventAutomationContext | null> {
+    const row = await this.prisma.event.findUnique({
+      where: { id },
+      include: { uazapiInstance: true },
+    });
+    if (!row) return null;
+    return {
+      id: row.id,
+      ownerId: row.ownerId,
+      title: row.title,
+      eventDate: row.eventDate,
+      location: row.location,
+      capacity: row.capacity,
+      dressCode: row.dressCode,
+      groupLink: row.groupLink,
+      whatsappToken: row.uazapiInstance?.token ?? null,
+    };
+  }
+
+  async findWithApprovedRegistrationIds(
+    id: string,
+  ): Promise<{ id: string; registrationIds: string[] } | null> {
+    const row = await this.prisma.event.findUnique({
+      where: { id },
+      include: { registrations: { where: { status: 'approved' }, select: { id: true } } },
+    });
+    if (!row) return null;
+    return { id: row.id, registrationIds: row.registrations.map((r) => r.id) };
   }
 }

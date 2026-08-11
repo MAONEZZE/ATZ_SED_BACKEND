@@ -97,6 +97,19 @@ export interface CreatedDuplicateEvent {
   slug: string;
 }
 
+export interface EventAutomationContext {
+  id: string;
+  ownerId: string;
+  title: string;
+  eventDate: Date | null;
+  location: string | null;
+  capacity: number | null;
+  dressCode: string | null;
+  groupLink: string | null;
+  /** Token da instância WhatsApp vinculada ao evento (mesma relação de findWhatsappInstanceToken). */
+  whatsappToken: string | null;
+}
+
 /** Projeção pública do evento — só os campos seguros para expor sem autenticação. */
 export interface PublicEventSummary {
   id: string;
@@ -131,4 +144,8 @@ export interface EventRepositoryPort {
   createDuplicate(data: CreateDuplicateEventData): Promise<CreatedDuplicateEvent>;
   findPublicBySlug(slug: string): Promise<PublicEventSummary | null>;
   findStatusBySlug(slug: string): Promise<{ id: string; status: EventStatus } | null>;
+  findAutomationContext(id: string): Promise<EventAutomationContext | null>;
+  findWithApprovedRegistrationIds(
+    id: string,
+  ): Promise<{ id: string; registrationIds: string[] } | null>;
 }

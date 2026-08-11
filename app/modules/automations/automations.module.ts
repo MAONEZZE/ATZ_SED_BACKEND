@@ -9,9 +9,18 @@ import { AutomationsDbModule } from '@modules/automations/automations-db.module'
 import { WorkersModule } from '@workers/workers.module';
 import { AutomationsController } from './automations.controller';
 import { GuardsModule } from '@shared/guards/guards.module';
+import { EventsDbModule } from '@modules/events/events-db.module';
+import { RegistrationsDbModule } from '@modules/registrations/registrations-db.module';
 
 @Module({
-  imports: [BullQueuesModule, WorkersModule, GuardsModule, AutomationsDbModule],
+  imports: [
+    BullQueuesModule,
+    WorkersModule,
+    GuardsModule,
+    AutomationsDbModule,
+    EventsDbModule,
+    RegistrationsDbModule,
+  ],
   controllers: [AutomationsController],
   providers: [
     AutomationEngine,

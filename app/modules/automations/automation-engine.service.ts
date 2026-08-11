@@ -1,6 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { PrismaService } from '@infra/prisma/prisma.service';
+import { AutomationsRepository } from '@modules/automations/automations.repository';
+import {
+  EVENT_REPOSITORY_PORT,
+  EventRepositoryPort,
+} from '@modules/events/ports/event-repository.port';
+import {
+  REGISTRATION_REPOSITORY_PORT,
+  RegistrationRepositoryPort,
+} from '@modules/registrations/ports/registration-repository.port';
 import { OutboxService } from '@modules/messaging/outbox.service';
 import { TemplateRenderer } from './template-renderer.service';
 import { RegistrationStatusChanged } from '@modules/registrations/entities/registration-status-changed.event';
@@ -17,7 +25,10 @@ export class AutomationEngine {
   private readonly logger = new Logger(AutomationEngine.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly automations: AutomationsRepository,
+    @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
+    @Inject(REGISTRATION_REPOSITORY_PORT)
+    private readonly registrations: RegistrationRepositoryPort,
     private readonly outbox: OutboxService,
     private readonly renderer: TemplateRenderer,
   ) {}
@@ -55,9 +66,7 @@ export class AutomationEngine {
     trigger: string,
     ruleIds?: string[],
   ): Promise<void> {
-    const registration = await this.prisma.registration.findUnique({
-      where: { id: registrationId },
-    });
+    const registration = await this.registrations.findById(registrationId);
     if (!registration) {
       this.logger.warn({ registrationId, eventId }, 'Registration not found for automation');
       return;
@@ -95,25 +104,11 @@ export class AutomationEngine {
     contact: { registrationId?: string; name: string; email: string; phone: string },
     ruleIds?: string[],
   ): Promise<void> {
-    const rules = await this.prisma.automationRule.findMany({
-      where: {
-        eventId,
-        trigger: trigger as any,
-        active: true,
-        // Disparo imediato: delayMinutes null OU 0 (robustez contra regras gravadas com 0).
-        ...(ruleIds
-          ? { id: { in: ruleIds } }
-          : { OR: [{ delayMinutes: null }, { delayMinutes: 0 }] }),
-      },
-      include: { template: true },
-    });
+    const rules = await this.automations.findActiveTriggerRules(eventId, trigger, ruleIds);
 
     if (!rules.length) return;
 
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-      include: { uazapiInstance: true },
-    });
+    const event = await this.eventRepo.findAutomationContext(eventId);
 
     if (!event) {
       this.logger.warn({ eventId }, 'Event not found for automation');
@@ -121,7 +116,7 @@ export class AutomationEngine {
     }
 
     // `instancia` carrega o token Uazapi da instância (auth por token).
-    const instancia = event.uazapiInstance?.token ?? undefined;
+    const instancia = event.whatsappToken ?? undefined;
 
     for (const rule of rules) {
       const vars = this.renderer.buildVariables({
