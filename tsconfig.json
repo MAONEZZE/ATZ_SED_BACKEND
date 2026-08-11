@@ -21,7 +21,11 @@
       "@modules/*": ["app/modules/*"],
       "@infra/*": ["app/infra/*"],
       "@shared/*": ["app/shared/*"],
-      "@workers/*": ["app/workers/*"]
+      "@workers/*": ["app/workers/*"],
+      "@api/*": ["app/api/*"],
+      "@application/*": ["app/application/*"],
+      "@domain/*": ["app/domain/*"],
+      "@handlers/*": ["app/handlers/*"]
     }
   }
 }

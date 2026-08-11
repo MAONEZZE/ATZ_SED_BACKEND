@@ -1,4 +1,4 @@
-import { escapeCell } from '@shared/csv-utils';
+import { escapeCell } from '@application/shared/csv-utils';
 
 /** A single CSV column: a header and how to extract its (already stringified) cell value from a row. */
 export interface CsvColumn<T> {

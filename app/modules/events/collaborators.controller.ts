@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Delete, Param, Body, UseGuards, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
-import { OwnershipGuard } from '@shared/guards/ownership.guard';
+import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
+import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { CollaboratorsService } from '@modules/events/collaborators.service';
 import { AddCollaboratorDto } from './dto/add-collaborator.dto';
 

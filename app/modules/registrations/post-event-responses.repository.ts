@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaRepositoryBase } from '@shared/prisma-repository.base';
+import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-repository.base';
 
 @Injectable()
 export class PostEventResponsesRepository extends PrismaRepositoryBase {

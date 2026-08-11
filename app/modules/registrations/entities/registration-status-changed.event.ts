@@ -1,4 +1,4 @@
-import { DomainEvent } from '@shared/domain-event';
+import { DomainEvent } from '@handlers/domain-event';
 import { FunnelStatus } from './registration.entity';
 
 export class RegistrationStatusChanged extends DomainEvent {

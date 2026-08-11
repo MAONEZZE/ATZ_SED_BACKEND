@@ -8,7 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { randomBytes, randomInt } from 'crypto';
 import { DateTime } from 'luxon';
-import { STORAGE_PORT, StoragePort } from '@infra/storage/storage.port';
+import { STORAGE_PORT, StoragePort } from '@api/adapters/ports/i-storage';
 import { EventsService } from '@modules/events/events.service';
 import { OutboxService } from '@modules/messaging/outbox.service';
 import { TemplateRenderer } from '@modules/automations/template-renderer.service';

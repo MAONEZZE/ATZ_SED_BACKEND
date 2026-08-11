@@ -1,4 +1,4 @@
-import { APP_TIMEZONE } from '@shared/timezone';
+import { APP_TIMEZONE } from '@handlers/timezone';
 
 const FORMULA_TRIGGER_RE = /^[=+\-@\t\r]/;
 

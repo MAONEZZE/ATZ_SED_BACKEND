@@ -1,4 +1,4 @@
-import { WhatsappAdapter } from '@infra/integrations/whatsapp.adapter';
+import { WhatsappAdapter } from '@api/adapters/whatsapp.adapter';
 
 // ConfigService falso: typing desabilitado para envios determinísticos (sem delay aleatório).
 const config = {

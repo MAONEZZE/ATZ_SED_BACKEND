@@ -1,6 +1,6 @@
-import { OwnershipGuard } from '@shared/guards/ownership.guard';
+import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { AuthenticatedUser } from '@shared/authenticated-user.entity';
+import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
 import { EventRepositoryPort } from '@modules/events/ports/event-repository.port';
 
 function makeCtx(req: Record<string, unknown>) {

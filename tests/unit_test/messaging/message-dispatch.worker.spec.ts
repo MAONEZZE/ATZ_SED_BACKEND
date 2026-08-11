@@ -1,6 +1,6 @@
 import { MessageDispatchWorker } from '@workers/message-dispatch.worker';
 import { DelayedError, UnrecoverableError } from 'bullmq';
-import { WhatsappRestrictionError } from '@infra/integrations/whatsapp.adapter';
+import { WhatsappRestrictionError } from '@api/adapters/whatsapp.adapter';
 
 const outboxRow = {
   id: 'msg-1',

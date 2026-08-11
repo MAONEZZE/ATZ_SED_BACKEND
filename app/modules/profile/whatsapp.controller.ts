@@ -1,7 +1,7 @@
 import { Controller, Get, Query, UseGuards, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
-import { WhatsappAdapter } from '@infra/integrations/whatsapp.adapter';
+import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
+import { WhatsappAdapter } from '@api/adapters/whatsapp.adapter';
 import { WhatsappInstancesService } from '@modules/whatsapp-instances/whatsapp-instances.service';
 
 @ApiTags('WhatsApp')

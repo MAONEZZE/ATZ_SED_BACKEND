@@ -1,10 +1,10 @@
 import { Controller, Get, Post, Patch, Param, Body, UseGuards, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
-import { OwnershipGuard } from '@shared/guards/ownership.guard';
-import { CurrentUser } from '@shared/decorators/current-user.decorator';
-import { AuthenticatedUser } from '@shared/authenticated-user.entity';
+import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
+import { OwnershipGuard } from '@api/config/guards/ownership.guard';
+import { CurrentUser } from '@api/config/decorators/current-user.decorator';
+import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
 import { RegistrationsService } from '@modules/registrations/registrations.service';
 import { FormFieldsService } from '@modules/events/form-fields.service';
 import { buildRegistrationsCsv } from '@modules/registrations/registrations-csv';
@@ -12,7 +12,7 @@ import { UpdateRegistrationStatusDto } from './dto/update-registration-status.dt
 import { UpdateRegistrationAnswersDto } from './dto/update-registration-answers.dto';
 import { ListRegistrationsQueryDto } from './dto/list-registrations-query.dto';
 import { ImportRegistrationsDto } from './dto/import-registrations.dto';
-import { Paginated } from '@shared/pagination';
+import { Paginated } from '@api/dto/shared/pagination';
 
 @ApiTags('Registrations')
 @ApiBearerAuth()

@@ -26,15 +26,15 @@ import {
   ApiBody,
   ApiQuery,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
-import { OwnershipGuard } from '@shared/guards/ownership.guard';
-import { CurrentUser } from '@shared/decorators/current-user.decorator';
-import { AuthenticatedUser } from '@shared/authenticated-user.entity';
+import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
+import { OwnershipGuard } from '@api/config/guards/ownership.guard';
+import { CurrentUser } from '@api/config/decorators/current-user.decorator';
+import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
 import { EventsService } from '@modules/events/events.service';
 import { EventLifecycleService } from '@modules/events/event-lifecycle.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto, UpdateEventStatusDto } from './dto/update-event.dto';
-import { PaginationQueryDto, Paginated } from '@shared/pagination';
+import { PaginationQueryDto, Paginated } from '@api/dto/shared/pagination';
 
 @ApiTags('Events')
 @ApiBearerAuth()

@@ -12,7 +12,7 @@ import { RegistrationStatusChanged } from '@modules/registrations/entities/regis
 import { FormSubmitted } from '@modules/registrations/entities/form-submitted.event';
 import { EventsService } from '@modules/events/events.service';
 import { UserSubscriptionsService } from './user-subscriptions.service';
-import { PipedriveAdapter } from '@infra/integrations/pipedrive.adapter';
+import { PipedriveAdapter } from '@api/adapters/pipedrive.adapter';
 import { FormsService } from '@modules/events/forms.service';
 import {
   validateAnswers,
@@ -21,7 +21,7 @@ import {
   buildAnswerLookup,
   AnswerFieldMeta,
 } from './answer-validation';
-import { normalizePhone } from '@shared/phone';
+import { normalizePhone } from '@handlers/phone';
 
 @Injectable()
 export class RegistrationsService {

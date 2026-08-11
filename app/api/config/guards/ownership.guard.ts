@@ -11,7 +11,7 @@ import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
 } from '@modules/events/ports/event-repository.port';
-import { AuthenticatedUser } from '@shared/authenticated-user.entity';
+import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
 
 @Injectable()
 export class OwnershipGuard implements CanActivate {

@@ -26,9 +26,9 @@ import {
   ApiConsumes,
   ApiBody,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
-import { CurrentUser } from '@shared/decorators/current-user.decorator';
-import { AuthenticatedUser } from '@shared/authenticated-user.entity';
+import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
+import { CurrentUser } from '@api/config/decorators/current-user.decorator';
+import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
 import { ManualSendService } from '@modules/messaging/manual-send.service';
 import { TemplatesService } from '@modules/messaging/templates.service';
 import { MessageLogsService } from '@modules/messaging/message-logs.service';
@@ -40,7 +40,7 @@ import {
   UpdateGlobalTemplateDto,
 } from './dto/global-template.dto';
 import { ListTemplatesQueryDto } from './dto/list-templates-query.dto';
-import { PaginationQueryDto, Paginated } from '@shared/pagination';
+import { PaginationQueryDto, Paginated } from '@api/dto/shared/pagination';
 
 const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 

@@ -1,5 +1,5 @@
-import { answerToString } from '@shared/csv-utils';
-import { buildCsv, CsvColumn } from '@shared/csv-builder';
+import { answerToString } from '@application/shared/csv-utils';
+import { buildCsv, CsvColumn } from '@application/shared/csv-builder';
 
 export interface CsvPostEventResponse {
   name: string;

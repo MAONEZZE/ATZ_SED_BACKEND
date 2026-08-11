@@ -8,7 +8,7 @@ import { BullQueuesModule } from '@infra/queue/bull-queues.module';
 import { AutomationsDbModule } from '@modules/automations/automations-db.module';
 import { WorkersModule } from '@workers/workers.module';
 import { AutomationsController } from './automations.controller';
-import { GuardsModule } from '@shared/guards/guards.module';
+import { GuardsModule } from '@api/config/modules/guards.module';
 import { EventsDbModule } from '@modules/events/events-db.module';
 import { RegistrationsDbModule } from '@modules/registrations/registrations-db.module';
 

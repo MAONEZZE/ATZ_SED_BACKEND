@@ -1,6 +1,6 @@
 import { IsOptional, IsIn } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { PaginationQueryDto } from '@shared/pagination';
+import { PaginationQueryDto } from '@api/dto/shared/pagination';
 
 export class ListFormFieldsQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: ['registration', 'post_event', 'nps'] })

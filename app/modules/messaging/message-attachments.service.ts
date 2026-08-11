@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
-import { STORAGE_PORT, StoragePort } from '@infra/storage/storage.port';
+import { STORAGE_PORT, StoragePort } from '@api/adapters/ports/i-storage';
 
 export interface UploadedAttachment {
   path: string;

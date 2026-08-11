@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { APP_TIMEZONE } from '@shared/timezone';
+import { APP_TIMEZONE } from '@handlers/timezone';
 
 @Injectable()
 export class TemplateRenderer {

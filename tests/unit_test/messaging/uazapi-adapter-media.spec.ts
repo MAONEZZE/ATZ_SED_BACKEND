@@ -1,4 +1,4 @@
-import { WhatsappAdapter } from '@infra/integrations/whatsapp.adapter';
+import { WhatsappAdapter } from '@api/adapters/whatsapp.adapter';
 
 function cfg() {
   const b: Record<string, unknown> = { WHATSAPP_API_URL: 'https://uaz' };

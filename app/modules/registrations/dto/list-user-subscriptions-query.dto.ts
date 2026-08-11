@@ -1,6 +1,6 @@
 import { IsOptional, IsIn, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { PaginationQueryDto } from '@shared/pagination';
+import { PaginationQueryDto } from '@api/dto/shared/pagination';
 
 export class ListUserSubscriptionsQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ description: 'Busca por nome, email ou telefone' })

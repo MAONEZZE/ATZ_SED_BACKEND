@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { WhatsappInstancesRepository } from '@modules/whatsapp-instances/whatsapp-instances.repository';
-import { WhatsappAdapter } from '@infra/integrations/whatsapp.adapter';
+import { WhatsappAdapter } from '@api/adapters/whatsapp.adapter';
 
 @Injectable()
 export class WhatsappInstancesService {

@@ -24,9 +24,9 @@ import {
   ApiConsumes,
   ApiBody,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
-import { CurrentUser } from '@shared/decorators/current-user.decorator';
-import { AuthenticatedUser } from '@shared/authenticated-user.entity';
+import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
+import { CurrentUser } from '@api/config/decorators/current-user.decorator';
+import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
 import { ProfileService } from '@modules/profile/profile.service';
 import { UpdateProfileDto } from './dto/profile.dto';
 

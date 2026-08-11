@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaRepositoryBase } from '@shared/prisma-repository.base';
+import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-repository.base';
 import { EventDuplicationAutomationRule } from '@modules/events/ports/event-repository.port';
 
 const TEMPLATE_SUMMARY = {

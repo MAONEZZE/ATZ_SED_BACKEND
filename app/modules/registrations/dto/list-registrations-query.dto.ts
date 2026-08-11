@@ -1,6 +1,6 @@
 import { IsOptional, IsIn, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { PaginationQueryDto } from '@shared/pagination';
+import { PaginationQueryDto } from '@api/dto/shared/pagination';
 import { FunnelStatus } from '@modules/registrations/entities/registration.entity';
 
 export class ListRegistrationsQueryDto extends PaginationQueryDto {

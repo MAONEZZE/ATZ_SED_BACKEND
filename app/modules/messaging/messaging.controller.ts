@@ -9,10 +9,10 @@ import {
   ApiParam,
   ApiQuery,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
-import { OwnershipGuard } from '@shared/guards/ownership.guard';
+import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
+import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { MessageLogsService } from '@modules/messaging/message-logs.service';
-import { PaginationQueryDto, Paginated } from '@shared/pagination';
+import { PaginationQueryDto, Paginated } from '@api/dto/shared/pagination';
 
 @ApiTags('Messaging')
 @ApiBearerAuth()

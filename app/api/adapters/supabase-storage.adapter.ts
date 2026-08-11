@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { StoragePort, UploadResult } from '@infra/storage/storage.port';
+import { StoragePort, UploadResult } from '@api/adapters/ports/i-storage';
 
 @Injectable()
 export class SupabaseStorageAdapter implements StoragePort {

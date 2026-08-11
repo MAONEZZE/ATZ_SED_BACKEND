@@ -8,9 +8,9 @@ import {
   ApiParam,
   ApiQuery,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
-import { OwnershipGuard } from '@shared/guards/ownership.guard';
-import { Paginated } from '@shared/pagination';
+import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
+import { OwnershipGuard } from '@api/config/guards/ownership.guard';
+import { Paginated } from '@api/dto/shared/pagination';
 import { UserSubscriptionsService } from '@modules/registrations/user-subscriptions.service';
 import { FormFieldsService } from '@modules/events/form-fields.service';
 import { buildUserSubscriptionsCsv } from '@modules/registrations/user-subscriptions-csv';

@@ -9,12 +9,12 @@ import { RegistrationsService } from '@modules/registrations/registrations.servi
 import { UserSubscriptionsService } from '@modules/registrations/user-subscriptions.service';
 import { PostEventResponsesService } from '@modules/registrations/post-event-responses.service';
 import { RegistrationsDbModule } from '@modules/registrations/registrations-db.module';
-import { IntegrationsModule } from '@infra/integrations/integrations.module';
-import { GuardsModule } from '@shared/guards/guards.module';
+import { AdaptersModule } from '@api/adapters/modules/adapters.module';
+import { GuardsModule } from '@api/config/modules/guards.module';
 import { EventsModule } from '../events/events.module';
 
 @Module({
-  imports: [RegistrationsDbModule, IntegrationsModule, GuardsModule, EventsModule],
+  imports: [RegistrationsDbModule, AdaptersModule, GuardsModule, EventsModule],
   controllers: [
     RegistrationsController,
     PostEventResponsesController,

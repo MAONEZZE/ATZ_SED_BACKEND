@@ -111,7 +111,11 @@
       "@modules/(.*)": "<rootDir>/app/modules/$1",
       "@infra/(.*)": "<rootDir>/app/infra/$1",
       "@shared/(.*)": "<rootDir>/app/shared/$1",
-      "@workers/(.*)": "<rootDir>/app/workers/$1"
+      "@workers/(.*)": "<rootDir>/app/workers/$1",
+      "@api/(.*)": "<rootDir>/app/api/$1",
+      "@application/(.*)": "<rootDir>/app/application/$1",
+      "@domain/(.*)": "<rootDir>/app/domain/$1",
+      "@handlers/(.*)": "<rootDir>/app/handlers/$1"
     }
   }
 }

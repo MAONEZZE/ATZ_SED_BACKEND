@@ -1,6 +1,6 @@
-import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { UnauthorizedException } from '@nestjs/common';
-import { AuthenticatedUser } from '@shared/authenticated-user.entity';
+import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
 
 const mockAuth = {
   verifyToken: jest.fn(),

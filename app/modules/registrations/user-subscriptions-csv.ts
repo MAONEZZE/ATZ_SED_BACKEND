@@ -1,5 +1,5 @@
-import { answerToString, formatDateBrasilia } from '@shared/csv-utils';
-import { buildCsv, CsvColumn } from '@shared/csv-builder';
+import { answerToString, formatDateBrasilia } from '@application/shared/csv-utils';
+import { buildCsv, CsvColumn } from '@application/shared/csv-builder';
 
 export interface CsvUserSubscription {
   name: string | null;

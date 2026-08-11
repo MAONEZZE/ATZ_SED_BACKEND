@@ -18,14 +18,14 @@ import {
   ApiParam,
   ApiQuery,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
-import { OwnershipGuard } from '@shared/guards/ownership.guard';
-import { CurrentUser } from '@shared/decorators/current-user.decorator';
-import { AuthenticatedUser } from '@shared/authenticated-user.entity';
+import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
+import { OwnershipGuard } from '@api/config/guards/ownership.guard';
+import { CurrentUser } from '@api/config/decorators/current-user.decorator';
+import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
 import { FormFieldsService } from '@modules/events/form-fields.service';
 import { CreateFormFieldDto, UpdateFormFieldDto } from './dto/form-field.dto';
 import { ListFormFieldsQueryDto } from './dto/list-form-fields-query.dto';
-import { Paginated } from '@shared/pagination';
+import { Paginated } from '@api/dto/shared/pagination';
 
 @ApiTags('Form Fields')
 @ApiBearerAuth()

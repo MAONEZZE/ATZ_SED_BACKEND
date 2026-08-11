@@ -1,4 +1,4 @@
-import { normalizePhone } from '@shared/phone';
+import { normalizePhone } from '@handlers/phone';
 
 describe('normalizePhone', () => {
   it('normalizes varying formats of the same BR mobile number to the same digits', () => {

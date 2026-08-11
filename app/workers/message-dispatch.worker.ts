@@ -2,8 +2,8 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Job, UnrecoverableError, DelayedError } from 'bullmq';
-import { ResendAdapter } from '@infra/integrations/resend.adapter';
-import { WhatsappAdapter, WhatsappRestrictionError } from '@infra/integrations/whatsapp.adapter';
+import { ResendAdapter } from '@api/adapters/resend.adapter';
+import { WhatsappAdapter, WhatsappRestrictionError } from '@api/adapters/whatsapp.adapter';
 import { QUEUE_MESSAGE_DISPATCH } from '@infra/queue/bull-queues.module';
 import { WhatsappPacingService } from '@modules/messaging/whatsapp-pacing.service';
 import { IcsGeneratorService } from '@modules/automations/ics-generator.service';
@@ -19,7 +19,7 @@ import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
 } from '@modules/events/ports/event-repository.port';
-import { APP_TIMEZONE } from '@shared/timezone';
+import { APP_TIMEZONE } from '@handlers/timezone';
 import { DateTime } from 'luxon';
 
 const ICS_MARKER = '[[[ICS_INVITE]]]';
