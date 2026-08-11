@@ -95,15 +95,16 @@
     ],
     "rootDir": ".",
     "roots": [
-      "<rootDir>/tests/unit_test",
-      "<rootDir>/tests/integration_test"
+      "<rootDir>/app/tests/unit",
+      "<rootDir>/app/tests/integration"
     ],
-    "testRegex": ".*\\.spec\\.ts$",
+    "testRegex": ".*\\.test\\..*\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "app/**/*.(t|j)s"
+      "app/**/*.(t|j)s",
+      "!app/tests/**"
     ],
     "coverageDirectory": "./coverage",
     "testEnvironment": "node",
