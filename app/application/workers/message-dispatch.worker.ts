@@ -19,7 +19,7 @@ import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
 } from '@domain/event_module/i-repository-event';
-import { APP_TIMEZONE } from '@handlers/timezone';
+import { APP_TIMEZONE } from '@shared/handlers/timezone';
 import { DateTime } from 'luxon';
 
 const ICS_MARKER = '[[[ICS_INVITE]]]';

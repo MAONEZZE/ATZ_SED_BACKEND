@@ -23,7 +23,7 @@
       "@api/*": ["app/api/*"],
       "@application/*": ["app/application/*"],
       "@domain/*": ["app/domain/*"],
-      "@handlers/*": ["app/handlers/*"]
+      "@handlers/*": ["app/shared/handlers/*"]
     }
   }
 }

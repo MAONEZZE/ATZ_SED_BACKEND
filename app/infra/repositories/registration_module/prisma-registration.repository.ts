@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-repository.base';
-import { normalizePhone } from '@handlers/phone';
+import { normalizePhone } from '@shared/handlers/phone';
 import {
   RegistrationRepositoryPort,
   CreateRegistrationData,

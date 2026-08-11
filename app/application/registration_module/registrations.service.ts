@@ -21,7 +21,7 @@ import {
   buildAnswerLookup,
   AnswerFieldMeta,
 } from '@domain/shared/answer-validation';
-import { normalizePhone } from '@handlers/phone';
+import { normalizePhone } from '@shared/handlers/phone';
 
 @Injectable()
 export class RegistrationsService {
