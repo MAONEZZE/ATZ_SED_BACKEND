@@ -3,10 +3,10 @@ import { AutomationEngine } from '@modules/automations/automation-engine.service
 import { TemplateRenderer } from '@modules/automations/template-renderer.service';
 import { AutomationsService } from '@modules/automations/automations.service';
 import { RecurringSchedulerService } from '@modules/automations/recurring-scheduler.service';
-import { RecurringAutomationsWorker } from '@workers/recurring-automations.worker';
+import { RecurringAutomationsWorker } from '@application/workers/recurring-automations.worker';
 import { BullQueuesModule } from '@infra/queue/bull-queues.module';
 import { AutomationsDbModule } from '@modules/automations/automations-db.module';
-import { WorkersModule } from '@workers/workers.module';
+import { WorkersModule } from '@application/workers/workers.module';
 import { AutomationsController } from './automations.controller';
 import { GuardsModule } from '@api/config/modules/guards.module';
 import { EventsDbModule } from '@modules/events/events-db.module';

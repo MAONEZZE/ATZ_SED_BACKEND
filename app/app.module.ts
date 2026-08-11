@@ -13,7 +13,7 @@ import { AuthModule } from '@api/adapters/modules/auth.module';
 import { GuardsModule } from '@api/config/modules/guards.module';
 import { EventsModule } from '@modules/events/events.module';
 import { RegistrationsModule } from '@modules/registrations/registrations.module';
-import { WorkersModule } from '@workers/workers.module';
+import { WorkersModule } from '@application/workers/workers.module';
 import { AutomationsModule } from '@modules/automations/automations.module';
 import { MessagingModule } from '@modules/messaging/messaging.module';
 import { GlobalMessagingModule } from '@modules/messaging/global-messaging.module';

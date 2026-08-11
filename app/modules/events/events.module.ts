@@ -13,7 +13,7 @@ import { PublicEventsService } from '@modules/events/public-events.service';
 import { EventsDbModule } from '@modules/events/events-db.module';
 import { StorageModule } from '@api/adapters/modules/storage.module';
 import { GuardsModule } from '@api/config/modules/guards.module';
-import { WorkersModule } from '@workers/workers.module';
+import { WorkersModule } from '@application/workers/workers.module';
 import { AutomationsDbModule } from '@modules/automations/automations-db.module';
 import { RegistrationsDbModule } from '@modules/registrations/registrations-db.module';
 import { MessagingDbModule } from '@modules/messaging/messaging-db.module';

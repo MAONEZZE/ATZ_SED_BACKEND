@@ -1,4 +1,4 @@
-import { RecurringAutomationsWorker } from '@workers/recurring-automations.worker';
+import { RecurringAutomationsWorker } from '@application/workers/recurring-automations.worker';
 
 function make() {
   const automations = {

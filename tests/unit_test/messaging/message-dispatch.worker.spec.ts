@@ -1,4 +1,4 @@
-import { MessageDispatchWorker } from '@workers/message-dispatch.worker';
+import { MessageDispatchWorker } from '@application/workers/message-dispatch.worker';
 import { DelayedError, UnrecoverableError } from 'bullmq';
 import { WhatsappRestrictionError } from '@api/adapters/whatsapp.adapter';
 

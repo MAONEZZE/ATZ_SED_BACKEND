@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { GlobalMessagingController } from './global-messaging.controller';
 import { GuardsModule } from '@api/config/modules/guards.module';
-import { WorkersModule } from '@workers/workers.module';
+import { WorkersModule } from '@application/workers/workers.module';
 import { EventsModule } from '@modules/events/events.module';
 import { EventsDbModule } from '@modules/events/events-db.module';
 import { MessagingDbModule } from '@modules/messaging/messaging-db.module';
