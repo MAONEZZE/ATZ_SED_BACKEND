@@ -1,4 +1,4 @@
-import { AutomationsService } from '@modules/automations/automations.service';
+import { AutomationsService } from '@application/automation_module/automations.service';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 
 function make() {

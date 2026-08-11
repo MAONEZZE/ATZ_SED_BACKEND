@@ -1,13 +1,13 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { AutomationsRepository } from '@modules/automations/automations.repository';
+import { AutomationsRepository } from '@infra/repositories/automation_module/automations.repository';
 import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
 } from '@domain/event_module/i-repository-event';
-import { AutomationEngine } from '@modules/automations/automation-engine.service';
-import { RecurringSchedulerService } from '@modules/automations/recurring-scheduler.service';
+import { AutomationEngine } from '@application/automation_module/automation-engine.service';
+import { RecurringSchedulerService } from '@application/automation_module/recurring-scheduler.service';
 import { QUEUE_RECURRING_AUTOMATIONS } from '@infra/queue/bull-queues.module';
 
 @Processor(QUEUE_RECURRING_AUTOMATIONS, {

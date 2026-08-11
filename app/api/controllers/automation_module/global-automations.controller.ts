@@ -3,7 +3,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse } from '@ne
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { CurrentUser } from '@api/config/decorators/current-user.decorator';
 import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
-import { AutomationsService } from '@modules/automations/automations.service';
+import { AutomationsService } from '@application/automation_module/automations.service';
 import { PaginationQueryDto, Paginated } from '@api/dto/shared/pagination';
 
 @ApiTags('Messaging (global)')

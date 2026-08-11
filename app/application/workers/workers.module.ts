@@ -6,7 +6,7 @@ import { EventsDbModule } from '@infra/repositories/event_module/events-db.modul
 import { AdaptersModule } from '@api/adapters/modules/adapters.module';
 import { BullQueuesModule } from '@infra/queue/bull-queues.module';
 import { OutboxModule } from '@domain/outbox_module/outbox.module';
-import { IcsGeneratorService } from '@modules/automations/ics-generator.service';
+import { IcsGeneratorService } from '@application/shared/ics-generator.service';
 import { RedisMaintenanceService } from './redis-maintenance.service';
 
 @Module({

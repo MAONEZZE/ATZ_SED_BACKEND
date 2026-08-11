@@ -20,8 +20,8 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
-import { AutomationsService } from '@modules/automations/automations.service';
-import { CreateAutomationDto, UpdateAutomationDto } from './dto/automation.dto';
+import { AutomationsService } from '@application/automation_module/automations.service';
+import { CreateAutomationDto, UpdateAutomationDto } from '@api/dto/automation_module/automation.dto';
 import { PaginationQueryDto, Paginated } from '@api/dto/shared/pagination';
 
 @ApiTags('Automations')

@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { AutomationsRepository } from '@modules/automations/automations.repository';
+import { AutomationsRepository } from '@infra/repositories/automation_module/automations.repository';
 import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,

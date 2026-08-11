@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { AutomationsRepository } from '@modules/automations/automations.repository';
-import { RecurringSchedulerService } from '@modules/automations/recurring-scheduler.service';
+import { AutomationsRepository } from '@infra/repositories/automation_module/automations.repository';
+import { RecurringSchedulerService } from '@application/automation_module/recurring-scheduler.service';
 
 export interface CreateAutomationInput {
   templateId: string;

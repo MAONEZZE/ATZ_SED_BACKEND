@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '@infra/prisma/prisma.service';
-import { AutomationsRepository } from '@modules/automations/automations.repository';
+import { AutomationsRepository } from '@infra/repositories/automation_module/automations.repository';
 
 // Boots Nest DI (not `new Repo(mock)`) to prove the inherited
 // PrismaRepositoryBase constructor injects PrismaService. See profile.repository

@@ -8,7 +8,7 @@ import { EventsDbModule } from '@infra/repositories/event_module/events-db.modul
 import { StorageModule } from '@api/adapters/modules/storage.module';
 import { GuardsModule } from '@api/config/modules/guards.module';
 import { OutboxModule } from '@domain/outbox_module/outbox.module';
-import { AutomationsDbModule } from '@modules/automations/automations-db.module';
+import { AutomationsDbModule } from '@infra/repositories/automation_module/automations-db.module';
 import { RegistrationsDbModule } from '@infra/repositories/registration_module/registrations-db.module';
 import { MessageTemplatesDbModule } from '@infra/repositories/message_template_module/message-templates-db.module';
 import { ProfileDbModule } from '@modules/profile/profile-db.module';

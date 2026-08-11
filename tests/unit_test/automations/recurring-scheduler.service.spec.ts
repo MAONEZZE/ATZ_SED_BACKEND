@@ -1,4 +1,4 @@
-import { RecurringSchedulerService } from '@modules/automations/recurring-scheduler.service';
+import { RecurringSchedulerService } from '@application/automation_module/recurring-scheduler.service';
 
 function make(existingSchedulers: Array<{ key: string }> = []) {
   const queue = {

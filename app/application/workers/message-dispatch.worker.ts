@@ -6,7 +6,7 @@ import { ResendAdapter } from '@api/adapters/resend.adapter';
 import { WhatsappAdapter, WhatsappRestrictionError } from '@api/adapters/whatsapp.adapter';
 import { QUEUE_MESSAGE_DISPATCH } from '@infra/queue/bull-queues.module';
 import { WhatsappPacingService } from '@application/outbox_module/whatsapp-pacing.service';
-import { IcsGeneratorService } from '@modules/automations/ics-generator.service';
+import { IcsGeneratorService } from '@application/shared/ics-generator.service';
 import {
   OUTBOX_REPOSITORY_PORT,
   OutboxRepositoryPort,

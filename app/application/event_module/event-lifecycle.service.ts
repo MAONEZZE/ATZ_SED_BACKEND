@@ -7,7 +7,7 @@ import {
 import { EventEntity } from '@domain/event_module/event.entity';
 import { OutboxService } from '@application/outbox_module/outbox.service';
 import { FormsRepository } from '@infra/repositories/form_module/forms.repository';
-import { AutomationsRepository } from '@modules/automations/automations.repository';
+import { AutomationsRepository } from '@infra/repositories/automation_module/automations.repository';
 import {
   REGISTRATION_REPOSITORY_PORT,
   RegistrationRepositoryPort,

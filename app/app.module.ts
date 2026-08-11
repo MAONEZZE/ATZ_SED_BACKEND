@@ -19,7 +19,7 @@ import { RegistrationsModule } from '@domain/registration_module/registrations.m
 import { UserSubscriptionsModule } from '@domain/user_subscription_module/user-subscriptions.module';
 import { PostEventResponsesModule } from '@domain/post_event_response_module/post-event-responses.module';
 import { WorkersModule } from '@application/workers/workers.module';
-import { AutomationsModule } from '@modules/automations/automations.module';
+import { AutomationsModule } from '@domain/automation_module/automations.module';
 import { OutboxModule } from '@domain/outbox_module/outbox.module';
 import { MessageTemplatesModule } from '@domain/message_template_module/message-templates.module';
 import { MessageLogsModule } from '@domain/message_log_module/message-logs.module';
