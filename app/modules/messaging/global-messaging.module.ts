@@ -3,8 +3,11 @@ import { GlobalMessagingController } from './global-messaging.controller';
 import { GuardsModule } from '@shared/guards/guards.module';
 import { WorkersModule } from '@workers/workers.module';
 import { EventsModule } from '@modules/events/events.module';
+import { EventsDbModule } from '@modules/events/events-db.module';
 import { MessagingDbModule } from '@modules/messaging/messaging-db.module';
 import { AutomationsDbModule } from '@modules/automations/automations-db.module';
+import { RegistrationsDbModule } from '@modules/registrations/registrations-db.module';
+import { UazapiInstancesModule } from '@modules/uazapi-instances/uazapi-instances.module';
 import { StorageModule } from '@infra/storage/storage.module';
 import { ManualSendService } from '@modules/messaging/manual-send.service';
 import { MessageAttachmentsService } from '@modules/messaging/message-attachments.service';
@@ -18,8 +21,11 @@ import { AutomationsModule } from '@modules/automations/automations.module';
     GuardsModule,
     WorkersModule,
     EventsModule,
+    EventsDbModule,
     MessagingDbModule,
     AutomationsDbModule,
+    RegistrationsDbModule,
+    UazapiInstancesModule,
     StorageModule,
     AutomationsModule,
   ],

@@ -46,29 +46,25 @@ function makeService(overrides?: {
   gate?: boolean;
   eventToken?: string | null;
 }) {
-  const prisma = {
-    registration: {
-      findMany: jest.fn().mockResolvedValue(overrides?.registrations ?? [regJoao]),
-    },
-    messageTemplate: {
-      findFirst: jest
-        .fn()
-        .mockResolvedValue(overrides && 'template' in overrides ? overrides.template : template),
-    },
-    eventCollaborator: {
-      count: jest.fn().mockResolvedValue(overrides?.collaboratorCount ?? 0),
-    },
-    // Gate ON event-scoped: resolve o token da instância do evento p/ o cursor.
-    event: {
-      findUnique: jest.fn().mockResolvedValue({
-        uazapiInstance: {
-          token: overrides && 'eventToken' in overrides ? overrides.eventToken : 'tok-evt',
-        },
-      }),
-    },
-    uazapiInstance: {
-      findUnique: jest.fn().mockResolvedValue({ id: 'inst-1', token: 'tok-manual' }),
-    },
+  const registrations = {
+    findByIdsAndEvent: jest.fn().mockResolvedValue(overrides?.registrations ?? [regJoao]),
+  };
+  const templates = {
+    findByIdForOwner: jest
+      .fn()
+      .mockResolvedValue(overrides && 'template' in overrides ? overrides.template : template),
+  };
+  const collaborators = {
+    isCollaborator: jest.fn().mockResolvedValue((overrides?.collaboratorCount ?? 0) > 0),
+  };
+  // Gate ON event-scoped: resolve o token da instância do evento p/ o cursor.
+  const eventRepo = {
+    findWhatsappInstanceToken: jest
+      .fn()
+      .mockResolvedValue(overrides && 'eventToken' in overrides ? overrides.eventToken : 'tok-evt'),
+  };
+  const uazapiInstances = {
+    findById: jest.fn().mockResolvedValue({ id: 'inst-1', token: 'tok-manual' }),
   };
   const eventsService = { findById: jest.fn().mockResolvedValue(event) };
   const outbox = { enqueue: jest.fn().mockResolvedValue(undefined) };
@@ -81,10 +77,18 @@ function makeService(overrides?: {
   };
   const config = { get: jest.fn((key: string) => cfg[key]) };
   const service = new ManualSendService(
-    prisma as any, eventsService as any, outbox as any,
-    new TemplateRenderer(), config as any, storage as any,
+    eventsService as any,
+    outbox as any,
+    new TemplateRenderer(),
+    config as any,
+    storage as any,
+    templates as any,
+    uazapiInstances as any,
+    collaborators as any,
+    eventRepo as any,
+    registrations as any,
   );
-  return { service, prisma, eventsService, outbox, storage };
+  return { service, registrations, templates, collaborators, eventRepo, uazapiInstances, eventsService, outbox, storage };
 }
 
 describe('ManualSendService.send', () => {
@@ -481,7 +485,7 @@ describe('ManualSendService.send', () => {
 
 describe('ManualSendService.send — DISPATCH_GATE_ENABLED (gate ON)', () => {
   it('whatsapp event-scoped: roteia pelo cursor (paceInstancia+extraDelayMs), NÃO delayMs', async () => {
-    const { service, prisma, outbox } = makeService({
+    const { service, eventRepo, outbox } = makeService({
       gate: true,
       eventToken: 'tok-evt',
       registrations: [
@@ -495,7 +499,7 @@ describe('ManualSendService.send — DISPATCH_GATE_ENABLED (gate ON)', () => {
     );
     expect(result.queued).toBe(2);
     // token da instância do evento resolvido p/ o cursor
-    expect(prisma.event.findUnique).toHaveBeenCalled();
+    expect(eventRepo.findWhatsappInstanceToken).toHaveBeenCalledWith('evt-1');
     // primeiro lote (batchDelayCursor=0) → extraDelayMs 0; sempre paceInstancia, nunca delayMs
     for (const call of outbox.enqueue.mock.calls) {
       expect(call[1]).toEqual({ paceInstancia: 'tok-evt', extraDelayMs: 0 });

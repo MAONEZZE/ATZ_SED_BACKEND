@@ -162,4 +162,11 @@ export class PrismaRegistrationRepository
     });
     return rows.map((r) => this.map(r));
   }
+
+  async findByIdsAndEvent(ids: string[], eventId: string): Promise<RegistrationEntity[]> {
+    const rows = await this.prisma.registration.findMany({
+      where: { id: { in: ids }, eventId },
+    });
+    return rows.map((r) => this.map(r));
+  }
 }

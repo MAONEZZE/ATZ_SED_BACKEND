@@ -8,11 +8,21 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { randomBytes, randomInt } from 'crypto';
 import { DateTime } from 'luxon';
-import { PrismaService } from '@infra/prisma/prisma.service';
 import { STORAGE_PORT, StoragePort } from '@infra/storage/storage.port';
 import { EventsService } from '@modules/events/events.service';
 import { OutboxService } from '@modules/messaging/outbox.service';
 import { TemplateRenderer } from '@modules/automations/template-renderer.service';
+import { MessageTemplatesRepository } from '@modules/messaging/message-templates.repository';
+import { UazapiInstancesRepository } from '@modules/uazapi-instances/uazapi-instances.repository';
+import { CollaboratorsRepository } from '@modules/events/collaborators.repository';
+import {
+  EVENT_REPOSITORY_PORT,
+  EventRepositoryPort,
+} from '@modules/events/ports/event-repository.port';
+import {
+  REGISTRATION_REPOSITORY_PORT,
+  RegistrationRepositoryPort,
+} from '@modules/registrations/ports/registration-repository.port';
 import type { MessageChannel } from '@modules/messaging/message-channel.type';
 import type { InviteConfigInput, OutboxAttachment } from '@modules/messaging/ports/outbox-repository.port';
 
@@ -60,12 +70,17 @@ function chunk<T>(arr: T[], size: number): T[][] {
 @Injectable()
 export class ManualSendService {
   constructor(
-    private readonly prisma: PrismaService,
     private readonly eventsService: EventsService,
     private readonly outbox: OutboxService,
     private readonly renderer: TemplateRenderer,
     private readonly config: ConfigService,
     @Inject(STORAGE_PORT) private readonly storage: StoragePort,
+    private readonly templates: MessageTemplatesRepository,
+    private readonly uazapiInstances: UazapiInstancesRepository,
+    private readonly collaborators: CollaboratorsRepository,
+    @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
+    @Inject(REGISTRATION_REPOSITORY_PORT)
+    private readonly registrations: RegistrationRepositoryPort,
   ) {}
 
   async send(input: SendMessageInput, userId: string): Promise<SendMessageResult> {
@@ -123,9 +138,7 @@ export class ManualSendService {
     // `instancia` carrega o token Uazapi da instância (a Uazapi autentica por token).
     let instancia: string | undefined;
     if (!input.eventId && input.instanceId) {
-      const instance = await this.prisma.uazapiInstance.findUnique({
-        where: { id: input.instanceId },
-      });
+      const instance = await this.uazapiInstances.findById(input.instanceId);
       if (!instance) throw new NotFoundException('Uazapi instance not found');
       if (!instance.token) throw new BadRequestException('Uazapi instance has no token configured');
       instancia = instance.token;
@@ -139,9 +152,7 @@ export class ManualSendService {
       const isOwner = event.ownerId === userId;
       const isCollaborator = isOwner
         ? false
-        : (await this.prisma.eventCollaborator.count({
-            where: { eventId: event.id, profileId: userId },
-          })) > 0;
+        : await this.collaborators.isCollaborator(event.id, userId);
       if (!isOwner && !isCollaborator) {
         throw new ForbiddenException('You do not have access to this event');
       }
@@ -164,9 +175,7 @@ export class ManualSendService {
       body: string;
     } | null = null;
     if (input.templateId) {
-      template = await this.prisma.messageTemplate.findFirst({
-        where: { id: input.templateId, ownerId: userId },
-      });
+      template = await this.templates.findByIdForOwner(input.templateId, userId);
       if (!template) throw new NotFoundException('Template not found');
       if (template.channel !== input.channel) {
         throw new BadRequestException(
@@ -183,9 +192,7 @@ export class ManualSendService {
 
     const registrations =
       input.registrationIds?.length && input.eventId
-        ? await this.prisma.registration.findMany({
-            where: { id: { in: input.registrationIds }, eventId: input.eventId },
-          })
+        ? await this.registrations.findByIdsAndEvent(input.registrationIds, input.eventId)
         : [];
 
     const allRecipients: ResolvedRecipient[] = [
@@ -250,11 +257,7 @@ export class ManualSendService {
     // Non-event já tem em `instancia`; event-scoped resolve do evento.
     let paceToken = instancia;
     if (gate && isWhatsapp && !paceToken && input.eventId) {
-      const ev = await this.prisma.event.findUnique({
-        where: { id: input.eventId },
-        select: { uazapiInstance: { select: { token: true } } },
-      });
-      paceToken = ev?.uazapiInstance?.token ?? undefined;
+      paceToken = (await this.eventRepo.findWhatsappInstanceToken(input.eventId)) ?? undefined;
     }
 
     const batches = chunk(validRecipients, batchSize);

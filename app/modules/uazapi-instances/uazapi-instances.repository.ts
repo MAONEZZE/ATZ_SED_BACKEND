@@ -17,4 +17,11 @@ export class UazapiInstancesRepository extends PrismaRepositoryBase {
     });
     return row?.token ?? null;
   }
+
+  findById(id: string): Promise<{ id: string; token: string | null } | null> {
+    return this.prisma.uazapiInstance.findUnique({
+      where: { id },
+      select: { id: true, token: true },
+    });
+  }
 }
