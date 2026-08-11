@@ -12,7 +12,7 @@ import { STORAGE_PORT, StoragePort } from '@api/adapters/ports/i-storage';
 import { OutboxService } from '@application/outbox_module/outbox.service';
 import { TemplateRenderer } from '@application/shared/template-renderer.service';
 import { MessageTemplatesRepository } from '@infra/repositories/message_template_module/message-templates.repository';
-import { WhatsappInstancesRepository } from '@modules/whatsapp-instances/whatsapp-instances.repository';
+import { WhatsappInstancesRepository } from '@infra/repositories/whatsapp_instance_module/whatsapp-instances.repository';
 import { CollaboratorsRepository } from '@infra/repositories/collaborator_module/collaborators.repository';
 import {
   EVENT_REPOSITORY_PORT,

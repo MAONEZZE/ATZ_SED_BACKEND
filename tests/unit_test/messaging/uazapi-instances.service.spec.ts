@@ -1,4 +1,4 @@
-import { WhatsappInstancesService } from '@modules/whatsapp-instances/whatsapp-instances.service';
+import { WhatsappInstancesService } from '@application/whatsapp_instance_module/whatsapp-instances.service';
 
 function makeService(
   rows: Array<{ id: string; nickname: string; token: string | null }>,

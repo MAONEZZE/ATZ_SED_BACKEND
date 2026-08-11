@@ -108,7 +108,6 @@
     "coverageDirectory": "./coverage",
     "testEnvironment": "node",
     "moduleNameMapper": {
-      "@modules/(.*)": "<rootDir>/app/modules/$1",
       "@infra/(.*)": "<rootDir>/app/infra/$1",
       "@shared/(.*)": "<rootDir>/app/shared/$1",
       "@api/(.*)": "<rootDir>/app/api/$1",
