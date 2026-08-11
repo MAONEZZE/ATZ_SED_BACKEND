@@ -1,4 +1,4 @@
-import { RegistrationsService } from '@modules/registrations/registrations.service';
+import { RegistrationsService } from '@application/registration_module/registrations.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 function make(eventStatus = 'ended', reg: any = { id: 'r1', eventId: 'evt-1' }) {

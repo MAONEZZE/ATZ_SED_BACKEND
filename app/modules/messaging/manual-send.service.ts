@@ -22,7 +22,7 @@ import {
 import {
   REGISTRATION_REPOSITORY_PORT,
   RegistrationRepositoryPort,
-} from '@modules/registrations/ports/registration-repository.port';
+} from '@domain/registration_module/i-repository-registration';
 import type { MessageChannel } from '@modules/messaging/message-channel.type';
 import type { InviteConfigInput, OutboxAttachment } from '@modules/messaging/ports/outbox-repository.port';
 

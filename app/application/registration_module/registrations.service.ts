@@ -3,15 +3,15 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   REGISTRATION_REPOSITORY_PORT,
   RegistrationRepositoryPort,
-} from '@modules/registrations/ports/registration-repository.port';
+} from '@domain/registration_module/i-repository-registration';
 import {
   RegistrationEntity,
   FunnelStatus,
-} from '@modules/registrations/entities/registration.entity';
-import { RegistrationStatusChanged } from '@modules/registrations/entities/registration-status-changed.event';
-import { FormSubmitted } from '@modules/registrations/entities/form-submitted.event';
+} from '@domain/registration_module/registration.entity';
+import { RegistrationStatusChanged } from '@domain/registration_module/registration-status-changed.event';
+import { FormSubmitted } from '@domain/registration_module/form-submitted.event';
 import { EventsService } from '@application/event_module/events.service';
-import { UserSubscriptionsService } from './user-subscriptions.service';
+import { UserSubscriptionsService } from '@application/user_subscription_module/user-subscriptions.service';
 import { PipedriveAdapter } from '@api/adapters/pipedrive.adapter';
 import { FormsService } from '@application/form_module/forms.service';
 import {
@@ -20,7 +20,7 @@ import {
   resolveAnswerByKeys,
   buildAnswerLookup,
   AnswerFieldMeta,
-} from './answer-validation';
+} from '@domain/shared/answer-validation';
 import { normalizePhone } from '@handlers/phone';
 
 @Injectable()

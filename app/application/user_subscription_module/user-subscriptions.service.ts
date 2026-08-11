@@ -5,8 +5,8 @@ import {
   UserSubscriptionRow,
   FormKind,
   PipedriveStatus,
-} from '@modules/registrations/ports/user-subscription-repository.port';
-import { resolveAnswerByKeys } from './answer-validation';
+} from '@domain/user_subscription_module/i-repository-user-subscription';
+import { resolveAnswerByKeys } from '@domain/shared/answer-validation';
 
 @Injectable()
 export class UserSubscriptionsService {

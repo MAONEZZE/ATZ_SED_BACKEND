@@ -1,4 +1,4 @@
-import { RegistrationsService } from '@modules/registrations/registrations.service';
+import { RegistrationsService } from '@application/registration_module/registrations.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 
 type FormFieldLike = { label: string; type: string; required: boolean; isFixed: boolean };

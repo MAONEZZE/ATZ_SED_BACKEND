@@ -5,13 +5,13 @@ import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { CurrentUser } from '@api/config/decorators/current-user.decorator';
 import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
-import { RegistrationsService } from '@modules/registrations/registrations.service';
+import { RegistrationsService } from '@application/registration_module/registrations.service';
 import { FormFieldsService } from '@application/form_field_module/form-fields.service';
-import { buildRegistrationsCsv } from '@modules/registrations/registrations-csv';
-import { UpdateRegistrationStatusDto } from './dto/update-registration-status.dto';
-import { UpdateRegistrationAnswersDto } from './dto/update-registration-answers.dto';
-import { ListRegistrationsQueryDto } from './dto/list-registrations-query.dto';
-import { ImportRegistrationsDto } from './dto/import-registrations.dto';
+import { buildRegistrationsCsv } from '@application/registration_module/registrations-csv';
+import { UpdateRegistrationStatusDto } from '@api/dto/registration_module/update-registration-status.dto';
+import { UpdateRegistrationAnswersDto } from '@api/dto/registration_module/update-registration-answers.dto';
+import { ListRegistrationsQueryDto } from '@api/dto/registration_module/list-registrations-query.dto';
+import { ImportRegistrationsDto } from '@api/dto/registration_module/import-registrations.dto';
 import { Paginated } from '@api/dto/shared/pagination';
 
 @ApiTags('Registrations')

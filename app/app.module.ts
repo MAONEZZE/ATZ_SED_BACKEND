@@ -15,7 +15,9 @@ import { EventsModule } from '@domain/event_module/events.module';
 import { FormsModule } from '@domain/form_module/forms.module';
 import { FormFieldsModule } from '@domain/form_field_module/form-fields.module';
 import { CollaboratorsModule } from '@domain/collaborator_module/collaborators.module';
-import { RegistrationsModule } from '@modules/registrations/registrations.module';
+import { RegistrationsModule } from '@domain/registration_module/registrations.module';
+import { UserSubscriptionsModule } from '@domain/user_subscription_module/user-subscriptions.module';
+import { PostEventResponsesModule } from '@domain/post_event_response_module/post-event-responses.module';
 import { WorkersModule } from '@application/workers/workers.module';
 import { AutomationsModule } from '@modules/automations/automations.module';
 import { MessagingModule } from '@modules/messaging/messaging.module';
@@ -51,6 +53,8 @@ import { WhatsappInstancesModule } from '@modules/whatsapp-instances/whatsapp-in
     FormFieldsModule,
     CollaboratorsModule,
     RegistrationsModule,
+    UserSubscriptionsModule,
+    PostEventResponsesModule,
     WorkersModule,
     AutomationsModule,
     MessagingModule,

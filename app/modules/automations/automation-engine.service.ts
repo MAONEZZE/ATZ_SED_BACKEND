@@ -8,11 +8,11 @@ import {
 import {
   REGISTRATION_REPOSITORY_PORT,
   RegistrationRepositoryPort,
-} from '@modules/registrations/ports/registration-repository.port';
+} from '@domain/registration_module/i-repository-registration';
 import { OutboxService } from '@modules/messaging/outbox.service';
 import { TemplateRenderer } from './template-renderer.service';
-import { RegistrationStatusChanged } from '@modules/registrations/entities/registration-status-changed.event';
-import { FormSubmitted } from '@modules/registrations/entities/form-submitted.event';
+import { RegistrationStatusChanged } from '@domain/registration_module/registration-status-changed.event';
+import { FormSubmitted } from '@domain/registration_module/form-submitted.event';
 
 const TRIGGER_MAP: Partial<Record<string, string>> = {
   pending: 'on_registration',

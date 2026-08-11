@@ -1,4 +1,4 @@
-import { buildUserSubscriptionsCsv } from '@modules/registrations/user-subscriptions-csv';
+import { buildUserSubscriptionsCsv } from '@application/user_subscription_module/user-subscriptions-csv';
 
 describe('buildUserSubscriptionsCsv', () => {
   const fields = {

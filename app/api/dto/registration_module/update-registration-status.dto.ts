@@ -1,6 +1,6 @@
 import { IsIn } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { FunnelStatus } from '@modules/registrations/entities/registration.entity';
+import { FunnelStatus } from '@domain/registration_module/registration.entity';
 
 export class UpdateRegistrationStatusDto {
   @ApiProperty({

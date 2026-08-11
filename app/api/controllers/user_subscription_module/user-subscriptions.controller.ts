@@ -11,10 +11,10 @@ import {
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { Paginated } from '@api/dto/shared/pagination';
-import { UserSubscriptionsService } from '@modules/registrations/user-subscriptions.service';
+import { UserSubscriptionsService } from '@application/user_subscription_module/user-subscriptions.service';
 import { FormFieldsService } from '@application/form_field_module/form-fields.service';
-import { buildUserSubscriptionsCsv } from '@modules/registrations/user-subscriptions-csv';
-import { ListUserSubscriptionsQueryDto } from './dto/list-user-subscriptions-query.dto';
+import { buildUserSubscriptionsCsv } from '@application/user_subscription_module/user-subscriptions-csv';
+import { ListUserSubscriptionsQueryDto } from '@api/dto/user_subscription_module/list-user-subscriptions-query.dto';
 
 @ApiTags('User Subscriptions')
 @ApiBearerAuth()

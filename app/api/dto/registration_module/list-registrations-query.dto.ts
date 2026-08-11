@@ -1,7 +1,7 @@
 import { IsOptional, IsIn, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationQueryDto } from '@api/dto/shared/pagination';
-import { FunnelStatus } from '@modules/registrations/entities/registration.entity';
+import { FunnelStatus } from '@domain/registration_module/registration.entity';
 
 export class ListRegistrationsQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: ['pending', 'approved', 'rejected'] })

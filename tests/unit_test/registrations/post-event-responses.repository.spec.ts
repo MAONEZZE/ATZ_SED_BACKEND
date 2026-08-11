@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '@infra/prisma/prisma.service';
-import { PostEventResponsesRepository } from '@modules/registrations/post-event-responses.repository';
+import { PostEventResponsesRepository } from '@infra/repositories/post_event_response_module/post-event-responses.repository';
 
 // Boots Nest DI (not `new Repo(mock)`) to prove the inherited
 // PrismaRepositoryBase constructor injects PrismaService. See profile.repository

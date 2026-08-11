@@ -1,4 +1,4 @@
-import { RegistrationsService } from '@modules/registrations/registrations.service';
+import { RegistrationsService } from '@application/registration_module/registrations.service';
 
 function make(existingByContact: Record<string, unknown> | null = null) {
   const regRepo = {

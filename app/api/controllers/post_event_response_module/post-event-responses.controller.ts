@@ -11,10 +11,10 @@ import {
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { Paginated } from '@api/dto/shared/pagination';
-import { PostEventResponsesService } from '@modules/registrations/post-event-responses.service';
+import { PostEventResponsesService } from '@application/post_event_response_module/post-event-responses.service';
 import { FormFieldsService } from '@application/form_field_module/form-fields.service';
-import { buildPostEventResponsesCsv } from '@modules/registrations/post-event-responses-csv';
-import { ListPostEventResponsesQueryDto } from './dto/list-post-event-responses-query.dto';
+import { buildPostEventResponsesCsv } from '@application/post_event_response_module/post-event-responses-csv';
+import { ListPostEventResponsesQueryDto } from '@api/dto/post_event_response_module/list-post-event-responses-query.dto';
 
 @ApiTags('Post-Event Responses')
 @ApiBearerAuth()

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PostEventResponsesRepository } from '@modules/registrations/post-event-responses.repository';
-import { CsvPostEventResponse } from '@modules/registrations/post-event-responses-csv';
+import { PostEventResponsesRepository } from '@infra/repositories/post_event_response_module/post-event-responses.repository';
+import { CsvPostEventResponse } from '@application/post_event_response_module/post-event-responses-csv';
 
 @Injectable()
 export class PostEventResponsesService {

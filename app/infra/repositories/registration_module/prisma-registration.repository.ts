@@ -7,11 +7,11 @@ import {
   CreateRegistrationData,
   UpdateAnswersData,
   PostEventResponseData,
-} from '@modules/registrations/ports/registration-repository.port';
+} from '@domain/registration_module/i-repository-registration';
 import {
   RegistrationEntity,
   FunnelStatus,
-} from '@modules/registrations/entities/registration.entity';
+} from '@domain/registration_module/registration.entity';
 
 @Injectable()
 export class PrismaRegistrationRepository

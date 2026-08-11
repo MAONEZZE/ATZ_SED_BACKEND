@@ -1,27 +1,26 @@
 import { Controller, Post, Param, Body, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { RegistrationsService } from '@modules/registrations/registrations.service';
+import { RegistrationsService } from '@application/registration_module/registrations.service';
 import { PublicEventsService } from '@application/event_module/public-events.service';
-import { SubmitPostEventDto } from './dto/submit-post-event.dto';
+import { SubmitNpsDto } from '@api/dto/registration_module/submit-nps.dto';
 
 @ApiTags('Public')
 @Controller('public/events')
-export class PublicPostEventController {
+export class PublicNpsController {
   constructor(
     private readonly registrations: RegistrationsService,
     private readonly publicEvents: PublicEventsService,
   ) {}
 
-  @Post(':slug/post-event/responses')
+  @Post(':slug/nps/responses')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Enviar respostas do formulário pós-evento' })
+  @ApiOperation({ summary: 'Enviar respostas do formulário NPS' })
   @ApiParam({ name: 'slug', description: 'Slug do evento' })
   @ApiResponse({ status: 200, description: 'Resposta registrada' })
   @ApiResponse({ status: 400, description: 'Evento inválido ou campo obrigatório ausente' })
-  @ApiResponse({ status: 404, description: 'Inscrição não encontrada' })
-  async submit(@Param('slug') slug: string, @Body() dto: SubmitPostEventDto) {
-    const fields = await this.publicEvents.getSubmissionFields(slug, 'post_event');
-    await this.registrations.submitPostEvent(slug, dto.identifier, dto.answers, fields);
+  async submit(@Param('slug') slug: string, @Body() dto: SubmitNpsDto) {
+    const fields = await this.publicEvents.getSubmissionFields(slug, 'nps');
+    await this.registrations.submitNps(slug, dto.identifier, dto.answers, fields);
     return { ok: true };
   }
 }

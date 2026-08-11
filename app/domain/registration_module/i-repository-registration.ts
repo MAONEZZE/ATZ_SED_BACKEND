@@ -1,4 +1,4 @@
-import { RegistrationEntity, FunnelStatus } from '../entities/registration.entity';
+import { RegistrationEntity, FunnelStatus } from './registration.entity';
 
 export const REGISTRATION_REPOSITORY_PORT = Symbol('REGISTRATION_REPOSITORY_PORT');
 

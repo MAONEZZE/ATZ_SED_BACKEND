@@ -1,4 +1,4 @@
-import { RegistrationsService } from '@modules/registrations/registrations.service';
+import { RegistrationsService } from '@application/registration_module/registrations.service';
 import { BadRequestException } from '@nestjs/common';
 
 function make(eventStatus = 'published', eventSendToPipedrive = false, requireImageAuthorization = false) {

@@ -6,7 +6,7 @@ import { EventsModule } from '@domain/event_module/events.module';
 import { EventsDbModule } from '@infra/repositories/event_module/events-db.module';
 import { MessagingDbModule } from '@modules/messaging/messaging-db.module';
 import { AutomationsDbModule } from '@modules/automations/automations-db.module';
-import { RegistrationsDbModule } from '@modules/registrations/registrations-db.module';
+import { RegistrationsDbModule } from '@infra/repositories/registration_module/registrations-db.module';
 import { WhatsappInstancesModule } from '@modules/whatsapp-instances/whatsapp-instances.module';
 import { StorageModule } from '@api/adapters/modules/storage.module';
 import { ManualSendService } from '@modules/messaging/manual-send.service';

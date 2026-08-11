@@ -11,7 +11,7 @@ import { AutomationsRepository } from '@modules/automations/automations.reposito
 import {
   REGISTRATION_REPOSITORY_PORT,
   RegistrationRepositoryPort,
-} from '@modules/registrations/ports/registration-repository.port';
+} from '@domain/registration_module/i-repository-registration';
 import { MessageTemplatesRepository } from '@modules/messaging/message-templates.repository';
 
 @Injectable()

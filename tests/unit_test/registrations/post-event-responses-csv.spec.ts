@@ -1,4 +1,4 @@
-import { buildPostEventResponsesCsv } from '@modules/registrations/post-event-responses-csv';
+import { buildPostEventResponsesCsv } from '@application/post_event_response_module/post-event-responses-csv';
 
 const response = {
   name: 'João',

@@ -3,7 +3,7 @@ import {
   validateAnswers,
   resolveAnswer,
   resolveAnswerByKeys,
-} from '@modules/registrations/answer-validation';
+} from '@domain/shared/answer-validation';
 
 describe('validateAnswers — case/whitespace-tolerant key resolution', () => {
   it('passes when the answer key differs in case from the field label', () => {

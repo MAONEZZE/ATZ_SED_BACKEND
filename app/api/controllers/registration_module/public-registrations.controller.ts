@@ -1,6 +1,6 @@
 import { Controller, Post, Param, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
-import { RegistrationsService } from '@modules/registrations/registrations.service';
+import { RegistrationsService } from '@application/registration_module/registrations.service';
 import { PublicEventsService } from '@application/event_module/public-events.service';
 
 @ApiTags('Public')

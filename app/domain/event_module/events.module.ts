@@ -9,7 +9,7 @@ import { StorageModule } from '@api/adapters/modules/storage.module';
 import { GuardsModule } from '@api/config/modules/guards.module';
 import { WorkersModule } from '@application/workers/workers.module';
 import { AutomationsDbModule } from '@modules/automations/automations-db.module';
-import { RegistrationsDbModule } from '@modules/registrations/registrations-db.module';
+import { RegistrationsDbModule } from '@infra/repositories/registration_module/registrations-db.module';
 import { MessagingDbModule } from '@modules/messaging/messaging-db.module';
 import { ProfileDbModule } from '@modules/profile/profile-db.module';
 
