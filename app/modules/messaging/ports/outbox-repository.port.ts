@@ -57,6 +57,13 @@ export interface PendingOutboxMessage {
   trigger: string;
 }
 
+export interface OutboxDeliveryTarget {
+  /** id da mensagem no provedor (uazapi messageid) */
+  providerMessageId?: string | null;
+  /** track_id que enviamos = OutboxMessage.id */
+  trackId?: string | null;
+}
+
 export interface OutboxRepositoryPort {
   enqueue(
     data: EnqueueMessageData & { dedupKey: string },
@@ -66,4 +73,7 @@ export interface OutboxRepositoryPort {
   markSent(id: string): Promise<void>;
   markFailed(id: string, error: string): Promise<void>;
   getPending(limit: number): Promise<PendingOutboxMessage[]>;
+  markDeliveredIfUnset(target: OutboxDeliveryTarget, at: Date): Promise<void>;
+  markReadIfUnset(target: OutboxDeliveryTarget, at: Date): Promise<void>;
+  markFailedIfUndelivered(target: OutboxDeliveryTarget, error: string): Promise<void>;
 }

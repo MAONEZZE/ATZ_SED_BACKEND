@@ -5,6 +5,7 @@ import {
   OutboxRepositoryPort,
   EnqueueMessageData,
   PendingOutboxMessage,
+  OutboxDeliveryTarget,
 } from '@modules/messaging/ports/outbox-repository.port';
 
 @Injectable()
@@ -97,5 +98,39 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
       ...r,
       channel: r.channel,
     }));
+  }
+
+  // trackId == OutboxMessage.id (setado no envio); providerMessageId como fallback.
+  private deliveryWhere(target: OutboxDeliveryTarget) {
+    if (target.trackId) return { id: target.trackId };
+    return { providerMessageId: target.providerMessageId! };
+  }
+
+  async markDeliveredIfUnset(target: OutboxDeliveryTarget, at: Date): Promise<void> {
+    // só-avança: não sobrescreve se já entregue/lido
+    await this.prisma.outboxMessage.updateMany({
+      where: { ...this.deliveryWhere(target), deliveredAt: null, readAt: null },
+      data: { deliveredAt: at },
+    });
+  }
+
+  async markReadIfUnset(target: OutboxDeliveryTarget, at: Date): Promise<void> {
+    await this.prisma.outboxMessage.updateMany({
+      where: { ...this.deliveryWhere(target), readAt: null },
+      data: { readAt: at },
+    });
+    // garante deliveredAt preenchido (read implica delivered)
+    await this.prisma.outboxMessage.updateMany({
+      where: { ...this.deliveryWhere(target), deliveredAt: null },
+      data: { deliveredAt: at },
+    });
+  }
+
+  async markFailedIfUndelivered(target: OutboxDeliveryTarget, error: string): Promise<void> {
+    // não rebaixa uma mensagem já entregue/lida
+    await this.prisma.outboxMessage.updateMany({
+      where: { ...this.deliveryWhere(target), deliveredAt: null, readAt: null },
+      data: { status: 'failed', errorMessage: error },
+    });
   }
 }

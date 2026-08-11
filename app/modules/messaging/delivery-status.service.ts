@@ -1,5 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@infra/prisma/prisma.service';
+import { Inject, Injectable } from '@nestjs/common';
+import {
+  OUTBOX_REPOSITORY_PORT,
+  OutboxRepositoryPort,
+} from '@modules/messaging/ports/outbox-repository.port';
+import { MessageLogsRepository } from '@modules/messaging/message-logs.repository';
 
 export type UazapiStatus =
   | 'Queued'
@@ -24,7 +28,10 @@ export interface StatusUpdateInput {
 
 @Injectable()
 export class DeliveryStatusService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(OUTBOX_REPOSITORY_PORT) private readonly outboxRepo: OutboxRepositoryPort,
+    private readonly messageLogs: MessageLogsRepository,
+  ) {}
 
   async applyStatusUpdate(input: StatusUpdateInput): Promise<void> {
     const { providerMessageId, trackId, status, error } = input;
@@ -43,27 +50,14 @@ export class DeliveryStatusService {
     // Sent/Queued/Canceled: ignorados (o envio já marca 'sent').
   }
 
-  private outboxWhere(providerMessageId?: string | null, trackId?: string | null) {
-    // trackId == OutboxMessage.id (setado no envio); providerMessageId como fallback.
-    if (trackId) return { id: trackId };
-    return { providerMessageId: providerMessageId! };
-  }
-
   private async markDelivered(
     providerMessageId: string | null | undefined,
     trackId: string | null | undefined,
     at: Date,
   ) {
-    // só-avança: não sobrescreve se já entregue/lido
-    await this.prisma.outboxMessage.updateMany({
-      where: { ...this.outboxWhere(providerMessageId, trackId), deliveredAt: null, readAt: null },
-      data: { deliveredAt: at },
-    });
+    await this.outboxRepo.markDeliveredIfUnset({ providerMessageId, trackId }, at);
     if (providerMessageId) {
-      await this.prisma.messageLog.updateMany({
-        where: { providerMessageId, deliveredAt: null, readAt: null },
-        data: { deliveredAt: at, status: 'delivered' },
-      });
+      await this.messageLogs.markDeliveredIfUnset(providerMessageId, at);
     }
   }
 
@@ -72,24 +66,9 @@ export class DeliveryStatusService {
     trackId: string | null | undefined,
     at: Date,
   ) {
-    await this.prisma.outboxMessage.updateMany({
-      where: { ...this.outboxWhere(providerMessageId, trackId), readAt: null },
-      data: { readAt: at },
-    });
-    // garante deliveredAt preenchido (read implica delivered)
-    await this.prisma.outboxMessage.updateMany({
-      where: { ...this.outboxWhere(providerMessageId, trackId), deliveredAt: null },
-      data: { deliveredAt: at },
-    });
+    await this.outboxRepo.markReadIfUnset({ providerMessageId, trackId }, at);
     if (providerMessageId) {
-      await this.prisma.messageLog.updateMany({
-        where: { providerMessageId, readAt: null },
-        data: { readAt: at, status: 'read' },
-      });
-      await this.prisma.messageLog.updateMany({
-        where: { providerMessageId, deliveredAt: null },
-        data: { deliveredAt: at },
-      });
+      await this.messageLogs.markReadIfUnset(providerMessageId, at);
     }
   }
 
@@ -98,16 +77,9 @@ export class DeliveryStatusService {
     trackId: string | null | undefined,
     error: string,
   ) {
-    // não rebaixa uma mensagem já entregue/lida
-    await this.prisma.outboxMessage.updateMany({
-      where: { ...this.outboxWhere(providerMessageId, trackId), deliveredAt: null, readAt: null },
-      data: { status: 'failed', errorMessage: error },
-    });
+    await this.outboxRepo.markFailedIfUndelivered({ providerMessageId, trackId }, error);
     if (providerMessageId) {
-      await this.prisma.messageLog.updateMany({
-        where: { providerMessageId, deliveredAt: null, readAt: null },
-        data: { status: 'failed', errorMessage: error },
-      });
+      await this.messageLogs.markFailedIfUndelivered(providerMessageId, error);
     }
   }
 }

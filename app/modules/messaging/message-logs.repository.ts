@@ -50,4 +50,29 @@ export class MessageLogsRepository extends PrismaRepositoryBase {
     ]);
     return { data, total };
   }
+
+  async markDeliveredIfUnset(providerMessageId: string, at: Date): Promise<void> {
+    await this.prisma.messageLog.updateMany({
+      where: { providerMessageId, deliveredAt: null, readAt: null },
+      data: { deliveredAt: at, status: 'delivered' },
+    });
+  }
+
+  async markReadIfUnset(providerMessageId: string, at: Date): Promise<void> {
+    await this.prisma.messageLog.updateMany({
+      where: { providerMessageId, readAt: null },
+      data: { readAt: at, status: 'read' },
+    });
+    await this.prisma.messageLog.updateMany({
+      where: { providerMessageId, deliveredAt: null },
+      data: { deliveredAt: at },
+    });
+  }
+
+  async markFailedIfUndelivered(providerMessageId: string, error: string): Promise<void> {
+    await this.prisma.messageLog.updateMany({
+      where: { providerMessageId, deliveredAt: null, readAt: null },
+      data: { status: 'failed', errorMessage: error },
+    });
+  }
 }
