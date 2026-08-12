@@ -9,22 +9,22 @@ import { LoggingInterceptor } from '@api/config/interceptors/logging.interceptor
 import { validateEnv } from '@shared/config/env.validation';
 import { PrismaModule } from '@infra/prisma/prisma.module';
 import { RequestIdMiddleware } from '@api/config/middlewares/request-id.middleware';
-import { AuthModule } from '@api/adapters/modules/auth.module';
-import { GuardsModule } from '@api/config/modules/guards.module';
-import { EventsModule } from '@domain/event_module/events.module';
-import { FormsModule } from '@domain/form_module/forms.module';
-import { FormFieldsModule } from '@domain/form_field_module/form-fields.module';
-import { CollaboratorsModule } from '@domain/collaborator_module/collaborators.module';
-import { RegistrationsModule } from '@domain/registration_module/registrations.module';
-import { UserSubscriptionsModule } from '@domain/user_subscription_module/user-subscriptions.module';
-import { PostEventResponsesModule } from '@domain/post_event_response_module/post-event-responses.module';
-import { WorkersModule } from '@application/workers/workers.module';
-import { AutomationsModule } from '@domain/automation_module/automations.module';
-import { OutboxModule } from '@domain/outbox_module/outbox.module';
-import { MessageTemplatesModule } from '@domain/message_template_module/message-templates.module';
-import { MessageLogsModule } from '@domain/message_log_module/message-logs.module';
-import { ProfileModule } from '@domain/profile_module/profile.module';
-import { WhatsappInstancesModule } from '@domain/whatsapp_instance_module/whatsapp-instances.module';
+import { AuthModule } from '@shared/modules/auth.module';
+import { GuardsModule } from '@shared/modules/guards.module';
+import { EventModule } from '@shared/modules/event.module';
+import { FormModule } from '@shared/modules/form.module';
+import { FormFieldModule } from '@shared/modules/form-field.module';
+import { CollaboratorModule } from '@shared/modules/collaborator.module';
+import { RegistrationModule } from '@shared/modules/registration.module';
+import { UserSubscriptionModule } from '@shared/modules/user-subscription.module';
+import { PostEventResponseModule } from '@shared/modules/post-event-response.module';
+import { WorkersModule } from '@shared/modules/workers.module';
+import { AutomationModule } from '@shared/modules/automation.module';
+import { OutboxModule } from '@shared/modules/outbox.module';
+import { MessageTemplateModule } from '@shared/modules/message-template.module';
+import { MessageLogModule } from '@shared/modules/message-log.module';
+import { ProfileModule } from '@shared/modules/profile.module';
+import { WhatsappInstanceModule } from '@shared/modules/whatsapp-instance.module';
 
 @Module({
   imports: [
@@ -49,20 +49,20 @@ import { WhatsappInstancesModule } from '@domain/whatsapp_instance_module/whatsa
     PrismaModule,
     AuthModule,
     GuardsModule,
-    EventsModule,
-    FormsModule,
-    FormFieldsModule,
-    CollaboratorsModule,
-    RegistrationsModule,
-    UserSubscriptionsModule,
-    PostEventResponsesModule,
+    EventModule,
+    FormModule,
+    FormFieldModule,
+    CollaboratorModule,
+    RegistrationModule,
+    UserSubscriptionModule,
+    PostEventResponseModule,
     WorkersModule,
-    AutomationsModule,
+    AutomationModule,
     OutboxModule,
-    MessageTemplatesModule,
-    MessageLogsModule,
+    MessageTemplateModule,
+    MessageLogModule,
     ProfileModule,
-    WhatsappInstancesModule,
+    WhatsappInstanceModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

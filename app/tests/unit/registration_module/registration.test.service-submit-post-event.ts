@@ -1,4 +1,4 @@
-import { RegistrationsService } from '@application/registration_module/registrations.service';
+import { RegistrationService } from '@application/registration_module/registration.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 function make(eventStatus = 'ended', reg: any = { id: 'r1', eventId: 'evt-1' }) {
@@ -12,12 +12,12 @@ function make(eventStatus = 'ended', reg: any = { id: 'r1', eventId: 'evt-1' }) 
   const emitter = { emit: jest.fn() };
   const userSubscriptions = { upsertFromForm: jest.fn().mockResolvedValue({}) };
   const pipedrive = { send: jest.fn() };
-  const svc = new RegistrationsService(
+  const svc = new RegistrationService(
     regRepo as any,
     eventsService as any,
     emitter as any,
     userSubscriptions as any,
-    pipedrive as any,
+    pipedrive,
     {} as any,
   );
   return { svc, regRepo, eventsService, emitter, userSubscriptions };
@@ -25,7 +25,7 @@ function make(eventStatus = 'ended', reg: any = { id: 'r1', eventId: 'evt-1' }) 
 
 const FIELDS = [{ label: 'Nota', type: 'text', required: true, isFixed: false }];
 
-describe('RegistrationsService.submitPostEvent', () => {
+describe('RegistrationService.submitPostEvent', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('treats identifier with @ as email', async () => {

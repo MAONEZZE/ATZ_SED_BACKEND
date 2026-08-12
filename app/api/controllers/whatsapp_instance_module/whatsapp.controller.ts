@@ -1,8 +1,8 @@
-import { Controller, Get, Query, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, BadRequestException, Inject } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
-import { WhatsappAdapter } from '@api/adapters/whatsapp.adapter';
-import { WhatsappInstancesService } from '@application/whatsapp_instance_module/whatsapp-instances.service';
+import { WHATSAPP_PORT, WhatsappPort } from '@domain/shared/i-whatsapp';
+import { WhatsappInstanceService } from '@application/whatsapp_instance_module/whatsapp-instance.service';
 
 @ApiTags('WhatsApp')
 @ApiBearerAuth()
@@ -10,14 +10,20 @@ import { WhatsappInstancesService } from '@application/whatsapp_instance_module/
 @UseGuards(JwtAuthGuard)
 export class WhatsappController {
   constructor(
-    private readonly whatsapp: WhatsappAdapter,
-    private readonly whatsappInstances: WhatsappInstancesService,
+    @Inject(WHATSAPP_PORT) private readonly whatsapp: WhatsappPort,
+    private readonly whatsappInstances: WhatsappInstanceService,
   ) {}
 
   @Get('groups')
   @ApiOperation({ summary: 'Listar grupos WhatsApp da instância' })
   @ApiQuery({ name: 'instanceId', required: true, description: 'ID da instância Whatsapp' })
-  @ApiResponse({ status: 200, schema: { type: 'array', items: { properties: { id: { type: 'string' }, subject: { type: 'string' } } } } })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      type: 'array',
+      items: { properties: { id: { type: 'string' }, subject: { type: 'string' } } },
+    },
+  })
   async getGroups(@Query('instanceId') instanceId: string) {
     if (!instanceId) throw new BadRequestException('instanceId é obrigatório');
     const token = await this.whatsappInstances.getToken(instanceId);

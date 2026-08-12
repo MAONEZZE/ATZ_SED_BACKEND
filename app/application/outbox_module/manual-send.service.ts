@@ -8,12 +8,21 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { randomBytes, randomInt } from 'crypto';
 import { DateTime } from 'luxon';
-import { STORAGE_PORT, StoragePort } from '@api/adapters/ports/i-storage';
+import { STORAGE_PORT, StoragePort } from '@domain/shared/i-storage';
 import { OutboxService } from '@application/outbox_module/outbox.service';
 import { TemplateRenderer } from '@application/shared/template-renderer.service';
-import { MessageTemplatesRepository } from '@infra/repositories/message_template_module/message-templates.repository';
-import { WhatsappInstancesRepository } from '@infra/repositories/whatsapp_instance_module/whatsapp-instances.repository';
-import { CollaboratorsRepository } from '@infra/repositories/collaborator_module/collaborators.repository';
+import {
+  MESSAGE_TEMPLATE_REPOSITORY_PORT,
+  MessageTemplateRepositoryPort,
+} from '@domain/message_template_module/i-repository-message-template';
+import {
+  WHATSAPP_INSTANCE_REPOSITORY_PORT,
+  WhatsappInstanceRepositoryPort,
+} from '@domain/whatsapp_instance_module/i-repository-whatsapp-instance';
+import {
+  COLLABORATOR_REPOSITORY_PORT,
+  CollaboratorRepositoryPort,
+} from '@domain/collaborator_module/i-repository-collaborator';
 import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
@@ -23,7 +32,10 @@ import {
   RegistrationRepositoryPort,
 } from '@domain/registration_module/i-repository-registration';
 import type { MessageChannel } from '@domain/shared/message-channel.type';
-import type { InviteConfigInput, OutboxAttachment } from '@domain/outbox_module/i-repository-outbox';
+import type {
+  InviteConfigInput,
+  OutboxAttachment,
+} from '@domain/outbox_module/i-repository-outbox';
 
 export interface ManualRecipientInput {
   name: string;
@@ -73,9 +85,12 @@ export class ManualSendService {
     private readonly renderer: TemplateRenderer,
     private readonly config: ConfigService,
     @Inject(STORAGE_PORT) private readonly storage: StoragePort,
-    private readonly templates: MessageTemplatesRepository,
-    private readonly whatsappInstances: WhatsappInstancesRepository,
-    private readonly collaborators: CollaboratorsRepository,
+    @Inject(MESSAGE_TEMPLATE_REPOSITORY_PORT)
+    private readonly templates: MessageTemplateRepositoryPort,
+    @Inject(WHATSAPP_INSTANCE_REPOSITORY_PORT)
+    private readonly whatsappInstances: WhatsappInstanceRepositoryPort,
+    @Inject(COLLABORATOR_REPOSITORY_PORT)
+    private readonly collaborators: CollaboratorRepositoryPort,
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
     @Inject(REGISTRATION_REPOSITORY_PORT)
     private readonly registrations: RegistrationRepositoryPort,
@@ -111,7 +126,8 @@ export class ManualSendService {
 
     const bucket = this.config.get<string>('SUPABASE_STORAGE_BUCKET') ?? 'ATZ_SED';
     const attachmentFolder =
-      this.config.get<string>('SUPABASE_STORAGE_BUCKET_MESSAGE_ATTACHMENTS') ?? 'message-attachments';
+      this.config.get<string>('SUPABASE_STORAGE_BUCKET_MESSAGE_ATTACHMENTS') ??
+      'message-attachments';
     let resolvedAttachments: OutboxAttachment[] | undefined;
     if (input.attachments?.length) {
       const prefix = `${attachmentFolder}/${userId}/`;
@@ -119,7 +135,11 @@ export class ManualSendService {
         if (!a.path.startsWith(prefix) || a.path.includes('..')) {
           throw new BadRequestException('Attachment path does not belong to the sender');
         }
-        return { url: this.storage.getPublicUrl(bucket, a.path), filename: a.filename, mimetype: a.mimetype };
+        return {
+          url: this.storage.getPublicUrl(bucket, a.path),
+          filename: a.filename,
+          mimetype: a.mimetype,
+        };
       });
     }
 
@@ -138,8 +158,9 @@ export class ManualSendService {
     if (!input.eventId && input.instanceId) {
       const instance = await this.whatsappInstances.findById(input.instanceId);
       if (!instance) throw new NotFoundException('Whatsapp instance not found');
-      if (!instance.token) throw new BadRequestException('Whatsapp instance has no token configured');
-      instancia = instance.token;
+      if (!instance.hasToken())
+        throw new BadRequestException('Whatsapp instance has no token configured');
+      instancia = instance.token!;
     }
 
     // Atribuição da mensagem fica sempre com o dono do evento (resolve a instância

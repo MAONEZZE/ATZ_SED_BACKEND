@@ -1,4 +1,4 @@
-import { WhatsappAdapter } from '@api/adapters/whatsapp.adapter';
+import { WhatsappAdapter } from '@infra/adapters/whatsapp.adapter';
 
 const config = {
   get: (key: string) => {

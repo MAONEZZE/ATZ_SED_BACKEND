@@ -1,4 +1,4 @@
-import { FormFieldsService } from '@application/form_field_module/form-fields.service';
+import { FormFieldService } from '@application/form_field_module/form-field.service';
 
 function makeService() {
   const repo = {
@@ -16,14 +16,14 @@ function makeService() {
     getOrCreate: jest.fn().mockResolvedValue({ id: 'form-1' }),
   };
   return {
-    service: new FormFieldsService(repo as any, eventsService as any, formsService as any),
+    service: new FormFieldService(repo as any, eventsService as any, formsService as any),
     repo,
     eventsService,
     formsService,
   };
 }
 
-describe('FormFieldsService kind support', () => {
+describe('FormFieldService kind support', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('default kind registration on create when omitted', async () => {

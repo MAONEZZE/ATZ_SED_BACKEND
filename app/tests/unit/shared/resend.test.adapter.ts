@@ -1,6 +1,6 @@
 const send = jest.fn().mockResolvedValue({ error: null });
 jest.mock('resend', () => ({ Resend: jest.fn().mockImplementation(() => ({ emails: { send } })) }));
-import { ResendAdapter } from '@api/adapters/resend.adapter';
+import { ResendAdapter } from '@infra/adapters/resend.adapter';
 
 describe('ResendAdapter.sendEmail attachments', () => {
   beforeEach(() => jest.clearAllMocks());

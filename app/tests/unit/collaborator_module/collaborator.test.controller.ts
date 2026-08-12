@@ -1,4 +1,4 @@
-import { CollaboratorsController } from '@api/controllers/collaborator_module/collaborators.controller';
+import { CollaboratorController } from '@api/controllers/collaborator_module/collaborator.controller';
 
 function make() {
   const service = {
@@ -6,11 +6,11 @@ function make() {
     add: jest.fn(),
     remove: jest.fn(),
   };
-  const ctrl = new CollaboratorsController(service as any);
+  const ctrl = new CollaboratorController(service as any);
   return { ctrl, service };
 }
 
-describe('CollaboratorsController', () => {
+describe('CollaboratorController', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('list delegates to service.list with the event id', async () => {
@@ -39,8 +39,6 @@ describe('CollaboratorsController', () => {
   it('propagates service errors (e.g. add of unknown email)', async () => {
     const { ctrl, service } = make();
     service.add.mockRejectedValue(new Error('No registered user with this email.'));
-    await expect(ctrl.add('evt-1', { email: 'ghost@x.com' })).rejects.toThrow(
-      'No registered user',
-    );
+    await expect(ctrl.add('evt-1', { email: 'ghost@x.com' })).rejects.toThrow('No registered user');
   });
 });

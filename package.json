@@ -114,7 +114,7 @@
       "@api/(.*)": "<rootDir>/app/api/$1",
       "@application/(.*)": "<rootDir>/app/application/$1",
       "@domain/(.*)": "<rootDir>/app/domain/$1",
-      "@handlers/(.*)": "<rootDir>/app/handlers/$1"
+      "@handlers/(.*)": "<rootDir>/app/shared/handlers/$1"
     }
   }
 }

@@ -1,7 +1,10 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { AutomationsRepository } from '@infra/repositories/automation_module/automations.repository';
+import {
+  AUTOMATION_REPOSITORY_PORT,
+  AutomationRepositoryPort,
+} from '@domain/automation_module/i-repository-automation';
 import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
@@ -21,7 +24,8 @@ export class RecurringAutomationsWorker extends WorkerHost implements OnModuleIn
   private readonly logger = new Logger(RecurringAutomationsWorker.name);
 
   constructor(
-    private readonly automations: AutomationsRepository,
+    @Inject(AUTOMATION_REPOSITORY_PORT)
+    private readonly automations: AutomationRepositoryPort,
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
     private readonly engine: AutomationEngine,
     private readonly scheduler: RecurringSchedulerService,
@@ -47,7 +51,10 @@ export class RecurringAutomationsWorker extends WorkerHost implements OnModuleIn
 
     const event = await this.eventRepo.findWithApprovedRegistrationIds(rule.eventId);
     if (!event) {
-      this.logger.warn({ ruleId, eventId: rule.eventId }, 'Event not found for recurring automation');
+      this.logger.warn(
+        { ruleId, eventId: rule.eventId },
+        'Event not found for recurring automation',
+      );
       return;
     }
 

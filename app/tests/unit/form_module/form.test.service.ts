@@ -1,4 +1,4 @@
-import { FormsService } from '@application/form_module/forms.service';
+import { FormService } from '@application/form_module/form.service';
 
 function makeService(existing: Record<string, unknown> | null = null) {
   const repo = {
@@ -6,15 +6,19 @@ function makeService(existing: Record<string, unknown> | null = null) {
     create: jest.fn().mockResolvedValue({ id: 'form-new', eventId: 'evt-1', kind: 'registration' }),
     update: jest.fn().mockImplementation((id, data) => Promise.resolve({ id, ...data })),
   };
-  return { service: new FormsService(repo as any), repo };
+  return { service: new FormService(repo as any), repo };
 }
 
-describe('FormsService', () => {
+describe('FormService', () => {
   beforeEach(() => jest.clearAllMocks());
 
   describe('getOrCreate', () => {
     it('returns the existing form when one is already present', async () => {
-      const { service, repo } = makeService({ id: 'form-1', eventId: 'evt-1', kind: 'registration' });
+      const { service, repo } = makeService({
+        id: 'form-1',
+        eventId: 'evt-1',
+        kind: 'registration',
+      });
       const form = await service.getOrCreate('evt-1', 'registration');
       expect(form).toEqual({ id: 'form-1', eventId: 'evt-1', kind: 'registration' });
       expect(repo.create).not.toHaveBeenCalled();
@@ -37,13 +41,21 @@ describe('FormsService', () => {
     });
 
     it('only patches the fields provided', async () => {
-      const { service, repo } = makeService({ id: 'form-1', eventId: 'evt-1', kind: 'registration' });
+      const { service, repo } = makeService({
+        id: 'form-1',
+        eventId: 'evt-1',
+        kind: 'registration',
+      });
       await service.update('evt-1', 'registration', { postRegistrationMessage: 'Obrigado!' });
       expect(repo.update).toHaveBeenCalledWith('form-1', { postRegistrationMessage: 'Obrigado!' });
     });
 
     it('patches both fields when both are provided', async () => {
-      const { service, repo } = makeService({ id: 'form-1', eventId: 'evt-1', kind: 'registration' });
+      const { service, repo } = makeService({
+        id: 'form-1',
+        eventId: 'evt-1',
+        kind: 'registration',
+      });
       await service.update('evt-1', 'registration', {
         description: 'D',
         postRegistrationMessage: 'M',
@@ -55,7 +67,11 @@ describe('FormsService', () => {
     });
 
     it('patches requireImageAuthorization when provided', async () => {
-      const { service, repo } = makeService({ id: 'form-1', eventId: 'evt-1', kind: 'registration' });
+      const { service, repo } = makeService({
+        id: 'form-1',
+        eventId: 'evt-1',
+        kind: 'registration',
+      });
       await service.update('evt-1', 'registration', { requireImageAuthorization: true });
       expect(repo.update).toHaveBeenCalledWith('form-1', { requireImageAuthorization: true });
     });

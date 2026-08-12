@@ -1,10 +1,11 @@
 import { IsOptional, IsIn } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationQueryDto } from '@api/dto/shared/pagination';
+import { FORM_KINDS, FormKind } from '@domain/shared/form-kind.type';
 
 export class ListFormFieldsQueryDto extends PaginationQueryDto {
-  @ApiPropertyOptional({ enum: ['registration', 'post_event', 'nps'] })
+  @ApiPropertyOptional({ enum: FORM_KINDS })
   @IsOptional()
-  @IsIn(['registration', 'post_event', 'nps'])
-  kind?: 'registration' | 'post_event' | 'nps';
+  @IsIn(FORM_KINDS)
+  kind?: FormKind;
 }

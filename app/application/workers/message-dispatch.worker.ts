@@ -2,24 +2,27 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Job, UnrecoverableError, DelayedError } from 'bullmq';
-import { ResendAdapter } from '@api/adapters/resend.adapter';
-import { WhatsappAdapter, WhatsappRestrictionError } from '@api/adapters/whatsapp.adapter';
+import { EMAIL_PORT, EmailPort } from '@domain/shared/i-email';
+import { WHATSAPP_PORT, WhatsappPort, WhatsappRestrictionError } from '@domain/shared/i-whatsapp';
 import { QUEUE_MESSAGE_DISPATCH } from '@infra/queue/bull-queues.module';
 import { WhatsappPacingService } from '@application/outbox_module/whatsapp-pacing.service';
 import { IcsGeneratorService } from '@application/shared/ics-generator.service';
+import { OutboxMessageEntity } from '@domain/outbox_module/outbox-message.entity';
 import {
   OUTBOX_REPOSITORY_PORT,
   OutboxRepositoryPort,
-  OutboxDispatchMessage,
   InviteConfigInput,
   OutboxAttachment,
 } from '@domain/outbox_module/i-repository-outbox';
-import { MessageLogsRepository } from '@infra/repositories/message_log_module/message-logs.repository';
+import {
+  MESSAGE_LOG_REPOSITORY_PORT,
+  MessageLogRepositoryPort,
+} from '@domain/message_log_module/i-repository-message-log';
 import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
 } from '@domain/event_module/i-repository-event';
-import { APP_TIMEZONE } from '@shared/handlers/timezone';
+import { APP_TIMEZONE } from '@handlers/timezone';
 import { DateTime } from 'luxon';
 
 const ICS_MARKER = '[[[ICS_INVITE]]]';
@@ -40,10 +43,11 @@ export class MessageDispatchWorker extends WorkerHost {
 
   constructor(
     @Inject(OUTBOX_REPOSITORY_PORT) private readonly outboxRepo: OutboxRepositoryPort,
-    private readonly messageLogs: MessageLogsRepository,
+    @Inject(MESSAGE_LOG_REPOSITORY_PORT)
+    private readonly messageLogs: MessageLogRepositoryPort,
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
-    private readonly resend: ResendAdapter,
-    private readonly whatsapp: WhatsappAdapter,
+    @Inject(EMAIL_PORT) private readonly resend: EmailPort,
+    @Inject(WHATSAPP_PORT) private readonly whatsapp: WhatsappPort,
     private readonly ics: IcsGeneratorService,
     private readonly pacing: WhatsappPacingService,
     config: ConfigService,
@@ -111,10 +115,12 @@ export class MessageDispatchWorker extends WorkerHost {
           body = body.replace(ICS_MARKER_RECURRENT, '').replace(ICS_MARKER, '');
         }
 
-        const emailAttachments = ((outbox.attachments as OutboxAttachment[] | null) ?? []).map((a) => ({
-          filename: a.filename,
-          url: a.url,
-        }));
+        const emailAttachments = ((outbox.attachments as OutboxAttachment[] | null) ?? []).map(
+          (a) => ({
+            filename: a.filename,
+            url: a.url,
+          }),
+        );
 
         await this.resend.sendEmail(
           outbox.recipient,
@@ -135,7 +141,7 @@ export class MessageDispatchWorker extends WorkerHost {
           outbox.recipient,
           outbox.renderedBody,
           {
-            startIndex: outbox.sentParts,
+            startIndex: outbox.nextPartIndex(),
             trackId: outbox.id,
             onPartSent: async (index) => {
               await this.outboxRepo.updateSentParts(outbox.id, index + 1);
@@ -144,7 +150,7 @@ export class MessageDispatchWorker extends WorkerHost {
         );
 
         const attachments = (outbox.attachments as OutboxAttachment[] | null) ?? [];
-        for (let i = outbox.sentAttachments; i < attachments.length; i++) {
+        for (let i = outbox.nextAttachmentIndex(); i < attachments.length; i++) {
           const a = attachments[i];
           const mediaMessageId = await this.whatsapp.sendMedia(
             token,
@@ -214,7 +220,7 @@ export class MessageDispatchWorker extends WorkerHost {
    * UID estável por (eventId + destinatário) evita duplicação no calendário em reenvios.
    */
   private async buildInvite(
-    outbox: OutboxDispatchMessage,
+    outbox: OutboxMessageEntity,
     wantsRecurrent: boolean,
   ): Promise<string | undefined> {
     const event = outbox.eventId ? await this.eventRepo.findById(outbox.eventId) : null;

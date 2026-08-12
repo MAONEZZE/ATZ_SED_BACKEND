@@ -1,4 +1,4 @@
-import { SupabaseStorageAdapter } from '@api/adapters/supabase-storage.adapter';
+import { SupabaseStorageAdapter } from '@infra/adapters/supabase-storage.adapter';
 
 jest.mock('@supabase/supabase-js', () => ({
   createClient: () => ({

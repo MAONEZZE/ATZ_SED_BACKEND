@@ -1,4 +1,4 @@
-import { DomainEvent } from '@shared/handlers/domain-event';
+import { DomainEvent } from '@handlers/domain-event';
 
 export type FormSubmittedTrigger = 'on_post_event' | 'on_nps';
 

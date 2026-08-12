@@ -1,5 +1,6 @@
 import { IsString, IsIn, IsOptional, IsBoolean, IsInt, Min } from 'class-validator';
 import { PartialType, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { FORM_KINDS, FormKind } from '@domain/shared/form-kind.type';
 
 const FORM_FIELD_TYPES = [
   'text',
@@ -39,10 +40,10 @@ export class CreateFormFieldDto {
   @Min(0)
   order?: number;
 
-  @ApiPropertyOptional({ enum: ['registration', 'post_event', 'nps'], example: 'registration' })
+  @ApiPropertyOptional({ enum: FORM_KINDS, example: 'registration' })
   @IsOptional()
-  @IsIn(['registration', 'post_event', 'nps'])
-  kind?: 'registration' | 'post_event' | 'nps';
+  @IsIn(FORM_KINDS)
+  kind?: FormKind;
 }
 
 export class UpdateFormFieldDto extends PartialType(CreateFormFieldDto) {}

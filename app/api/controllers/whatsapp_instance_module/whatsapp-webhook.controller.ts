@@ -26,11 +26,8 @@ interface WhatsappWebhookBody {
 
 // Rota pública (sem JwtAuthGuard, só ThrottlerGuard global). Protegida por shared
 // secret na query/header, verificado contra WHATSAPP_WEBHOOK_SECRET.
-// TODO(remover alias): 'public/webhooks/uazapi' é o path legado — instâncias já
-// conectadas antes do rename ainda apontam pra ele do lado da Uazapi. Remover
-// quando todas as instâncias forem re-registradas com o novo path.
 @ApiTags('Public')
-@Controller(['public/webhooks/whatsapp', 'public/webhooks/uazapi'])
+@Controller('public/webhooks/whatsapp')
 export class WhatsappWebhookController {
   constructor(
     private readonly config: ConfigService,

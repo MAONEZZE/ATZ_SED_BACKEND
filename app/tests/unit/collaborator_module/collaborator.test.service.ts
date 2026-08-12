@@ -1,5 +1,5 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { CollaboratorsService } from '@application/collaborator_module/collaborators.service';
+import { CollaboratorService } from '@application/collaborator_module/collaborator.service';
 
 function makeService() {
   const eventRepo = { findById: jest.fn() };
@@ -9,11 +9,11 @@ function makeService() {
     remove: jest.fn(),
   };
   const profiles = { findByEmail: jest.fn() };
-  const service = new CollaboratorsService(eventRepo as any, collaborators as any, profiles as any);
+  const service = new CollaboratorService(eventRepo as any, collaborators as any, profiles as any);
   return { service, eventRepo, collaborators, profiles };
 }
 
-describe('CollaboratorsService', () => {
+describe('CollaboratorService', () => {
   beforeEach(() => jest.clearAllMocks());
 
   describe('list', () => {

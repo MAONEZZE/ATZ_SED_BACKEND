@@ -6,8 +6,9 @@ import {
   EnqueueMessageData,
   PendingOutboxMessage,
   OutboxDeliveryTarget,
-  OutboxDispatchMessage,
 } from '@domain/outbox_module/i-repository-outbox';
+import { OutboxMessageEntity } from '@domain/outbox_module/outbox-message.entity';
+import { MessageChannel } from '@domain/shared/message-channel.type';
 
 const DISPATCH_SELECT = {
   id: true,
@@ -152,19 +153,58 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
     });
   }
 
-  async findDispatchById(id: string): Promise<OutboxDispatchMessage | null> {
-    return this.prisma.outboxMessage.findUnique({ where: { id }, select: DISPATCH_SELECT });
+  private toEntity(row: {
+    id: string;
+    eventId: string | null;
+    ownerId: string | null;
+    registrationId: string | null;
+    channel: string;
+    recipient: string;
+    instancia: string | null;
+    renderedBody: string;
+    renderedSubject: string | null;
+    inviteConfig: unknown;
+    attachments: unknown;
+    sentParts: number;
+    sentAttachments: number;
+    status: string;
+  }): OutboxMessageEntity {
+    return new OutboxMessageEntity(
+      row.id,
+      row.eventId,
+      row.ownerId,
+      row.registrationId,
+      row.channel as MessageChannel,
+      row.recipient,
+      row.instancia,
+      row.renderedBody,
+      row.renderedSubject,
+      row.inviteConfig,
+      row.attachments,
+      row.sentParts,
+      row.sentAttachments,
+      row.status,
+    );
+  }
+
+  async findDispatchById(id: string): Promise<OutboxMessageEntity | null> {
+    const row = await this.prisma.outboxMessage.findUnique({
+      where: { id },
+      select: DISPATCH_SELECT,
+    });
+    return row ? this.toEntity(row) : null;
   }
 
   async findPendingDispatchByTrigger(
     registrationId: string | undefined,
     templateId: string | undefined,
     trigger: string | undefined,
-  ): Promise<OutboxDispatchMessage | null> {
-    return this.prisma.outboxMessage.findFirst({
+  ): Promise<OutboxMessageEntity | null> {
+    const row = await this.prisma.outboxMessage.findFirst({
       where: { registrationId, templateId, trigger, status: { in: ['pending', 'processing'] } },
       select: DISPATCH_SELECT,
     });
+    return row ? this.toEntity(row) : null;
   }
 
   async markProcessingAttempt(id: string): Promise<void> {

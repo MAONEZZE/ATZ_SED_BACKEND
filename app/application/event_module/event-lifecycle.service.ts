@@ -6,13 +6,19 @@ import {
 } from '@domain/event_module/i-repository-event';
 import { EventEntity } from '@domain/event_module/event.entity';
 import { OutboxService } from '@application/outbox_module/outbox.service';
-import { FormsRepository } from '@infra/repositories/form_module/forms.repository';
-import { AutomationsRepository } from '@infra/repositories/automation_module/automations.repository';
+import { FORM_REPOSITORY_PORT, FormRepositoryPort } from '@domain/form_module/i-repository-form';
+import {
+  AUTOMATION_REPOSITORY_PORT,
+  AutomationRepositoryPort,
+} from '@domain/automation_module/i-repository-automation';
 import {
   REGISTRATION_REPOSITORY_PORT,
   RegistrationRepositoryPort,
 } from '@domain/registration_module/i-repository-registration';
-import { MessageTemplatesRepository } from '@infra/repositories/message_template_module/message-templates.repository';
+import {
+  MESSAGE_TEMPLATE_REPOSITORY_PORT,
+  MessageTemplateRepositoryPort,
+} from '@domain/message_template_module/i-repository-message-template';
 
 @Injectable()
 export class EventLifecycleService {
@@ -21,11 +27,13 @@ export class EventLifecycleService {
   constructor(
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
     private readonly outbox: OutboxService,
-    private readonly forms: FormsRepository,
-    private readonly automations: AutomationsRepository,
+    @Inject(FORM_REPOSITORY_PORT) private readonly forms: FormRepositoryPort,
+    @Inject(AUTOMATION_REPOSITORY_PORT)
+    private readonly automations: AutomationRepositoryPort,
     @Inject(REGISTRATION_REPOSITORY_PORT)
     private readonly registrations: RegistrationRepositoryPort,
-    private readonly templates: MessageTemplatesRepository,
+    @Inject(MESSAGE_TEMPLATE_REPOSITORY_PORT)
+    private readonly templates: MessageTemplateRepositoryPort,
   ) {}
 
   async cancel(

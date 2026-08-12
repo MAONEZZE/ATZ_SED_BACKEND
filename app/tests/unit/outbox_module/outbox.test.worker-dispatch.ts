@@ -1,6 +1,8 @@
 import { MessageDispatchWorker } from '@application/workers/message-dispatch.worker';
+import { OutboxMessageEntity } from '@domain/outbox_module/outbox-message.entity';
+import { MessageChannel } from '@domain/shared/message-channel.type';
 import { DelayedError, UnrecoverableError } from 'bullmq';
-import { WhatsappRestrictionError } from '@api/adapters/whatsapp.adapter';
+import { WhatsappRestrictionError } from '@domain/shared/i-whatsapp';
 
 const outboxRow = {
   id: 'msg-1',
@@ -17,10 +19,32 @@ const outboxRow = {
   sentAttachments: 0,
 };
 
+// A porta devolve OutboxMessageEntity; o worker pergunta a ela de onde retomar
+// (nextPartIndex/nextAttachmentIndex), então o mock precisa ser uma entidade.
+function toEntity(row: Record<string, unknown>): OutboxMessageEntity {
+  return new OutboxMessageEntity(
+    (row.id as string) ?? 'msg-1',
+    (row.eventId as string | null) ?? null,
+    (row.ownerId as string | null) ?? null,
+    (row.registrationId as string | null) ?? null,
+    (row.channel as MessageChannel) ?? 'email',
+    (row.recipient as string) ?? 'a@b.com',
+    (row.instancia as string | null) ?? null,
+    (row.renderedBody as string) ?? 'Olá',
+    (row.renderedSubject as string | null) ?? null,
+    row.inviteConfig ?? null,
+    row.attachments ?? null,
+    (row.sentParts as number) ?? 0,
+    (row.sentAttachments as number) ?? 0,
+    (row.status as string) ?? 'pending',
+  );
+}
+
 function makeMocks(row: unknown) {
+  const entity = toEntity(row as Record<string, unknown>);
   const outboxRepo = {
-    findDispatchById: jest.fn().mockResolvedValue(row),
-    findPendingDispatchByTrigger: jest.fn().mockResolvedValue(row),
+    findDispatchById: jest.fn().mockResolvedValue(entity),
+    findPendingDispatchByTrigger: jest.fn().mockResolvedValue(entity),
     markProcessingAttempt: jest.fn().mockResolvedValue(undefined),
     updateSentParts: jest.fn().mockResolvedValue(undefined),
     updateSentAttachments: jest.fn().mockResolvedValue(undefined),
@@ -51,7 +75,7 @@ function makeWorker(m: ReturnType<typeof makeMocks>) {
     m.outboxRepo as any,
     m.messageLogs as any,
     m.eventRepo as any,
-    m.resend as any,
+    m.resend,
     m.whatsapp as any,
     m.ics as any,
     m.pacing as any,
@@ -343,9 +367,7 @@ describe('MessageDispatchWorker.process — DISPATCH_GATE_ENABLED (re-pacing no 
     await expect(worker.process(job, 'tok-abc')).rejects.toThrow(DelayedError);
     expect(pacing.nextDelayMs).toHaveBeenCalledTimes(1);
     expect(pacing.nextDelayMs).toHaveBeenCalledWith('tok-1');
-    expect(job.updateData).toHaveBeenCalledWith(
-      expect.objectContaining({ pacedForAttempt: 1 }),
-    );
+    expect(job.updateData).toHaveBeenCalledWith(expect.objectContaining({ pacedForAttempt: 1 }));
     expect(job.moveToDelayed).toHaveBeenCalledTimes(1);
     // 2º arg é o token do worker (necessário p/ moveToDelayed)
     expect(job.moveToDelayed.mock.calls[0][1]).toBe('tok-abc');

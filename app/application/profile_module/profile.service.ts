@@ -1,16 +1,17 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ProfileRepository } from '@infra/repositories/profile_module/profile.repository';
-import { STORAGE_PORT, StoragePort } from '@api/adapters/ports/i-storage';
-
-export interface UpdateProfileInput {
-  name?: string;
-}
+import {
+  PROFILE_REPOSITORY_PORT,
+  ProfileRepositoryPort,
+  UpdateProfileData,
+} from '@domain/profile_module/i-repository-profile';
+import { ProfileEntity } from '@domain/profile_module/profile.entity';
+import { STORAGE_PORT, StoragePort } from '@domain/shared/i-storage';
 
 @Injectable()
 export class ProfileService {
   constructor(
-    private readonly repo: ProfileRepository,
+    @Inject(PROFILE_REPOSITORY_PORT) private readonly repo: ProfileRepositoryPort,
     private readonly config: ConfigService,
     @Inject(STORAGE_PORT) private readonly storage: StoragePort,
   ) {}
@@ -21,21 +22,22 @@ export class ProfileService {
     return profile;
   }
 
-  async update(userId: string, input: UpdateProfileInput) {
+  async update(userId: string, input: UpdateProfileData) {
     await this.getByUser(userId);
-    return this.repo.update(userId, {
-      ...(input.name !== undefined && { name: input.name }),
-    });
+    return this.repo.update(userId, input);
   }
 
   /** Idempotent: returns the existing profile or creates one from the auth identity. */
-  async ensure(user: { id: string; email: string }): Promise<{ profile: unknown; created: boolean }> {
+  async ensure(user: {
+    id: string;
+    email: string;
+  }): Promise<{ profile: ProfileEntity; created: boolean }> {
     const existing = await this.repo.findByUserId(user.id);
     if (existing) return { profile: existing, created: false };
     const profile = await this.repo.create({
       id: user.id,
       userId: user.id,
-      name: user.email.split('@')[0],
+      name: ProfileEntity.defaultNameFromEmail(user.email),
       email: user.email,
     });
     return { profile, created: true };
@@ -51,7 +53,7 @@ export class ProfileService {
 
   async deletePhoto(userId: string) {
     const profile = await this.getByUser(userId);
-    if (profile.photoUrl) {
+    if (profile.hasPhoto()) {
       const { bucket, folder } = this.photoLocation();
       const path = `${folder}/${profile.id}/photo`;
       try {

@@ -1,5 +1,5 @@
-import { PostEventResponsesController } from '@api/controllers/post_event_response_module/post-event-responses.controller';
-import { PostEventResponsesService } from '@application/post_event_response_module/post-event-responses.service';
+import { PostEventResponseController } from '@api/controllers/post_event_response_module/post-event-response.controller';
+import { PostEventResponseService } from '@application/post_event_response_module/post-event-response.service';
 
 function fakeRes() {
   const res: any = {};
@@ -9,7 +9,7 @@ function fakeRes() {
   return res;
 }
 
-describe('PostEventResponsesService.listPaginated', () => {
+describe('PostEventResponseService.listPaginated', () => {
   it('scopes the query to the event with registration included and paginates', async () => {
     const repo = {
       findAllByEventPaginated: jest.fn().mockResolvedValue({
@@ -24,7 +24,7 @@ describe('PostEventResponsesService.listPaginated', () => {
         total: 1,
       }),
     };
-    const service = new PostEventResponsesService(repo as any);
+    const service = new PostEventResponseService(repo as any);
     const result = await service.listPaginated('evt-1', 2, 10);
     expect(repo.findAllByEventPaginated).toHaveBeenCalledWith(
       'evt-1',
@@ -34,7 +34,7 @@ describe('PostEventResponsesService.listPaginated', () => {
   });
 });
 
-describe('PostEventResponsesController CSV export (format=csv)', () => {
+describe('PostEventResponseController CSV export (format=csv)', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('returns CSV with proper headers and field labels', async () => {
@@ -50,7 +50,7 @@ describe('PostEventResponsesController CSV export (format=csv)', () => {
       ]),
     };
     const formFields = { exportLabels: jest.fn().mockResolvedValue([{ label: 'Nota' }]) };
-    const ctrl = new PostEventResponsesController(postEventResponses as any, formFields as any);
+    const ctrl = new PostEventResponseController(postEventResponses as any, formFields as any);
     const res = fakeRes();
 
     const sent = await ctrl.findAll('evt-1', { format: 'csv' } as any, res as any);

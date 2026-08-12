@@ -1,6 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { AutomationsRepository } from '@infra/repositories/automation_module/automations.repository';
+import {
+  AUTOMATION_REPOSITORY_PORT,
+  AutomationRepositoryPort,
+} from '@domain/automation_module/i-repository-automation';
 import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
@@ -25,7 +28,8 @@ export class AutomationEngine {
   private readonly logger = new Logger(AutomationEngine.name);
 
   constructor(
-    private readonly automations: AutomationsRepository,
+    @Inject(AUTOMATION_REPOSITORY_PORT)
+    private readonly automations: AutomationRepositoryPort,
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
     @Inject(REGISTRATION_REPOSITORY_PORT)
     private readonly registrations: RegistrationRepositoryPort,
