@@ -14,7 +14,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { CurrentUser } from '@api/config/decorators/current-user.decorator';
-import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
+import { AuthenticatedUser } from '@domain/shared/authenticated-user.entity';
 import { ManualSendService } from '@application/outbox_module/manual-send.service';
 import { MessageAttachmentsService } from '@application/outbox_module/message-attachments.service';
 import { SendMessageDto } from '@api/dto/outbox_module/send-message.dto';

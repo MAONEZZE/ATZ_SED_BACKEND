@@ -1,15 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-
-export interface PipedrivePayload {
-  event: { id: string; slug: string; title: string };
-  form: 'registration';
-  contact: { email: string; phone: string; linkedin?: string; instagram?: string };
-  answers: Record<string, unknown>;
-}
+import { CrmPort, CrmPayload } from '@domain/shared/i-crm';
 
 @Injectable()
-export class PipedriveAdapter {
+export class PipedriveAdapter implements CrmPort {
   private readonly webhookUrl: string;
 
   constructor(config: ConfigService) {
@@ -21,7 +15,7 @@ export class PipedriveAdapter {
    * caller can record the send status; the caller is responsible for keeping
    * this fire-and-forget (not awaiting before responding to the user).
    */
-  async send(payload: PipedrivePayload): Promise<void> {
+  async send(payload: CrmPayload): Promise<void> {
     const response = await fetch(this.webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

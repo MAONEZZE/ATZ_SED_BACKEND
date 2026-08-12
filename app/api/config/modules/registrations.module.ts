@@ -5,7 +5,7 @@ import { PublicPostEventController } from '@api/controllers/registration_module/
 import { PublicNpsController } from '@api/controllers/registration_module/public-nps.controller';
 import { RegistrationsService } from '@application/registration_module/registrations.service';
 import { RegistrationsDbModule } from '@infra/repositories/registration_module/registrations-db.module';
-import { AdaptersModule } from '@api/adapters/modules/adapters.module';
+import { AdaptersModule } from '@api/config/modules/adapters.module';
 import { GuardsModule } from '@api/config/modules/guards.module';
 import { EventsModule } from '@api/config/modules/events.module';
 import { FormsModule } from '@api/config/modules/forms.module';

@@ -9,7 +9,7 @@ import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
 } from '@domain/event_module/i-repository-event';
-import { STORAGE_PORT, StoragePort } from '@api/adapters/ports/i-storage';
+import { STORAGE_PORT, StoragePort } from '@domain/shared/i-storage';
 import { EventEntity, EventStatus } from '@domain/event_module/event.entity';
 import { ConfigService } from '@nestjs/config';
 

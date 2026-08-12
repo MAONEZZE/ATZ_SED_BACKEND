@@ -1,8 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { AuthPort } from '@api/adapters/ports/i-auth';
-import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
+import { AuthPort } from '@domain/shared/i-auth';
+import { AuthenticatedUser } from '@domain/shared/authenticated-user.entity';
 
 @Injectable()
 export class SupabaseAuthAdapter implements AuthPort {

@@ -17,7 +17,7 @@ function make(eventStatus = 'ended', reg: any = { id: 'r1', eventId: 'evt-1' }) 
     eventsService as any,
     emitter as any,
     userSubscriptions as any,
-    pipedrive as any,
+    pipedrive,
     {} as any,
   );
   return { svc, regRepo, eventsService, emitter, userSubscriptions };

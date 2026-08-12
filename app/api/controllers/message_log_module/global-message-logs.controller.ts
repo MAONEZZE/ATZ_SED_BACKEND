@@ -2,7 +2,7 @@ import { Controller, Get, UseGuards, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { CurrentUser } from '@api/config/decorators/current-user.decorator';
-import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
+import { AuthenticatedUser } from '@domain/shared/authenticated-user.entity';
 import { MessageLogsService } from '@application/message_log_module/message-logs.service';
 import { PaginationQueryDto, Paginated } from '@api/dto/shared/pagination';
 

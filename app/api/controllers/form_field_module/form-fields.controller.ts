@@ -21,7 +21,7 @@ import {
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { CurrentUser } from '@api/config/decorators/current-user.decorator';
-import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
+import { AuthenticatedUser } from '@domain/shared/authenticated-user.entity';
 import { FormFieldsService } from '@application/form_field_module/form-fields.service';
 import { CreateFormFieldDto, UpdateFormFieldDto } from '@api/dto/form_field_module/form-field.dto';
 import { ListFormFieldsQueryDto } from '@api/dto/form_field_module/list-form-fields-query.dto';

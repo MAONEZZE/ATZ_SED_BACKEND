@@ -9,7 +9,7 @@ import { TemplateRenderer } from '@application/shared/template-renderer.service'
 import { OutboxDbModule } from '@infra/repositories/outbox_module/outbox-db.module';
 import { MessageTemplatesDbModule } from '@infra/repositories/message_template_module/message-templates-db.module';
 import { MessageLogsDbModule } from '@infra/repositories/message_log_module/message-logs-db.module';
-import { StorageModule } from '@api/adapters/modules/storage.module';
+import { StorageModule } from '@api/config/modules/storage.module';
 import { GuardsModule } from '@api/config/modules/guards.module';
 import { BullQueuesModule } from '@infra/queue/bull-queues.module';
 

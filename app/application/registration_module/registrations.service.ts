@@ -12,7 +12,7 @@ import { RegistrationStatusChanged } from '@domain/registration_module/registrat
 import { FormSubmitted } from '@domain/registration_module/form-submitted.event';
 import { EventsService } from '@application/event_module/events.service';
 import { UserSubscriptionsService } from '@application/user_subscription_module/user-subscriptions.service';
-import { PipedriveAdapter } from '@api/adapters/pipedrive.adapter';
+import { CRM_PORT, CrmPort } from '@domain/shared/i-crm';
 import { FormsService } from '@application/form_module/forms.service';
 import {
   validateAnswers,
@@ -33,7 +33,7 @@ export class RegistrationsService {
     private readonly eventsService: EventsService,
     private readonly eventEmitter: EventEmitter2,
     private readonly userSubscriptions: UserSubscriptionsService,
-    private readonly pipedrive: PipedriveAdapter,
+    @Inject(CRM_PORT) private readonly pipedrive: CrmPort,
     private readonly formsService: FormsService,
   ) {}
 

@@ -34,7 +34,7 @@ function makeService(regOverrides: Partial<{ id: string; eventId: string }> = {}
     eventsService as any,
     eventEmitter as any,
     userSubscriptions as any,
-    pipedrive as any,
+    pipedrive,
     {} as any,
   );
   return { service, regRepo };

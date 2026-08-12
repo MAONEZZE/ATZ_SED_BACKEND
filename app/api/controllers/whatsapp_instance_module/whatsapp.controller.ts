@@ -1,7 +1,7 @@
-import { Controller, Get, Query, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, BadRequestException, Inject } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
-import { WhatsappAdapter } from '@api/adapters/whatsapp.adapter';
+import { WHATSAPP_PORT, WhatsappPort } from '@domain/shared/i-whatsapp';
 import { WhatsappInstancesService } from '@application/whatsapp_instance_module/whatsapp-instances.service';
 
 @ApiTags('WhatsApp')
@@ -10,7 +10,7 @@ import { WhatsappInstancesService } from '@application/whatsapp_instance_module/
 @UseGuards(JwtAuthGuard)
 export class WhatsappController {
   constructor(
-    private readonly whatsapp: WhatsappAdapter,
+    @Inject(WHATSAPP_PORT) private readonly whatsapp: WhatsappPort,
     private readonly whatsappInstances: WhatsappInstancesService,
   ) {}
 

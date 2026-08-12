@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { AUTH_PORT } from '@api/adapters/ports/i-auth';
-import { SupabaseAuthAdapter } from '../supabase-auth.adapter';
+import { AUTH_PORT } from '@domain/shared/i-auth';
+import { SupabaseAuthAdapter } from '@infra/adapters/supabase-auth.adapter';
 
 @Module({
   providers: [{ provide: AUTH_PORT, useClass: SupabaseAuthAdapter }],

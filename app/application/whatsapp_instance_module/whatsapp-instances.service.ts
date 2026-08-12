@@ -1,14 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { WhatsappInstancesRepository } from '@infra/repositories/whatsapp_instance_module/whatsapp-instances.repository';
-import { WhatsappAdapter } from '@api/adapters/whatsapp.adapter';
+import { WHATSAPP_PORT, WhatsappPort } from '@domain/shared/i-whatsapp';
 
 @Injectable()
 export class WhatsappInstancesService {
   constructor(
     private readonly repo: WhatsappInstancesRepository,
     private readonly config: ConfigService,
-    private readonly whatsapp: WhatsappAdapter,
+    @Inject(WHATSAPP_PORT) private readonly whatsapp: WhatsappPort,
   ) {}
 
   // `active` reflete a conexão real: GET /instance/status na Whatsapp; conectado

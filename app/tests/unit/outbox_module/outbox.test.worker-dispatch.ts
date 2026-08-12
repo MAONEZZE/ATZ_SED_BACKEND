@@ -1,6 +1,6 @@
 import { MessageDispatchWorker } from '@application/workers/message-dispatch.worker';
 import { DelayedError, UnrecoverableError } from 'bullmq';
-import { WhatsappRestrictionError } from '@api/adapters/whatsapp.adapter';
+import { WhatsappRestrictionError } from '@domain/shared/i-whatsapp';
 
 const outboxRow = {
   id: 'msg-1',
@@ -51,7 +51,7 @@ function makeWorker(m: ReturnType<typeof makeMocks>) {
     m.outboxRepo as any,
     m.messageLogs as any,
     m.eventRepo as any,
-    m.resend as any,
+    m.resend,
     m.whatsapp as any,
     m.ics as any,
     m.pacing as any,

@@ -29,7 +29,7 @@ function make(eventStatus = 'published', eventSendToPipedrive = false, requireIm
     eventsService as any,
     emitter as any,
     userSubscriptions as any,
-    pipedrive as any,
+    pipedrive,
     formsService as any,
   );
   return { svc, regRepo, emitter, userSubscriptions, pipedrive, formsService };

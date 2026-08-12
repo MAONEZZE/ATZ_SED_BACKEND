@@ -1,4 +1,5 @@
-import { WhatsappAdapter, WhatsappRestrictionError } from '@api/adapters/whatsapp.adapter';
+import { WhatsappAdapter } from '@infra/adapters/whatsapp.adapter';
+import { WhatsappRestrictionError } from '@domain/shared/i-whatsapp';
 
 function makeConfig(over: Record<string, unknown> = {}) {
   const base: Record<string, unknown> = {

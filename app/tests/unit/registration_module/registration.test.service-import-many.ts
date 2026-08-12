@@ -14,7 +14,7 @@ function make(existingByContact: Record<string, unknown> | null = null) {
     eventsService as any,
     emitter as any,
     userSubscriptions as any,
-    pipedrive as any,
+    pipedrive,
     {} as any,
   );
   return { svc, regRepo, emitter, userSubscriptions, pipedrive };

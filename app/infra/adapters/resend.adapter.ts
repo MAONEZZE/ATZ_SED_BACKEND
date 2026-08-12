@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
+import { EmailPort, EmailAttachment } from '@domain/shared/i-email';
 
 @Injectable()
-export class ResendAdapter {
+export class ResendAdapter implements EmailPort {
   private readonly client: Resend;
   private readonly from: string;
   private readonly logger = new Logger(ResendAdapter.name);
@@ -18,7 +19,7 @@ export class ResendAdapter {
     subject: string,
     html: string,
     icsContent?: string,
-    attachments?: { filename: string; url: string }[],
+    attachments?: EmailAttachment[],
   ): Promise<void> {
     const files: Array<{ filename: string; content?: string; path?: string }> = [];
     if (icsContent) {

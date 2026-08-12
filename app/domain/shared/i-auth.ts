@@ -1,4 +1,4 @@
-import { AuthenticatedUser } from '@api/controllers/shared/authenticated-user.entity';
+import { AuthenticatedUser } from '@domain/shared/authenticated-user.entity';
 
 export const AUTH_PORT = Symbol('AUTH_PORT');
 

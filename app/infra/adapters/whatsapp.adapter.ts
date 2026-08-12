@@ -1,28 +1,17 @@
 import { Injectable, Logger, BadGatewayException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomInt } from 'crypto';
+import {
+  WhatsappPort,
+  WhatsappMediaType,
+  WhatsappRestrictionError,
+  SendWhatsappOptions,
+} from '@domain/shared/i-whatsapp';
 
 const FETCH_TIMEOUT_MS = 20_000;
 
-/**
- * Restrição temporária imposta pelo WhatsApp ao número (não é erro da API).
- * Ex.: erro 463 / `WHATSAPP_REACHOUT_TIMELOCK` — conta bloqueada para iniciar
- * novas conversas por volume/qualidade. Não adianta retentar antes de `until`;
- * o worker trata isso como não-retentável para não martelar um chip restrito.
- */
-export class WhatsappRestrictionError extends Error {
-  constructor(
-    message: string,
-    readonly providerCode: number,
-    readonly until: Date | null,
-  ) {
-    super(message);
-    this.name = 'WhatsappRestrictionError';
-  }
-}
-
 @Injectable()
-export class WhatsappAdapter {
+export class WhatsappAdapter implements WhatsappPort {
   private readonly baseUrl: string;
   private readonly typingEnabled: boolean;
   private readonly typingMin: number;
@@ -109,11 +98,7 @@ export class WhatsappAdapter {
     token: string,
     to: string,
     body: string,
-    opts?: {
-      startIndex?: number;
-      onPartSent?: (index: number) => void | Promise<void>;
-      trackId?: string;
-    },
+    opts?: SendWhatsappOptions,
   ): Promise<string | null> {
     const parts = this.splitParts(body);
     const start = opts?.startIndex ?? 0;
@@ -169,7 +154,7 @@ export class WhatsappAdapter {
     token: string,
     to: string,
     mediaUrl: string,
-    mediatype: 'image' | 'video' | 'audio' | 'document',
+    mediatype: WhatsappMediaType,
     mimetype: string,
     fileName: string,
     caption?: string,

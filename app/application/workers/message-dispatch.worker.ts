@@ -2,8 +2,8 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Job, UnrecoverableError, DelayedError } from 'bullmq';
-import { ResendAdapter } from '@api/adapters/resend.adapter';
-import { WhatsappAdapter, WhatsappRestrictionError } from '@api/adapters/whatsapp.adapter';
+import { EMAIL_PORT, EmailPort } from '@domain/shared/i-email';
+import { WHATSAPP_PORT, WhatsappPort, WhatsappRestrictionError } from '@domain/shared/i-whatsapp';
 import { QUEUE_MESSAGE_DISPATCH } from '@infra/queue/bull-queues.module';
 import { WhatsappPacingService } from '@application/outbox_module/whatsapp-pacing.service';
 import { IcsGeneratorService } from '@application/shared/ics-generator.service';
@@ -42,8 +42,8 @@ export class MessageDispatchWorker extends WorkerHost {
     @Inject(OUTBOX_REPOSITORY_PORT) private readonly outboxRepo: OutboxRepositoryPort,
     private readonly messageLogs: MessageLogsRepository,
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
-    private readonly resend: ResendAdapter,
-    private readonly whatsapp: WhatsappAdapter,
+    @Inject(EMAIL_PORT) private readonly resend: EmailPort,
+    @Inject(WHATSAPP_PORT) private readonly whatsapp: WhatsappPort,
     private readonly ics: IcsGeneratorService,
     private readonly pacing: WhatsappPacingService,
     config: ConfigService,

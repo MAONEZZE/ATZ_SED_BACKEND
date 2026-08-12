@@ -9,7 +9,7 @@ import { LoggingInterceptor } from '@api/config/interceptors/logging.interceptor
 import { validateEnv } from '@shared/config/env.validation';
 import { PrismaModule } from '@infra/prisma/prisma.module';
 import { RequestIdMiddleware } from '@api/config/middlewares/request-id.middleware';
-import { AuthModule } from '@api/adapters/modules/auth.module';
+import { AuthModule } from '@api/config/modules/auth.module';
 import { GuardsModule } from '@api/config/modules/guards.module';
 import { EventsModule } from '@api/config/modules/events.module';
 import { FormsModule } from '@api/config/modules/forms.module';
