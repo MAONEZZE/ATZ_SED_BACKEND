@@ -3,7 +3,10 @@ import {
   OUTBOX_REPOSITORY_PORT,
   OutboxRepositoryPort,
 } from '@domain/outbox_module/i-repository-outbox';
-import { MessageLogsRepository } from '@infra/repositories/message_log_module/message-logs.repository';
+import {
+  MESSAGE_LOG_REPOSITORY_PORT,
+  MessageLogRepositoryPort,
+} from '@domain/message_log_module/i-repository-message-log';
 
 export type WhatsappStatus =
   | 'Queued'
@@ -30,7 +33,8 @@ export interface StatusUpdateInput {
 export class DeliveryStatusService {
   constructor(
     @Inject(OUTBOX_REPOSITORY_PORT) private readonly outboxRepo: OutboxRepositoryPort,
-    private readonly messageLogs: MessageLogsRepository,
+    @Inject(MESSAGE_LOG_REPOSITORY_PORT)
+    private readonly messageLogs: MessageLogRepositoryPort,
   ) {}
 
   async applyStatusUpdate(input: StatusUpdateInput): Promise<void> {

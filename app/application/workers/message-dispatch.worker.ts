@@ -14,7 +14,10 @@ import {
   InviteConfigInput,
   OutboxAttachment,
 } from '@domain/outbox_module/i-repository-outbox';
-import { MessageLogsRepository } from '@infra/repositories/message_log_module/message-logs.repository';
+import {
+  MESSAGE_LOG_REPOSITORY_PORT,
+  MessageLogRepositoryPort,
+} from '@domain/message_log_module/i-repository-message-log';
 import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
@@ -40,7 +43,8 @@ export class MessageDispatchWorker extends WorkerHost {
 
   constructor(
     @Inject(OUTBOX_REPOSITORY_PORT) private readonly outboxRepo: OutboxRepositoryPort,
-    private readonly messageLogs: MessageLogsRepository,
+    @Inject(MESSAGE_LOG_REPOSITORY_PORT)
+    private readonly messageLogs: MessageLogRepositoryPort,
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
     @Inject(EMAIL_PORT) private readonly resend: EmailPort,
     @Inject(WHATSAPP_PORT) private readonly whatsapp: WhatsappPort,
@@ -111,10 +115,12 @@ export class MessageDispatchWorker extends WorkerHost {
           body = body.replace(ICS_MARKER_RECURRENT, '').replace(ICS_MARKER, '');
         }
 
-        const emailAttachments = ((outbox.attachments as OutboxAttachment[] | null) ?? []).map((a) => ({
-          filename: a.filename,
-          url: a.url,
-        }));
+        const emailAttachments = ((outbox.attachments as OutboxAttachment[] | null) ?? []).map(
+          (a) => ({
+            filename: a.filename,
+            url: a.url,
+          }),
+        );
 
         await this.resend.sendEmail(
           outbox.recipient,

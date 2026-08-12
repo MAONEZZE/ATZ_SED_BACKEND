@@ -1,6 +1,6 @@
 import { DeliveryStatusService } from '@application/outbox_module/delivery-status.service';
 import { OutboxRepositoryPort } from '@domain/outbox_module/i-repository-outbox';
-import { MessageLogsRepository } from '@infra/repositories/message_log_module/message-logs.repository';
+import { MessageLogRepositoryPort } from '@domain/message_log_module/i-repository-message-log';
 
 function makeRepos() {
   const outboxRepo = {
@@ -8,13 +8,17 @@ function makeRepos() {
     markReadIfUnset: jest.fn().mockResolvedValue(undefined),
     markFailedIfUndelivered: jest.fn().mockResolvedValue(undefined),
   } as unknown as jest.Mocked<
-    Pick<OutboxRepositoryPort, 'markDeliveredIfUnset' | 'markReadIfUnset' | 'markFailedIfUndelivered'>
+    Pick<
+      OutboxRepositoryPort,
+      'markDeliveredIfUnset' | 'markReadIfUnset' | 'markFailedIfUndelivered'
+    >
   >;
   const messageLogs = {
     markDeliveredIfUnset: jest.fn().mockResolvedValue(undefined),
     markReadIfUnset: jest.fn().mockResolvedValue(undefined),
     markFailedIfUndelivered: jest.fn().mockResolvedValue(undefined),
-  } as unknown as jest.Mocked<MessageLogsRepository>;
+    // Mock parcial: só os três métodos de transição de estado que este service usa.
+  } as unknown as jest.Mocked<MessageLogRepositoryPort>;
   return { outboxRepo, messageLogs };
 }
 
