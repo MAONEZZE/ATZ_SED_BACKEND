@@ -1,5 +1,30 @@
 import { AutomationsService } from '@application/automation_module/automations.service';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  AutomationRuleEntity,
+  AutomationTrigger,
+} from '@domain/automation_module/automation-rule.entity';
+
+// A porta devolve entidades, e o service pergunta isRecurring() a elas.
+function rule(overrides: {
+  id?: string;
+  trigger: AutomationTrigger;
+  active?: boolean;
+  cron?: string | null;
+  timezone?: string | null;
+}) {
+  return new AutomationRuleEntity(
+    overrides.id ?? 'rule-1',
+    'evt-1',
+    'tpl-1',
+    overrides.trigger,
+    null,
+    overrides.cron ?? null,
+    overrides.timezone ?? null,
+    overrides.active ?? true,
+    new Date('2026-01-01'),
+  );
+}
 
 function make() {
   const repo = {
@@ -25,7 +50,11 @@ describe('AutomationsService — recurring trigger', () => {
   it('rejects creating a recurring rule without cron', async () => {
     const { svc } = make();
     await expect(
-      svc.create('evt-1', { templateId: 'tpl-1', trigger: 'recurring', timezone: 'America/Sao_Paulo' }),
+      svc.create('evt-1', {
+        templateId: 'tpl-1',
+        trigger: 'recurring',
+        timezone: 'America/Sao_Paulo',
+      }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -70,7 +99,11 @@ describe('AutomationsService — recurring trigger', () => {
   it('still checks for active duplicates on non-recurring triggers', async () => {
     const { svc, repo } = make();
     await svc.create('evt-1', { templateId: 'tpl-1', trigger: 'on_registration' });
-    expect(repo.findActiveByEventAndTrigger).toHaveBeenCalledWith('evt-1', 'on_registration', undefined);
+    expect(repo.findActiveByEventAndTrigger).toHaveBeenCalledWith(
+      'evt-1',
+      'on_registration',
+      undefined,
+    );
   });
 
   it('rejects an active duplicate for a non-recurring trigger', async () => {
@@ -97,21 +130,33 @@ describe('AutomationsService — recurring trigger', () => {
   // repo.update (Prisma) always returns the full row, not just the patched
   // fields — mirror that here instead of the generic `make()` mock which
   // only spreads the patch.
-  function mockFullRowUpdate(repo: ReturnType<typeof make>['repo'], existing: Record<string, unknown>) {
+  // O repositório devolve a regra já atualizada; o service usa esse retorno para
+  // decidir o que fazer com o scheduler.
+  function mockFullRowUpdate(
+    repo: ReturnType<typeof make>['repo'],
+    existing: AutomationRuleEntity,
+  ) {
     repo.update.mockImplementation((id: string, data: Record<string, unknown>) =>
-      Promise.resolve({ ...existing, id, ...data }),
+      Promise.resolve(
+        rule({
+          id,
+          trigger: (data.trigger as AutomationTrigger) ?? existing.trigger,
+          active: (data.active as boolean) ?? existing.active,
+          cron: data.cron !== undefined ? (data.cron as string | null) : existing.cron,
+          timezone:
+            data.timezone !== undefined ? (data.timezone as string | null) : existing.timezone,
+        }),
+      ),
     );
   }
 
   it('update: removes the scheduler when deactivating a recurring rule', async () => {
     const { svc, repo, scheduler } = make();
-    const existing = {
-      id: 'rule-1',
+    const existing = rule({
       trigger: 'recurring',
-      active: true,
       cron: '0 9 * * 1',
       timezone: 'America/Sao_Paulo',
-    };
+    });
     repo.findByEvent.mockResolvedValue(existing);
     mockFullRowUpdate(repo, existing);
 
@@ -123,13 +168,11 @@ describe('AutomationsService — recurring trigger', () => {
 
   it('update: re-upserts the scheduler when changing the cron of an active recurring rule', async () => {
     const { svc, repo, scheduler } = make();
-    const existing = {
-      id: 'rule-1',
+    const existing = rule({
       trigger: 'recurring',
-      active: true,
       cron: '0 9 * * 1',
       timezone: 'America/Sao_Paulo',
-    };
+    });
     repo.findByEvent.mockResolvedValue(existing);
     mockFullRowUpdate(repo, existing);
 
@@ -144,13 +187,11 @@ describe('AutomationsService — recurring trigger', () => {
 
   it('update: removes the scheduler when trigger changes away from recurring', async () => {
     const { svc, repo, scheduler } = make();
-    const existing = {
-      id: 'rule-1',
+    const existing = rule({
       trigger: 'recurring',
-      active: true,
       cron: '0 9 * * 1',
       timezone: 'America/Sao_Paulo',
-    };
+    });
     repo.findByEvent.mockResolvedValue(existing);
     mockFullRowUpdate(repo, existing);
 
@@ -170,7 +211,7 @@ describe('AutomationsService — recurring trigger', () => {
 
   it('delete: removes the scheduler when deleting a recurring rule', async () => {
     const { svc, repo, scheduler } = make();
-    repo.findByEvent.mockResolvedValue({ id: 'rule-1', trigger: 'recurring' });
+    repo.findByEvent.mockResolvedValue(rule({ trigger: 'recurring' }));
 
     await svc.delete('evt-1', 'rule-1');
 
@@ -180,7 +221,7 @@ describe('AutomationsService — recurring trigger', () => {
 
   it('delete: does not touch the scheduler for a non-recurring rule', async () => {
     const { svc, repo, scheduler } = make();
-    repo.findByEvent.mockResolvedValue({ id: 'rule-1', trigger: 'on_registration' });
+    repo.findByEvent.mockResolvedValue(rule({ trigger: 'on_registration' }));
 
     await svc.delete('evt-1', 'rule-1');
 

@@ -1,6 +1,18 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { AutomationsRepository } from '@infra/repositories/automation_module/automations.repository';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
+import {
+  AutomationRuleEntity,
+  AutomationTrigger,
+} from '@domain/automation_module/automation-rule.entity';
+import {
+  AUTOMATION_REPOSITORY_PORT,
+  AutomationRepositoryPort,
+} from '@domain/automation_module/i-repository-automation';
 import { RecurringSchedulerService } from '@application/automation_module/recurring-scheduler.service';
 
 export interface CreateAutomationInput {
@@ -32,7 +44,8 @@ interface RecurringSyncable {
 @Injectable()
 export class AutomationsService {
   constructor(
-    private readonly repo: AutomationsRepository,
+    @Inject(AUTOMATION_REPOSITORY_PORT)
+    private readonly repo: AutomationRepositoryPort,
     private readonly scheduler: RecurringSchedulerService,
   ) {}
 
@@ -54,19 +67,19 @@ export class AutomationsService {
   async create(eventId: string, input: CreateAutomationInput) {
     await this.assertTemplateExists(input.templateId);
     this.assertRecurringScheduleValid(input.trigger, input.cron, input.timezone);
-    if (input.active !== false && input.trigger !== 'recurring') {
+    if (input.active !== false && !AutomationRuleEntity.allowsDuplicateActive(input.trigger)) {
       await this.assertNoActiveDuplicate(eventId, input.trigger);
     }
     const rule = await this.repo.create({
       eventId,
       templateId: input.templateId,
-      trigger: input.trigger as Prisma.AutomationRuleUncheckedCreateInput['trigger'],
+      trigger: input.trigger as AutomationTrigger,
       // delayMinutes nulo = disparo imediato. O front pode mandar 0 com a mesma
       // intenção; normalizamos 0 -> null para a regra não cair no buraco entre o
       // disparo imediato (engine) e o agendado (worker).
       delayMinutes: input.delayMinutes || null,
-      cron: input.trigger === 'recurring' ? (input.cron ?? null) : null,
-      timezone: input.trigger === 'recurring' ? (input.timezone ?? null) : null,
+      cron: AutomationRuleEntity.isRecurring(input.trigger) ? (input.cron ?? null) : null,
+      timezone: AutomationRuleEntity.isRecurring(input.trigger) ? (input.timezone ?? null) : null,
       active: input.active ?? true,
     });
     await this.syncRecurringScheduler(rule);
@@ -84,15 +97,17 @@ export class AutomationsService {
     const timezone = input.timezone !== undefined ? input.timezone : existing.timezone;
     this.assertRecurringScheduleValid(trigger, cron, timezone);
 
-    if (willBeActive && trigger !== 'recurring' && (input.trigger || input.active === true)) {
+    if (
+      willBeActive &&
+      !AutomationRuleEntity.allowsDuplicateActive(trigger) &&
+      (input.trigger || input.active === true)
+    ) {
       await this.assertNoActiveDuplicate(eventId, trigger, id);
     }
 
     const updated = await this.repo.update(id, {
       ...(input.templateId && { templateId: input.templateId }),
-      ...(input.trigger && {
-        trigger: input.trigger as Prisma.AutomationRuleUncheckedUpdateInput['trigger'],
-      }),
+      ...(input.trigger && { trigger: input.trigger as AutomationTrigger }),
       ...(input.delayMinutes !== undefined && { delayMinutes: input.delayMinutes || null }),
       ...(input.cron !== undefined && { cron: input.cron }),
       ...(input.timezone !== undefined && { timezone: input.timezone }),
@@ -106,7 +121,7 @@ export class AutomationsService {
     const existing = await this.repo.findByEvent(eventId, id);
     if (!existing) throw new NotFoundException('Automation rule not found');
     await this.repo.delete(id);
-    if (existing.trigger === 'recurring') {
+    if (existing.isRecurring()) {
       await this.scheduler.remove(id);
     }
   }
