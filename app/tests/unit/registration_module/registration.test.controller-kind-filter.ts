@@ -1,4 +1,4 @@
-import { RegistrationsController } from '@api/controllers/registration_module/registrations.controller';
+import { RegistrationController } from '@api/controllers/registration_module/registration.controller';
 
 function make() {
   const registrations = {
@@ -9,7 +9,7 @@ function make() {
     exportLabels: jest.fn().mockResolvedValue([]),
     validationFields: jest.fn().mockResolvedValue([]),
   };
-  const ctrl = new RegistrationsController(registrations as any, formFields as any);
+  const ctrl = new RegistrationController(registrations as any, formFields as any);
   return { ctrl, registrations, formFields };
 }
 
@@ -21,7 +21,7 @@ function fakeRes() {
   return res;
 }
 
-describe('RegistrationsController kind filter', () => {
+describe('RegistrationController kind filter', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('CSV export (format=csv) only reads dynamic registration-kind labels', async () => {

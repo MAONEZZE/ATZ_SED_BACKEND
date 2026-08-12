@@ -1,19 +1,19 @@
 import { NotFoundException } from '@nestjs/common';
-import { PublicEventsService } from '@application/event_module/public-events.service';
+import { PublicEventService } from '@application/event_module/public-event.service';
 
 function makeService(event: any) {
   const eventRepo = { findPublicBySlug: jest.fn().mockResolvedValue(event) };
   const forms = { findByEventAndKind: jest.fn().mockResolvedValue(null) };
   const formFields = { listPublicByEventAndKind: jest.fn().mockResolvedValue([]) };
   return {
-    service: new PublicEventsService(eventRepo as any, forms as any, formFields as any),
+    service: new PublicEventService(eventRepo as any, forms as any, formFields as any),
     eventRepo,
     forms,
     formFields,
   };
 }
 
-describe('PublicEventsService.getPublicEvent status gating', () => {
+describe('PublicEventService.getPublicEvent status gating', () => {
   it('returns a published event', async () => {
     const { service } = makeService({ id: 'e1', status: 'published' });
     await expect(service.getPublicEvent('slug')).resolves.toMatchObject({ status: 'published' });

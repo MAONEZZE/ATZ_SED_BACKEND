@@ -1,4 +1,4 @@
-import { RegistrationsService } from '@application/registration_module/registrations.service';
+import { RegistrationService } from '@application/registration_module/registration.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 function make(eventStatus = 'ended', reg: any = null) {
@@ -12,7 +12,7 @@ function make(eventStatus = 'ended', reg: any = null) {
   const emitter = { emit: jest.fn() };
   const userSubscriptions = { upsertFromForm: jest.fn().mockResolvedValue({}) };
   const pipedrive = { send: jest.fn() };
-  const svc = new RegistrationsService(
+  const svc = new RegistrationService(
     regRepo as any,
     eventsService as any,
     emitter as any,
@@ -25,7 +25,7 @@ function make(eventStatus = 'ended', reg: any = null) {
 
 const FIELDS = [{ label: 'Nota', required: true }];
 
-describe('RegistrationsService.submitNps', () => {
+describe('RegistrationService.submitNps', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('consolidates NPS answers and fires on_nps trigger', async () => {
@@ -67,11 +67,16 @@ describe('RegistrationsService.submitNps', () => {
       phone: '11999',
     });
     await svc.submitNps('slug-1', 'a@b.com', { Nota: '9' }, FIELDS);
-    expect(userSubscriptions.upsertFromForm).toHaveBeenCalledWith('evt-1', 'nps', { Nota: '9' }, {
-      name: 'João',
-      email: 'joao@b.com',
-      phone: '11999',
-    });
+    expect(userSubscriptions.upsertFromForm).toHaveBeenCalledWith(
+      'evt-1',
+      'nps',
+      { Nota: '9' },
+      {
+        name: 'João',
+        email: 'joao@b.com',
+        phone: '11999',
+      },
+    );
   });
 
   it('400 when a required field is missing', async () => {

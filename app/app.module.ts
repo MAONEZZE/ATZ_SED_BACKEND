@@ -11,20 +11,20 @@ import { PrismaModule } from '@infra/prisma/prisma.module';
 import { RequestIdMiddleware } from '@api/config/middlewares/request-id.middleware';
 import { AuthModule } from '@api/config/modules/auth.module';
 import { GuardsModule } from '@api/config/modules/guards.module';
-import { EventsModule } from '@api/config/modules/events.module';
-import { FormsModule } from '@api/config/modules/forms.module';
-import { FormFieldsModule } from '@api/config/modules/form-fields.module';
-import { CollaboratorsModule } from '@api/config/modules/collaborators.module';
-import { RegistrationsModule } from '@api/config/modules/registrations.module';
-import { UserSubscriptionsModule } from '@api/config/modules/user-subscriptions.module';
-import { PostEventResponsesModule } from '@api/config/modules/post-event-responses.module';
+import { EventModule } from '@api/config/modules/event.module';
+import { FormModule } from '@api/config/modules/form.module';
+import { FormFieldModule } from '@api/config/modules/form-field.module';
+import { CollaboratorModule } from '@api/config/modules/collaborator.module';
+import { RegistrationModule } from '@api/config/modules/registration.module';
+import { UserSubscriptionModule } from '@api/config/modules/user-subscription.module';
+import { PostEventResponseModule } from '@api/config/modules/post-event-response.module';
 import { WorkersModule } from '@api/config/modules/workers.module';
-import { AutomationsModule } from '@api/config/modules/automations.module';
+import { AutomationModule } from '@api/config/modules/automation.module';
 import { OutboxModule } from '@api/config/modules/outbox.module';
-import { MessageTemplatesModule } from '@api/config/modules/message-templates.module';
-import { MessageLogsModule } from '@api/config/modules/message-logs.module';
+import { MessageTemplateModule } from '@api/config/modules/message-template.module';
+import { MessageLogModule } from '@api/config/modules/message-log.module';
 import { ProfileModule } from '@api/config/modules/profile.module';
-import { WhatsappInstancesModule } from '@api/config/modules/whatsapp-instances.module';
+import { WhatsappInstanceModule } from '@api/config/modules/whatsapp-instance.module';
 
 @Module({
   imports: [
@@ -49,20 +49,20 @@ import { WhatsappInstancesModule } from '@api/config/modules/whatsapp-instances.
     PrismaModule,
     AuthModule,
     GuardsModule,
-    EventsModule,
-    FormsModule,
-    FormFieldsModule,
-    CollaboratorsModule,
-    RegistrationsModule,
-    UserSubscriptionsModule,
-    PostEventResponsesModule,
+    EventModule,
+    FormModule,
+    FormFieldModule,
+    CollaboratorModule,
+    RegistrationModule,
+    UserSubscriptionModule,
+    PostEventResponseModule,
     WorkersModule,
-    AutomationsModule,
+    AutomationModule,
     OutboxModule,
-    MessageTemplatesModule,
-    MessageLogsModule,
+    MessageTemplateModule,
+    MessageLogModule,
     ProfileModule,
-    WhatsappInstancesModule,
+    WhatsappInstanceModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

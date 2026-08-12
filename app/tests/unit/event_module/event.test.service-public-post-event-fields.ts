@@ -1,4 +1,4 @@
-import { PublicEventsService } from '@application/event_module/public-events.service';
+import { PublicEventService } from '@application/event_module/public-event.service';
 import { NotFoundException } from '@nestjs/common';
 
 function makeService(eventRow: any) {
@@ -6,13 +6,13 @@ function makeService(eventRow: any) {
   const forms = {};
   const formFields = { listPublicByEventAndKind: jest.fn().mockResolvedValue([]) };
   return {
-    service: new PublicEventsService(eventRepo as any, forms as any, formFields as any),
+    service: new PublicEventService(eventRepo as any, forms as any, formFields as any),
     eventRepo,
     formFields,
   };
 }
 
-describe('PublicEventsService.getPublicFormFields (post_event)', () => {
+describe('PublicEventService.getPublicFormFields (post_event)', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('returns post_event fields for a published event', async () => {

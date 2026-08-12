@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { EventsService } from '@application/event_module/events.service';
+import { EventService } from '@application/event_module/event.service';
 import { EventEntity } from '@domain/event_module/event.entity';
 
 const existing = new EventEntity(
@@ -25,11 +25,11 @@ function makeService() {
   };
   const storage = { upload: jest.fn(), delete: jest.fn(), getPublicUrl: jest.fn() };
   const config = { get: jest.fn().mockReturnValue(undefined) };
-  const service = new EventsService(eventRepo as any, storage, config as any);
+  const service = new EventService(eventRepo as any, storage, config as any);
   return { service, eventRepo, storage, config };
 }
 
-describe('EventsService endDate validation', () => {
+describe('EventService endDate validation', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('create rejects endDate before eventDate', async () => {
@@ -144,7 +144,10 @@ describe('EventsService endDate validation', () => {
     await service.uploadCover('evt-1', Buffer.from('x'), 'image/png', 'user-9');
     expect(eventRepo.update).toHaveBeenCalledWith(
       'evt-1',
-      expect.objectContaining({ coverUrl: 'https://storage/evt-1/cover', lastEditedById: 'user-9' }),
+      expect.objectContaining({
+        coverUrl: 'https://storage/evt-1/cover',
+        lastEditedById: 'user-9',
+      }),
     );
   });
 });

@@ -1,14 +1,14 @@
-import { TemplatesService } from '@application/message_template_module/templates.service';
+import { MessageTemplateService } from '@application/message_template_module/message-template.service';
 
 function make() {
   const repo = {
     findAllForOwnerPaginated: jest.fn().mockResolvedValue({ data: [], total: 0 }),
   };
-  const svc = new TemplatesService(repo as any);
+  const svc = new MessageTemplateService(repo as any);
   return { svc, repo };
 }
 
-describe('TemplatesService.list channel filter', () => {
+describe('MessageTemplateService.list channel filter', () => {
   it('includes channel in the where filter when provided', async () => {
     const { svc, repo } = make();
 

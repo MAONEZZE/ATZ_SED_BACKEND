@@ -1,4 +1,4 @@
-import { FormFieldsService } from '@application/form_field_module/form-fields.service';
+import { FormFieldService } from '@application/form_field_module/form-field.service';
 
 function makeService(
   existingField: Record<string, unknown> = {
@@ -23,14 +23,14 @@ function makeService(
     getOrCreate: jest.fn().mockResolvedValue({ id: 'form-1' }),
   };
   return {
-    service: new FormFieldsService(repo as any, eventsService as any, formsService as any),
+    service: new FormFieldService(repo as any, eventsService as any, formsService as any),
     repo,
     eventsService,
     formsService,
   };
 }
 
-describe('FormFieldsService.update — type change', () => {
+describe('FormFieldService.update — type change', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('persists the new type on PATCH', async () => {

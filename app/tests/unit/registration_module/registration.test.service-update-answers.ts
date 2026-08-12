@@ -1,4 +1,4 @@
-import { RegistrationsService } from '@application/registration_module/registrations.service';
+import { RegistrationService } from '@application/registration_module/registration.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 
 type FormFieldLike = { label: string; type: string; required: boolean; isFixed: boolean };
@@ -29,7 +29,7 @@ function makeService(regOverrides: Partial<{ id: string; eventId: string }> = {}
   const eventEmitter = { emit: jest.fn() };
   const userSubscriptions = { upsertFromForm: jest.fn().mockResolvedValue({}) };
   const pipedrive = { send: jest.fn() };
-  const service = new RegistrationsService(
+  const service = new RegistrationService(
     regRepo as any,
     eventsService as any,
     eventEmitter as any,
@@ -47,7 +47,7 @@ const allFields: FormFieldLike[] = [
   { label: 'Cidade', type: 'text', required: false, isFixed: false },
 ];
 
-describe('RegistrationsService.updateAnswers', () => {
+describe('RegistrationService.updateAnswers', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('throws NotFoundException when registration not found', async () => {
@@ -125,7 +125,9 @@ describe('RegistrationsService.updateAnswers', () => {
     const { service, regRepo } = makeService();
     const answers = { nome: 'João', 'e-mail': 'joao@test.com', telefone: '11999' };
 
-    await expect(service.updateAnswers('reg-1', 'evt-1', answers, allFields)).resolves.not.toThrow();
+    await expect(
+      service.updateAnswers('reg-1', 'evt-1', answers, allFields),
+    ).resolves.not.toThrow();
     expect(regRepo.updateAnswers).toHaveBeenCalledWith('reg-1', {
       answers,
       name: 'João',

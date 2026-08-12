@@ -1,7 +1,11 @@
-import { RegistrationsService } from '@application/registration_module/registrations.service';
+import { RegistrationService } from '@application/registration_module/registration.service';
 import { BadRequestException } from '@nestjs/common';
 
-function make(eventStatus = 'published', eventSendToPipedrive = false, requireImageAuthorization = false) {
+function make(
+  eventStatus = 'published',
+  eventSendToPipedrive = false,
+  requireImageAuthorization = false,
+) {
   const regRepo = {
     create: jest.fn().mockResolvedValue({ id: 'reg-1', eventId: 'evt-1' }),
   };
@@ -24,7 +28,7 @@ function make(eventStatus = 'published', eventSendToPipedrive = false, requireIm
   const formsService = {
     getOrCreate: jest.fn().mockResolvedValue({ id: 'form-1', requireImageAuthorization }),
   };
-  const svc = new RegistrationsService(
+  const svc = new RegistrationService(
     regRepo as any,
     eventsService as any,
     emitter as any,
@@ -35,7 +39,7 @@ function make(eventStatus = 'published', eventSendToPipedrive = false, requireIm
   return { svc, regRepo, emitter, userSubscriptions, pipedrive, formsService };
 }
 
-describe('RegistrationsService.createPublic', () => {
+describe('RegistrationService.createPublic', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('persists answers, emits on_registration and consolidates into user_subscriptions', async () => {

@@ -1,4 +1,4 @@
-import { AutomationsService } from '@application/automation_module/automations.service';
+import { AutomationService } from '@application/automation_module/automation.service';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import {
   AutomationRuleEntity,
@@ -40,11 +40,11 @@ function make() {
     remove: jest.fn().mockResolvedValue(undefined),
     syncAll: jest.fn().mockResolvedValue(undefined),
   };
-  const svc = new AutomationsService(repo as any, scheduler as any);
+  const svc = new AutomationService(repo as any, scheduler as any);
   return { svc, repo, scheduler };
 }
 
-describe('AutomationsService — recurring trigger', () => {
+describe('AutomationService — recurring trigger', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('rejects creating a recurring rule without cron', async () => {

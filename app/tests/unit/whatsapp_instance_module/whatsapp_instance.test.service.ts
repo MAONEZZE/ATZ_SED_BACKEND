@@ -1,4 +1,4 @@
-import { WhatsappInstancesService } from '@application/whatsapp_instance_module/whatsapp-instances.service';
+import { WhatsappInstanceService } from '@application/whatsapp_instance_module/whatsapp-instance.service';
 import { WhatsappInstanceEntity } from '@domain/whatsapp_instance_module/whatsapp-instance.entity';
 
 function makeService(
@@ -10,13 +10,13 @@ function makeService(
   const repo = { list: jest.fn().mockResolvedValue(instances) };
   const whatsapp = { getInstanceStatus };
   return {
-    service: new WhatsappInstancesService(repo as any, {} as any, whatsapp as any),
+    service: new WhatsappInstanceService(repo as any, {} as any, whatsapp as any),
     repo,
     whatsapp,
   };
 }
 
-describe('WhatsappInstancesService — list (active = conexão real via /instance/status)', () => {
+describe('WhatsappInstanceService — list (active = conexão real via /instance/status)', () => {
   it('active=true quando status "connected", sem vazar token', async () => {
     const getStatus = jest.fn().mockResolvedValue('connected');
     const { service } = makeService(
@@ -107,11 +107,11 @@ describe('WhatsappInstancesService — list (active = conexão real via /instanc
 
 // getToken passou a resolver a instância inteira (findById) em vez de um
 // findTokenById dedicado — a regra "token vazio não serve" vive em hasToken().
-describe('WhatsappInstancesService — getToken', () => {
+describe('WhatsappInstanceService — getToken', () => {
   function makeWithFindById(instance: WhatsappInstanceEntity | null) {
     const repo = { findById: jest.fn().mockResolvedValue(instance) };
     return {
-      service: new WhatsappInstancesService(repo as any, {} as any, {} as any),
+      service: new WhatsappInstanceService(repo as any, {} as any, {} as any),
       repo,
     };
   }

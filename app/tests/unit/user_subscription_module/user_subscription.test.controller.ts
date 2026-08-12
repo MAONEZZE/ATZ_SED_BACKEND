@@ -1,4 +1,4 @@
-import { UserSubscriptionsController } from '@api/controllers/user_subscription_module/user-subscriptions.controller';
+import { UserSubscriptionController } from '@api/controllers/user_subscription_module/user-subscription.controller';
 
 function make() {
   const service = {
@@ -6,7 +6,7 @@ function make() {
     findAllByEvent: jest.fn().mockResolvedValue([]),
   };
   const formFields = { exportLabels: jest.fn().mockResolvedValue([]) };
-  const ctrl = new UserSubscriptionsController(service as any, formFields as any);
+  const ctrl = new UserSubscriptionController(service as any, formFields as any);
   return { ctrl, service, formFields };
 }
 
@@ -18,7 +18,7 @@ function fakeRes() {
   return res;
 }
 
-describe('UserSubscriptionsController', () => {
+describe('UserSubscriptionController', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('returns the paginated shape and forwards search', async () => {

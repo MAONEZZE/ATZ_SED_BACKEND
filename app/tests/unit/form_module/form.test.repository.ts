@@ -29,7 +29,7 @@ describe('PrismaFormRepository', () => {
 
   // The port takes an all-optional UpdateFormData; absent keys must not reach
   // Prisma, or a partial PATCH would null out columns the caller never sent.
-  // This filtering used to live in FormsService and moved here with the port.
+  // This filtering used to live in FormService and moved here with the port.
   describe('update', () => {
     it('forwards only the keys present on the input', async () => {
       const { repo, update } = await makeRepo();

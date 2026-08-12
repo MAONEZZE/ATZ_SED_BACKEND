@@ -1,4 +1,4 @@
-import { RegistrationsService } from '@application/registration_module/registrations.service';
+import { RegistrationService } from '@application/registration_module/registration.service';
 
 function make(existingByContact: Record<string, unknown> | null = null) {
   const regRepo = {
@@ -9,7 +9,7 @@ function make(existingByContact: Record<string, unknown> | null = null) {
   const emitter = { emit: jest.fn() };
   const userSubscriptions = { upsertFromForm: jest.fn(), markPipedrive: jest.fn() };
   const pipedrive = { send: jest.fn() };
-  const svc = new RegistrationsService(
+  const svc = new RegistrationService(
     regRepo as any,
     eventsService as any,
     emitter as any,
@@ -20,7 +20,7 @@ function make(existingByContact: Record<string, unknown> | null = null) {
   return { svc, regRepo, emitter, userSubscriptions, pipedrive };
 }
 
-describe('RegistrationsService.importMany', () => {
+describe('RegistrationService.importMany', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('creates registrations for new contacts, normalizing phone to a common digit form', async () => {
@@ -76,8 +76,6 @@ describe('RegistrationsService.importMany', () => {
       email: 'fulano@x.com',
       phone: undefined,
     });
-    expect(regRepo.create).toHaveBeenCalledWith(
-      expect.objectContaining({ email: 'fulano@x.com' }),
-    );
+    expect(regRepo.create).toHaveBeenCalledWith(expect.objectContaining({ email: 'fulano@x.com' }));
   });
 });

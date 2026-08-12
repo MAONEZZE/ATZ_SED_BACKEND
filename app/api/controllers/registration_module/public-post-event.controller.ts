@@ -1,15 +1,15 @@
 import { Controller, Post, Param, Body, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { RegistrationsService } from '@application/registration_module/registrations.service';
-import { PublicEventsService } from '@application/event_module/public-events.service';
+import { RegistrationService } from '@application/registration_module/registration.service';
+import { PublicEventService } from '@application/event_module/public-event.service';
 import { SubmitPostEventDto } from '@api/dto/registration_module/submit-post-event.dto';
 
 @ApiTags('Public')
 @Controller('public/events')
 export class PublicPostEventController {
   constructor(
-    private readonly registrations: RegistrationsService,
-    private readonly publicEvents: PublicEventsService,
+    private readonly registrations: RegistrationService,
+    private readonly publicEvents: PublicEventService,
   ) {}
 
   @Post(':slug/post-event/responses')

@@ -1,17 +1,17 @@
-import { PublicEventsService } from '@application/event_module/public-events.service';
+import { PublicEventService } from '@application/event_module/public-event.service';
 
 function makeService(eventRow: any) {
   const eventRepo = { findStatusBySlug: jest.fn().mockResolvedValue(eventRow) };
   const forms = {};
   const formFields = { listPublicByEventAndKind: jest.fn().mockResolvedValue([]) };
   return {
-    service: new PublicEventsService(eventRepo as any, forms as any, formFields as any),
+    service: new PublicEventService(eventRepo as any, forms as any, formFields as any),
     eventRepo,
     formFields,
   };
 }
 
-describe('PublicEventsService.getPublicFormFields (registration)', () => {
+describe('PublicEventService.getPublicFormFields (registration)', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('only returns registration-kind fields', async () => {

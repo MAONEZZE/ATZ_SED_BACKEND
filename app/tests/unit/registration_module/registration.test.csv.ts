@@ -1,4 +1,4 @@
-import { buildRegistrationsCsv } from '@application/registration_module/registrations-csv';
+import { buildRegistrationsCsv } from '@application/registration_module/registration-csv';
 
 const reg = {
   name: 'João',
@@ -28,7 +28,7 @@ describe('buildRegistrationsCsv', () => {
     // Leading "'" neutralizes CSV-formula injection for cells starting with +/-/=/@
     // (Excel/Sheets hide the marker and render the value as plain text).
     expect(lines[1]).toBe(
-      "João,joao@test.com,'+5511999999999,pending,2026-06-01T12:00:00.000Z,sim,\"ACME, Ltda\"",
+      'João,joao@test.com,\'+5511999999999,pending,2026-06-01T12:00:00.000Z,sim,"ACME, Ltda"',
     );
   });
 
