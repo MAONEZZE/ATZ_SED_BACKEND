@@ -11,7 +11,10 @@ import { DateTime } from 'luxon';
 import { STORAGE_PORT, StoragePort } from '@domain/shared/i-storage';
 import { OutboxService } from '@application/outbox_module/outbox.service';
 import { TemplateRenderer } from '@application/shared/template-renderer.service';
-import { MessageTemplatesRepository } from '@infra/repositories/message_template_module/message-templates.repository';
+import {
+  MESSAGE_TEMPLATE_REPOSITORY_PORT,
+  MessageTemplateRepositoryPort,
+} from '@domain/message_template_module/i-repository-message-template';
 import {
   WHATSAPP_INSTANCE_REPOSITORY_PORT,
   WhatsappInstanceRepositoryPort,
@@ -82,7 +85,8 @@ export class ManualSendService {
     private readonly renderer: TemplateRenderer,
     private readonly config: ConfigService,
     @Inject(STORAGE_PORT) private readonly storage: StoragePort,
-    private readonly templates: MessageTemplatesRepository,
+    @Inject(MESSAGE_TEMPLATE_REPOSITORY_PORT)
+    private readonly templates: MessageTemplateRepositoryPort,
     @Inject(WHATSAPP_INSTANCE_REPOSITORY_PORT)
     private readonly whatsappInstances: WhatsappInstanceRepositoryPort,
     @Inject(COLLABORATOR_REPOSITORY_PORT)

@@ -26,9 +26,20 @@ describe('TemplatesService.list channel filter', () => {
 
     await svc.list('user-1', undefined, 1, 20);
 
+    expect(repo.findAllForOwnerPaginated).toHaveBeenCalledWith('user-1', {}, { skip: 0, take: 20 });
+  });
+
+  // A query string não tem como carregar null, então o frontend manda a literal
+  // 'null' para pedir só os templates globais. Traduzir isso é do service; a
+  // porta recebe o null de verdade, que ela distingue de "sem filtro".
+  it('translates the literal "null" eventId into an explicit null filter', async () => {
+    const { svc, repo } = make();
+
+    await svc.list('user-1', 'null', 1, 20);
+
     expect(repo.findAllForOwnerPaginated).toHaveBeenCalledWith(
       'user-1',
-      {},
+      { eventId: null },
       { skip: 0, take: 20 },
     );
   });

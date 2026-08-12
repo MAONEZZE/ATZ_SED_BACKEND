@@ -12,7 +12,10 @@ import {
   REGISTRATION_REPOSITORY_PORT,
   RegistrationRepositoryPort,
 } from '@domain/registration_module/i-repository-registration';
-import { MessageTemplatesRepository } from '@infra/repositories/message_template_module/message-templates.repository';
+import {
+  MESSAGE_TEMPLATE_REPOSITORY_PORT,
+  MessageTemplateRepositoryPort,
+} from '@domain/message_template_module/i-repository-message-template';
 
 @Injectable()
 export class EventLifecycleService {
@@ -25,7 +28,8 @@ export class EventLifecycleService {
     private readonly automations: AutomationsRepository,
     @Inject(REGISTRATION_REPOSITORY_PORT)
     private readonly registrations: RegistrationRepositoryPort,
-    private readonly templates: MessageTemplatesRepository,
+    @Inject(MESSAGE_TEMPLATE_REPOSITORY_PORT)
+    private readonly templates: MessageTemplateRepositoryPort,
   ) {}
 
   async cancel(

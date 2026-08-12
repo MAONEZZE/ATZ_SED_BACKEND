@@ -1,6 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { MessageTemplatesRepository } from '@infra/repositories/message_template_module/message-templates.repository';
+import { Inject, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { MessageChannel } from '@domain/shared/message-channel.type';
+import { MessageTemplateEntity } from '@domain/message_template_module/message-template.entity';
+import {
+  MESSAGE_TEMPLATE_REPOSITORY_PORT,
+  MessageTemplateFilter,
+  MessageTemplateRepositoryPort,
+} from '@domain/message_template_module/i-repository-message-template';
 
 export interface CreateTemplateInput {
   name: string;
@@ -24,32 +29,31 @@ export interface UpdateTemplateInput {
 
 @Injectable()
 export class TemplatesService {
-  constructor(private readonly repo: MessageTemplatesRepository) {}
+  constructor(
+    @Inject(MESSAGE_TEMPLATE_REPOSITORY_PORT)
+    private readonly repo: MessageTemplateRepositoryPort,
+  ) {}
 
   async create(userId: string, input: CreateTemplateInput) {
     if (input.eventId) await this.assertEventAccess(input.eventId, userId);
     return this.repo.create({
       ownerId: userId,
       name: input.name,
-      channel: input.channel as Prisma.MessageTemplateUncheckedCreateInput['channel'],
+      channel: input.channel as MessageChannel,
       subject: input.subject,
       body: input.body,
-      layoutConfig: this.toJson(input.layoutConfig),
+      layoutConfig: input.layoutConfig,
       styleKey: input.styleKey ?? null,
       eventId: input.eventId ?? null,
     });
   }
 
-  list(
-    userId: string,
-    eventId: string | undefined,
-    page: number,
-    limit: number,
-    channel?: string,
-  ) {
-    const filter: Prisma.MessageTemplateWhereInput = {
+  list(userId: string, eventId: string | undefined, page: number, limit: number, channel?: string) {
+    // A query string carrega a literal 'null' para pedir só os templates
+    // globais; o filtro da porta distingue isso de "sem filtro" (undefined).
+    const filter: MessageTemplateFilter = {
       ...(eventId === 'null' ? { eventId: null } : eventId ? { eventId } : {}),
-      ...(channel && { channel: channel as Prisma.MessageTemplateWhereInput['channel'] }),
+      ...(channel && { channel: channel as MessageChannel }),
     };
     return this.repo.findAllForOwnerPaginated(userId, filter, {
       skip: (page - 1) * limit,
@@ -67,20 +71,21 @@ export class TemplatesService {
     const existing = await this.findOne(userId, id);
     if (input.eventId) await this.assertEventAccess(input.eventId, userId);
 
-    const resolvedChannel = input.channel ?? existing.channel;
+    // O patch é parcial, então a regra vale sobre o resultado da mesclagem, não
+    // sobre o que veio no corpo: trocar só o canal para email sem assunto no
+    // template existente também é inválido.
+    const resolvedChannel = (input.channel ?? existing.channel) as MessageChannel;
     const resolvedSubject = input.subject !== undefined ? input.subject : existing.subject;
-    if (resolvedChannel === 'email' && !resolvedSubject?.trim()) {
+    if (MessageTemplateEntity.requiresSubject(resolvedChannel, resolvedSubject)) {
       throw new BadRequestException('subject é obrigatório para templates de email');
     }
 
     return this.repo.update(id, {
       ...(input.name !== undefined && { name: input.name }),
-      ...(input.channel !== undefined && {
-        channel: input.channel as Prisma.MessageTemplateUncheckedUpdateInput['channel'],
-      }),
+      ...(input.channel !== undefined && { channel: input.channel as MessageChannel }),
       ...(input.subject !== undefined && { subject: input.subject }),
       ...(input.body !== undefined && { body: input.body }),
-      ...(input.layoutConfig !== undefined && { layoutConfig: this.toJson(input.layoutConfig) }),
+      ...(input.layoutConfig !== undefined && { layoutConfig: input.layoutConfig }),
       ...(input.styleKey !== undefined && { styleKey: input.styleKey }),
       ...(input.eventId !== undefined && { eventId: input.eventId }),
     });
@@ -92,11 +97,7 @@ export class TemplatesService {
   }
 
   private async assertEventAccess(eventId: string, userId: string): Promise<void> {
-    const event = await this.repo.eventAccessible(eventId, userId);
-    if (!event) throw new NotFoundException('Event not found');
-  }
-
-  private toJson(config: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNull {
-    return config != null ? (config as Prisma.InputJsonValue) : Prisma.JsonNull;
+    const accessible = await this.repo.eventAccessible(eventId, userId);
+    if (!accessible) throw new NotFoundException('Event not found');
   }
 }
