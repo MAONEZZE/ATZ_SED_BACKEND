@@ -5,8 +5,7 @@ import {
 } from '@domain/event_module/i-repository-event';
 import { FormsRepository } from '@infra/repositories/form_module/forms.repository';
 import { FormFieldsRepository } from '@infra/repositories/form_field_module/form-fields.repository';
-
-export type PublicFormKind = 'registration' | 'post_event' | 'nps';
+import { FormKind } from '@domain/shared/form-kind.type';
 
 /**
  * Read-only queries backing the public (unauthenticated) event pages.
@@ -46,7 +45,7 @@ export class PublicEventsService {
    * Registration fields are visible only while `published`; post-event/NPS
    * fields (`allowEnded`) stay visible after the event has `ended`.
    */
-  async getPublicFormFields(slug: string, kind: PublicFormKind, allowEnded: boolean) {
+  async getPublicFormFields(slug: string, kind: FormKind, allowEnded: boolean) {
     const event = await this.eventRepo.findStatusBySlug(slug);
     const visible =
       !!event && (event.status === 'published' || (allowEnded && event.status === 'ended'));
@@ -56,7 +55,7 @@ export class PublicEventsService {
   }
 
   /** Fields used to validate a public registration/post-event/NPS submission. */
-  getSubmissionFields(slug: string, kind: PublicFormKind) {
+  getSubmissionFields(slug: string, kind: FormKind) {
     return this.formFields.listValidationFieldsBySlug(slug, kind);
   }
 }

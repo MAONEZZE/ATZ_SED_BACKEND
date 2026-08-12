@@ -6,9 +6,9 @@ import {
   UserSubscriptionRepositoryPort,
   UserSubscriptionRow,
   UpsertContact,
-  FormKind,
   PipedriveStatus,
 } from '@domain/user_subscription_module/i-repository-user-subscription';
+import { FormKind } from '@domain/shared/form-kind.type';
 
 const ANSWERS_COLUMN: Record<FormKind, 'registrationAnswers' | 'postEventAnswers' | 'npsAnswers'> = {
   registration: 'registrationAnswers',

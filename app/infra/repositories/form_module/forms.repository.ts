@@ -1,16 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-repository.base';
-import { FormFieldKind } from '@infra/repositories/form_field_module/form-fields.repository';
+import { FormKind } from '@domain/shared/form-kind.type';
 import { EventDuplicationForm } from '@domain/event_module/i-repository-event';
 
 @Injectable()
 export class FormsRepository extends PrismaRepositoryBase {
-  findByEventAndKind(eventId: string, kind: FormFieldKind) {
+  findByEventAndKind(eventId: string, kind: FormKind) {
     return this.prisma.form.findUnique({ where: { eventId_kind: { eventId, kind } } });
   }
 
-  create(eventId: string, kind: FormFieldKind) {
+  create(eventId: string, kind: FormKind) {
     return this.prisma.form.create({ data: { eventId, kind } });
   }
 
@@ -22,7 +22,7 @@ export class FormsRepository extends PrismaRepositoryBase {
     return this.prisma.form.create({
       data: {
         eventId,
-        kind: form.kind as FormFieldKind,
+        kind: form.kind as FormKind,
         description: form.description,
         postRegistrationMessage: form.postRegistrationMessage,
         linkPostSubscription: form.linkPostSubscription,

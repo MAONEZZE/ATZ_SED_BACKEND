@@ -4,9 +4,7 @@ import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { FormsService } from '@application/form_module/forms.service';
 import { UpdateFormDto } from '@api/dto/form_module/form.dto';
-import { FormFieldKind } from '@infra/repositories/form_field_module/form-fields.repository';
-
-const FORM_KINDS = ['registration', 'post_event', 'nps'] as const;
+import { FORM_KINDS, FormKind } from '@domain/shared/form-kind.type';
 
 @ApiTags('Forms')
 @ApiBearerAuth()
@@ -22,7 +20,7 @@ export class FormsController {
   @ApiResponse({ status: 200, description: 'Metadados do formulário' })
   get(
     @Param('eventId') eventId: string,
-    @Param('kind', new ParseEnumPipe(FORM_KINDS)) kind: FormFieldKind,
+    @Param('kind', new ParseEnumPipe(FORM_KINDS)) kind: FormKind,
   ) {
     return this.forms.getOrCreate(eventId, kind);
   }
@@ -34,7 +32,7 @@ export class FormsController {
   @ApiResponse({ status: 200, description: 'Metadados atualizados' })
   update(
     @Param('eventId') eventId: string,
-    @Param('kind', new ParseEnumPipe(FORM_KINDS)) kind: FormFieldKind,
+    @Param('kind', new ParseEnumPipe(FORM_KINDS)) kind: FormKind,
     @Body() dto: UpdateFormDto,
   ) {
     return this.forms.update(eventId, kind, dto);

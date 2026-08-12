@@ -3,9 +3,9 @@ import {
   USER_SUBSCRIPTION_REPOSITORY_PORT,
   UserSubscriptionRepositoryPort,
   UserSubscriptionRow,
-  FormKind,
   PipedriveStatus,
 } from '@domain/user_subscription_module/i-repository-user-subscription';
+import { FormKind } from '@domain/shared/form-kind.type';
 import { resolveAnswerByKeys } from '@domain/shared/answer-validation';
 
 @Injectable()

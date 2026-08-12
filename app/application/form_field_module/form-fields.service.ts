@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { FormFieldsRepository, FormFieldKind } from '@infra/repositories/form_field_module/form-fields.repository';
+import { FormFieldsRepository } from '@infra/repositories/form_field_module/form-fields.repository';
+import { FormKind } from '@domain/shared/form-kind.type';
 import { FormsService } from '@application/form_module/forms.service';
 import { EventsService } from '@application/event_module/events.service';
 
@@ -10,7 +11,7 @@ export interface CreateFormFieldInput {
   required?: boolean;
   options?: unknown;
   order?: number;
-  kind?: FormFieldKind;
+  kind?: FormKind;
 }
 
 export interface UpdateFormFieldInput {
@@ -31,7 +32,7 @@ export class FormFieldsService {
     private readonly formsService: FormsService,
   ) {}
 
-  listPaginated(eventId: string, kind: FormFieldKind | undefined, page: number, limit: number) {
+  listPaginated(eventId: string, kind: FormKind | undefined, page: number, limit: number) {
     return this.repo.findAllByEventPaginated(eventId, kind, {
       skip: (page - 1) * limit,
       take: limit,
@@ -39,12 +40,12 @@ export class FormFieldsService {
   }
 
   /** Ordered labels for CSV export headers (optionally only dynamic fields). */
-  exportLabels(eventId: string, kind: FormFieldKind, onlyDynamic = false) {
+  exportLabels(eventId: string, kind: FormKind, onlyDynamic = false) {
     return this.repo.listLabels(eventId, kind, onlyDynamic);
   }
 
   /** Field metadata for validating submitted answers. */
-  validationFields(eventId: string, kind: FormFieldKind) {
+  validationFields(eventId: string, kind: FormKind) {
     return this.repo.listValidationFields(eventId, kind);
   }
 

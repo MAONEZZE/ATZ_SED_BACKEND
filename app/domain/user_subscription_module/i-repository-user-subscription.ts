@@ -1,6 +1,6 @@
-export const USER_SUBSCRIPTION_REPOSITORY_PORT = Symbol('USER_SUBSCRIPTION_REPOSITORY_PORT');
+import { FormKind } from '@domain/shared/form-kind.type';
 
-export type FormKind = 'registration' | 'post_event' | 'nps';
+export const USER_SUBSCRIPTION_REPOSITORY_PORT = Symbol('USER_SUBSCRIPTION_REPOSITORY_PORT');
 
 export type PipedriveStatus = 'pending' | 'sent' | 'failed' | 'skipped';
 

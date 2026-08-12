@@ -1,14 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-repository.base';
-
-export type FormFieldKind = 'registration' | 'post_event' | 'nps';
+import { FormKind } from '@domain/shared/form-kind.type';
 
 @Injectable()
 export class FormFieldsRepository extends PrismaRepositoryBase {
   async findAllByEventPaginated(
     eventId: string,
-    kind: FormFieldKind | undefined,
+    kind: FormKind | undefined,
     pagination: { skip: number; take: number },
   ): Promise<{ data: object[]; total: number }> {
     const where = { form: { eventId, ...(kind ? { kind } : {}) } };
@@ -29,7 +28,7 @@ export class FormFieldsRepository extends PrismaRepositoryBase {
   }
 
   /** Ordered labels of a kind, optionally only the dynamic (non-fixed) ones — used for CSV headers. */
-  listLabels(eventId: string, kind: FormFieldKind, onlyDynamic = false) {
+  listLabels(eventId: string, kind: FormKind, onlyDynamic = false) {
     return this.prisma.formField.findMany({
       where: { form: { eventId, kind }, ...(onlyDynamic ? { isFixed: false } : {}) },
       orderBy: { order: 'asc' },
@@ -38,7 +37,7 @@ export class FormFieldsRepository extends PrismaRepositoryBase {
   }
 
   /** Field metadata used to validate submitted answers. */
-  listValidationFields(eventId: string, kind: FormFieldKind) {
+  listValidationFields(eventId: string, kind: FormKind) {
     return this.prisma.formField.findMany({
       where: { form: { eventId, kind } },
       select: { label: true, type: true, required: true, isFixed: true, options: true },
@@ -63,7 +62,7 @@ export class FormFieldsRepository extends PrismaRepositoryBase {
   }
 
   /** Public (unauthenticated) field list for a form kind, ordered for rendering. */
-  listPublicByEventAndKind(eventId: string, kind: FormFieldKind) {
+  listPublicByEventAndKind(eventId: string, kind: FormKind) {
     return this.prisma.formField.findMany({
       where: { form: { eventId, kind } },
       orderBy: { order: 'asc' },
@@ -72,7 +71,7 @@ export class FormFieldsRepository extends PrismaRepositoryBase {
   }
 
   /** Field metadata used to validate a public submission, resolved directly by event slug. */
-  listValidationFieldsBySlug(slug: string, kind: FormFieldKind) {
+  listValidationFieldsBySlug(slug: string, kind: FormKind) {
     return this.prisma.formField.findMany({
       where: { form: { event: { slug }, kind } },
       select: { label: true, type: true, required: true, options: true },
