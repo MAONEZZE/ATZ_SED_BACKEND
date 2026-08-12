@@ -1,9 +1,10 @@
 import { Global, Module } from '@nestjs/common';
-import { ProfileRepository } from './profile.repository';
+import { PROFILE_REPOSITORY_PORT } from '@domain/profile_module/i-repository-profile';
+import { PrismaProfileRepository } from './prisma-profile.repository';
 
 @Global()
 @Module({
-  providers: [ProfileRepository],
-  exports: [ProfileRepository],
+  providers: [{ provide: PROFILE_REPOSITORY_PORT, useClass: PrismaProfileRepository }],
+  exports: [PROFILE_REPOSITORY_PORT],
 })
 export class ProfileDbModule {}

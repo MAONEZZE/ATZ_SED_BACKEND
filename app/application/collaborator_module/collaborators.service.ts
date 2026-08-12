@@ -7,7 +7,10 @@ import {
   COLLABORATOR_REPOSITORY_PORT,
   CollaboratorRepositoryPort,
 } from '@domain/collaborator_module/i-repository-collaborator';
-import { ProfileRepository } from '@infra/repositories/profile_module/profile.repository';
+import {
+  PROFILE_REPOSITORY_PORT,
+  ProfileRepositoryPort,
+} from '@domain/profile_module/i-repository-profile';
 
 @Injectable()
 export class CollaboratorsService {
@@ -15,7 +18,8 @@ export class CollaboratorsService {
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
     @Inject(COLLABORATOR_REPOSITORY_PORT)
     private readonly collaborators: CollaboratorRepositoryPort,
-    private readonly profiles: ProfileRepository,
+    @Inject(PROFILE_REPOSITORY_PORT)
+    private readonly profiles: ProfileRepositoryPort,
   ) {}
 
   list(eventId: string) {
