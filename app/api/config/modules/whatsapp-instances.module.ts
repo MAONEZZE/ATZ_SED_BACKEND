@@ -6,7 +6,7 @@ import { WhatsappInstancesService } from '@application/whatsapp_instance_module/
 import { WhatsappInstancesRepository } from '@infra/repositories/whatsapp_instance_module/whatsapp-instances.repository';
 import { GuardsModule } from '@api/config/modules/guards.module';
 import { AdaptersModule } from '@api/adapters/modules/adapters.module';
-import { OutboxModule } from '@domain/outbox_module/outbox.module';
+import { OutboxModule } from '@api/config/modules/outbox.module';
 
 @Global()
 @Module({

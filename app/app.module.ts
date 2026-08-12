@@ -11,20 +11,20 @@ import { PrismaModule } from '@infra/prisma/prisma.module';
 import { RequestIdMiddleware } from '@api/config/middlewares/request-id.middleware';
 import { AuthModule } from '@api/adapters/modules/auth.module';
 import { GuardsModule } from '@api/config/modules/guards.module';
-import { EventsModule } from '@domain/event_module/events.module';
-import { FormsModule } from '@domain/form_module/forms.module';
-import { FormFieldsModule } from '@domain/form_field_module/form-fields.module';
-import { CollaboratorsModule } from '@domain/collaborator_module/collaborators.module';
-import { RegistrationsModule } from '@domain/registration_module/registrations.module';
-import { UserSubscriptionsModule } from '@domain/user_subscription_module/user-subscriptions.module';
-import { PostEventResponsesModule } from '@domain/post_event_response_module/post-event-responses.module';
-import { WorkersModule } from '@application/workers/workers.module';
-import { AutomationsModule } from '@domain/automation_module/automations.module';
-import { OutboxModule } from '@domain/outbox_module/outbox.module';
-import { MessageTemplatesModule } from '@domain/message_template_module/message-templates.module';
-import { MessageLogsModule } from '@domain/message_log_module/message-logs.module';
-import { ProfileModule } from '@domain/profile_module/profile.module';
-import { WhatsappInstancesModule } from '@domain/whatsapp_instance_module/whatsapp-instances.module';
+import { EventsModule } from '@api/config/modules/events.module';
+import { FormsModule } from '@api/config/modules/forms.module';
+import { FormFieldsModule } from '@api/config/modules/form-fields.module';
+import { CollaboratorsModule } from '@api/config/modules/collaborators.module';
+import { RegistrationsModule } from '@api/config/modules/registrations.module';
+import { UserSubscriptionsModule } from '@api/config/modules/user-subscriptions.module';
+import { PostEventResponsesModule } from '@api/config/modules/post-event-responses.module';
+import { WorkersModule } from '@api/config/modules/workers.module';
+import { AutomationsModule } from '@api/config/modules/automations.module';
+import { OutboxModule } from '@api/config/modules/outbox.module';
+import { MessageTemplatesModule } from '@api/config/modules/message-templates.module';
+import { MessageLogsModule } from '@api/config/modules/message-logs.module';
+import { ProfileModule } from '@api/config/modules/profile.module';
+import { WhatsappInstancesModule } from '@api/config/modules/whatsapp-instances.module';
 
 @Module({
   imports: [

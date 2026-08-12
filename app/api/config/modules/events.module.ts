@@ -7,7 +7,7 @@ import { PublicEventsService } from '@application/event_module/public-events.ser
 import { EventsDbModule } from '@infra/repositories/event_module/events-db.module';
 import { StorageModule } from '@api/adapters/modules/storage.module';
 import { GuardsModule } from '@api/config/modules/guards.module';
-import { OutboxModule } from '@domain/outbox_module/outbox.module';
+import { OutboxModule } from '@api/config/modules/outbox.module';
 import { AutomationsDbModule } from '@infra/repositories/automation_module/automations-db.module';
 import { RegistrationsDbModule } from '@infra/repositories/registration_module/registrations-db.module';
 import { MessageTemplatesDbModule } from '@infra/repositories/message_template_module/message-templates-db.module';

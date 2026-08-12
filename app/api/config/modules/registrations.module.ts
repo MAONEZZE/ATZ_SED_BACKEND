@@ -7,10 +7,10 @@ import { RegistrationsService } from '@application/registration_module/registrat
 import { RegistrationsDbModule } from '@infra/repositories/registration_module/registrations-db.module';
 import { AdaptersModule } from '@api/adapters/modules/adapters.module';
 import { GuardsModule } from '@api/config/modules/guards.module';
-import { EventsModule } from '@domain/event_module/events.module';
-import { FormsModule } from '@domain/form_module/forms.module';
-import { FormFieldsModule } from '@domain/form_field_module/form-fields.module';
-import { UserSubscriptionsModule } from '@domain/user_subscription_module/user-subscriptions.module';
+import { EventsModule } from '@api/config/modules/events.module';
+import { FormsModule } from '@api/config/modules/forms.module';
+import { FormFieldsModule } from '@api/config/modules/form-fields.module';
+import { UserSubscriptionsModule } from '@api/config/modules/user-subscriptions.module';
 
 @Module({
   imports: [

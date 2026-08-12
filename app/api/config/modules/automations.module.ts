@@ -6,7 +6,7 @@ import { RecurringSchedulerService } from '@application/automation_module/recurr
 import { RecurringAutomationsWorker } from '@application/workers/recurring-automations.worker';
 import { BullQueuesModule } from '@infra/queue/bull-queues.module';
 import { AutomationsDbModule } from '@infra/repositories/automation_module/automations-db.module';
-import { OutboxModule } from '@domain/outbox_module/outbox.module';
+import { OutboxModule } from '@api/config/modules/outbox.module';
 import { AutomationsController } from '@api/controllers/automation_module/automations.controller';
 import { GlobalAutomationsController } from '@api/controllers/automation_module/global-automations.controller';
 import { GuardsModule } from '@api/config/modules/guards.module';
