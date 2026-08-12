@@ -1,17 +1,14 @@
-import { Injectable } from '@nestjs/common';
-import { FormsRepository } from '@infra/repositories/form_module/forms.repository';
+import { Inject, Injectable } from '@nestjs/common';
 import { FormKind } from '@domain/shared/form-kind.type';
-
-export interface UpdateFormInput {
-  description?: string;
-  postRegistrationMessage?: string;
-  linkPostSubscription?: string;
-  requireImageAuthorization?: boolean;
-}
+import {
+  FORM_REPOSITORY_PORT,
+  FormRepositoryPort,
+  UpdateFormData,
+} from '@domain/form_module/i-repository-form';
 
 @Injectable()
 export class FormsService {
-  constructor(private readonly repo: FormsRepository) {}
+  constructor(@Inject(FORM_REPOSITORY_PORT) private readonly repo: FormRepositoryPort) {}
 
   /** Metadata for (eventId, kind); creates an empty row on first access (every form scope is lazily materialized). */
   async getOrCreate(eventId: string, kind: FormKind) {
@@ -20,19 +17,8 @@ export class FormsService {
     return this.repo.create(eventId, kind);
   }
 
-  async update(eventId: string, kind: FormKind, input: UpdateFormInput) {
+  async update(eventId: string, kind: FormKind, input: UpdateFormData) {
     const form = await this.getOrCreate(eventId, kind);
-    return this.repo.update(form.id, {
-      ...(input.description !== undefined && { description: input.description }),
-      ...(input.postRegistrationMessage !== undefined && {
-        postRegistrationMessage: input.postRegistrationMessage,
-      }),
-      ...(input.linkPostSubscription !== undefined && {
-        linkPostSubscription: input.linkPostSubscription,
-      }),
-      ...(input.requireImageAuthorization !== undefined && {
-        requireImageAuthorization: input.requireImageAuthorization,
-      }),
-    });
+    return this.repo.update(form.id, input);
   }
 }

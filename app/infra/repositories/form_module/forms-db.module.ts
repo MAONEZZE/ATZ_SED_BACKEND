@@ -1,9 +1,10 @@
 import { Global, Module } from '@nestjs/common';
-import { FormsRepository } from './forms.repository';
+import { FORM_REPOSITORY_PORT } from '@domain/form_module/i-repository-form';
+import { PrismaFormRepository } from './prisma-form.repository';
 
 @Global()
 @Module({
-  providers: [FormsRepository],
-  exports: [FormsRepository],
+  providers: [{ provide: FORM_REPOSITORY_PORT, useClass: PrismaFormRepository }],
+  exports: [FORM_REPOSITORY_PORT],
 })
 export class FormsDbModule {}

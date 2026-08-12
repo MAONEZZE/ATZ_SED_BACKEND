@@ -6,7 +6,7 @@ import {
 } from '@domain/event_module/i-repository-event';
 import { EventEntity } from '@domain/event_module/event.entity';
 import { OutboxService } from '@application/outbox_module/outbox.service';
-import { FormsRepository } from '@infra/repositories/form_module/forms.repository';
+import { FORM_REPOSITORY_PORT, FormRepositoryPort } from '@domain/form_module/i-repository-form';
 import { AutomationsRepository } from '@infra/repositories/automation_module/automations.repository';
 import {
   REGISTRATION_REPOSITORY_PORT,
@@ -21,7 +21,7 @@ export class EventLifecycleService {
   constructor(
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
     private readonly outbox: OutboxService,
-    private readonly forms: FormsRepository,
+    @Inject(FORM_REPOSITORY_PORT) private readonly forms: FormRepositoryPort,
     private readonly automations: AutomationsRepository,
     @Inject(REGISTRATION_REPOSITORY_PORT)
     private readonly registrations: RegistrationRepositoryPort,

@@ -3,7 +3,7 @@ import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
 } from '@domain/event_module/i-repository-event';
-import { FormsRepository } from '@infra/repositories/form_module/forms.repository';
+import { FORM_REPOSITORY_PORT, FormRepositoryPort } from '@domain/form_module/i-repository-form';
 import { FormFieldsRepository } from '@infra/repositories/form_field_module/form-fields.repository';
 import { FormKind } from '@domain/shared/form-kind.type';
 
@@ -16,7 +16,7 @@ import { FormKind } from '@domain/shared/form-kind.type';
 export class PublicEventsService {
   constructor(
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
-    private readonly forms: FormsRepository,
+    @Inject(FORM_REPOSITORY_PORT) private readonly forms: FormRepositoryPort,
     private readonly formFields: FormFieldsRepository,
   ) {}
 
