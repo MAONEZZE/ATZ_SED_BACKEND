@@ -1,6 +1,13 @@
 import { FormFieldsService } from '@application/form_field_module/form-fields.service';
 
-function makeService(existingField: Record<string, unknown> = { id: 'f1', label: 'Campo', type: 'text', options: null }) {
+function makeService(
+  existingField: Record<string, unknown> = {
+    id: 'f1',
+    label: 'Campo',
+    type: 'text',
+    options: null,
+  },
+) {
   const repo = {
     create: jest.fn().mockResolvedValue({ id: 'f1' }),
     update: jest.fn().mockResolvedValue({ id: 'f1' }),
@@ -38,8 +45,14 @@ describe('FormFieldsService.update — type change', () => {
   it('does not require type in the payload (backward compatible)', async () => {
     const { service, repo } = makeService();
     await service.update('evt-1', 'f1', 'user-1', { label: 'Novo label' });
-    expect(repo.update).toHaveBeenCalledWith('f1', expect.objectContaining({ label: 'Novo label' }));
-    expect(repo.update).toHaveBeenCalledWith('f1', expect.not.objectContaining({ type: expect.anything() }));
+    expect(repo.update).toHaveBeenCalledWith(
+      'f1',
+      expect.objectContaining({ label: 'Novo label' }),
+    );
+    expect(repo.update).toHaveBeenCalledWith(
+      'f1',
+      expect.not.objectContaining({ type: expect.anything() }),
+    );
   });
 
   it('logs a warning but does not throw when changing to select/multiselect without usable options', async () => {
@@ -59,7 +72,9 @@ describe('FormFieldsService.update — type change', () => {
 
     await service.update('evt-1', 'f1', 'user-1', { type: 'date' });
 
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('changed type from "text" to "date"'));
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('changed type from "text" to "date"'),
+    );
   });
 
   it('does not warn when type is unchanged', async () => {

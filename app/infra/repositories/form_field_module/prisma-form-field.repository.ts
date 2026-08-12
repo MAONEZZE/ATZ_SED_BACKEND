@@ -1,0 +1,147 @@
+import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-repository.base';
+import { FormKind } from '@domain/shared/form-kind.type';
+import { FieldType, FormFieldEntity } from '@domain/form_field_module/form-field.entity';
+import {
+  CreateFormFieldData,
+  FormFieldLabel,
+  FormFieldRepositoryPort,
+  FormFieldValidationRule,
+  PublicFormField,
+  PublicFormFieldValidationRule,
+  UpdateFormFieldData,
+} from '@domain/form_field_module/i-repository-form-field';
+
+type FormFieldRow = {
+  id: string;
+  formId: string;
+  label: string;
+  type: string;
+  required: boolean;
+  options: Prisma.JsonValue;
+  order: number;
+  isFixed: boolean;
+  createdAt: Date;
+};
+
+@Injectable()
+export class PrismaFormFieldRepository
+  extends PrismaRepositoryBase
+  implements FormFieldRepositoryPort
+{
+  private toEntity(row: FormFieldRow): FormFieldEntity {
+    return new FormFieldEntity(
+      row.id,
+      row.formId,
+      row.label,
+      row.type as FieldType,
+      row.required,
+      row.options,
+      row.order,
+      row.isFixed,
+      row.createdAt,
+    );
+  }
+
+  /** `undefined`/`null` gravam JSON null: um campo sem opções é o caso normal. */
+  private toJson(options: unknown) {
+    return options != null ? (options as Prisma.InputJsonValue) : Prisma.JsonNull;
+  }
+
+  async findAllByEventPaginated(
+    eventId: string,
+    kind: FormKind | undefined,
+    pagination: { skip: number; take: number },
+  ): Promise<{ data: FormFieldEntity[]; total: number }> {
+    const where = { form: { eventId, ...(kind ? { kind } : {}) } };
+    const [rows, total] = await Promise.all([
+      this.prisma.formField.findMany({
+        where,
+        orderBy: { order: 'asc' },
+        skip: pagination.skip,
+        take: pagination.take,
+      }),
+      this.prisma.formField.count({ where }),
+    ]);
+    return { data: rows.map((row) => this.toEntity(row)), total };
+  }
+
+  async findByEvent(eventId: string, id: string): Promise<FormFieldEntity | null> {
+    const row = await this.prisma.formField.findFirst({ where: { id, form: { eventId } } });
+    return row ? this.toEntity(row) : null;
+  }
+
+  /** Ordered labels of a kind, optionally only the dynamic (non-fixed) ones — used for CSV headers. */
+  listLabels(eventId: string, kind: FormKind, onlyDynamic = false): Promise<FormFieldLabel[]> {
+    return this.prisma.formField.findMany({
+      where: { form: { eventId, kind }, ...(onlyDynamic ? { isFixed: false } : {}) },
+      orderBy: { order: 'asc' },
+      select: { label: true },
+    });
+  }
+
+  /** Field metadata used to validate submitted answers. */
+  listValidationFields(eventId: string, kind: FormKind): Promise<FormFieldValidationRule[]> {
+    return this.prisma.formField.findMany({
+      where: { form: { eventId, kind } },
+      select: { label: true, type: true, required: true, isFixed: true, options: true },
+    });
+  }
+
+  async create(data: CreateFormFieldData): Promise<FormFieldEntity> {
+    const row = await this.prisma.formField.create({
+      data: {
+        formId: data.formId,
+        label: data.label,
+        type: data.type,
+        required: data.required,
+        options: this.toJson(data.options),
+        order: data.order,
+        isFixed: data.isFixed,
+      },
+    });
+    return this.toEntity(row);
+  }
+
+  async update(id: string, data: UpdateFormFieldData): Promise<FormFieldEntity> {
+    const payload: Prisma.FormFieldUncheckedUpdateInput = {
+      ...(data.label !== undefined && { label: data.label }),
+      ...(data.type !== undefined && { type: data.type }),
+      ...(data.required !== undefined && { required: data.required }),
+      ...(data.options !== undefined && { options: this.toJson(data.options) }),
+      ...(data.order !== undefined && { order: data.order }),
+    };
+    const row = await this.prisma.formField.update({ where: { id }, data: payload });
+    return this.toEntity(row);
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.prisma.formField.delete({ where: { id } });
+  }
+
+  /** Stamps the last editor on the parent event (event + its form scope). */
+  async touchEvent(eventId: string, userId: string): Promise<void> {
+    await this.prisma.event.update({ where: { id: eventId }, data: { lastEditedById: userId } });
+  }
+
+  /** Public (unauthenticated) field list for a form kind, ordered for rendering. */
+  listPublicByEventAndKind(eventId: string, kind: FormKind): Promise<PublicFormField[]> {
+    return this.prisma.formField.findMany({
+      where: { form: { eventId, kind } },
+      orderBy: { order: 'asc' },
+      select: { id: true, label: true, type: true, required: true, options: true, order: true },
+    });
+  }
+
+  /** Field metadata used to validate a public submission, resolved directly by event slug. */
+  listValidationFieldsBySlug(
+    slug: string,
+    kind: FormKind,
+  ): Promise<PublicFormFieldValidationRule[]> {
+    return this.prisma.formField.findMany({
+      where: { form: { event: { slug }, kind } },
+      select: { label: true, type: true, required: true, options: true },
+    });
+  }
+}

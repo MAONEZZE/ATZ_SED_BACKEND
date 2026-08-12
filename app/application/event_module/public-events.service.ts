@@ -4,7 +4,10 @@ import {
   EventRepositoryPort,
 } from '@domain/event_module/i-repository-event';
 import { FORM_REPOSITORY_PORT, FormRepositoryPort } from '@domain/form_module/i-repository-form';
-import { FormFieldsRepository } from '@infra/repositories/form_field_module/form-fields.repository';
+import {
+  FORM_FIELD_REPOSITORY_PORT,
+  FormFieldRepositoryPort,
+} from '@domain/form_field_module/i-repository-form-field';
 import { FormKind } from '@domain/shared/form-kind.type';
 
 /**
@@ -17,7 +20,8 @@ export class PublicEventsService {
   constructor(
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
     @Inject(FORM_REPOSITORY_PORT) private readonly forms: FormRepositoryPort,
-    private readonly formFields: FormFieldsRepository,
+    @Inject(FORM_FIELD_REPOSITORY_PORT)
+    private readonly formFields: FormFieldRepositoryPort,
   ) {}
 
   async getPublicEvent(slug: string) {

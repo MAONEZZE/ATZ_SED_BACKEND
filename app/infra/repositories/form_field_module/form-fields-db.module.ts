@@ -1,9 +1,10 @@
 import { Global, Module } from '@nestjs/common';
-import { FormFieldsRepository } from './form-fields.repository';
+import { FORM_FIELD_REPOSITORY_PORT } from '@domain/form_field_module/i-repository-form-field';
+import { PrismaFormFieldRepository } from './prisma-form-field.repository';
 
 @Global()
 @Module({
-  providers: [FormFieldsRepository],
-  exports: [FormFieldsRepository],
+  providers: [{ provide: FORM_FIELD_REPOSITORY_PORT, useClass: PrismaFormFieldRepository }],
+  exports: [FORM_FIELD_REPOSITORY_PORT],
 })
 export class FormFieldsDbModule {}

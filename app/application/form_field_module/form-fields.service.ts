@@ -1,6 +1,9 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { FormFieldsRepository } from '@infra/repositories/form_field_module/form-fields.repository';
+import { Inject, Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { FieldType, FormFieldEntity } from '@domain/form_field_module/form-field.entity';
+import {
+  FORM_FIELD_REPOSITORY_PORT,
+  FormFieldRepositoryPort,
+} from '@domain/form_field_module/i-repository-form-field';
 import { FormKind } from '@domain/shared/form-kind.type';
 import { FormsService } from '@application/form_module/forms.service';
 import { EventsService } from '@application/event_module/events.service';
@@ -27,7 +30,8 @@ export class FormFieldsService {
   private readonly logger = new Logger(FormFieldsService.name);
 
   constructor(
-    private readonly repo: FormFieldsRepository,
+    @Inject(FORM_FIELD_REPOSITORY_PORT)
+    private readonly repo: FormFieldRepositoryPort,
     private readonly eventsService: EventsService,
     private readonly formsService: FormsService,
   ) {}
@@ -55,9 +59,9 @@ export class FormFieldsService {
     const field = await this.repo.create({
       formId: form.id,
       label: input.label,
-      type: input.type as Prisma.FormFieldUncheckedCreateInput['type'],
+      type: input.type as FieldType,
       required: input.required ?? true,
-      options: this.toJson(input.options),
+      options: input.options,
       order: input.order ?? 99,
       isFixed: false,
     });
@@ -75,9 +79,9 @@ export class FormFieldsService {
 
     const updated = await this.repo.update(id, {
       ...(input.label !== undefined && { label: input.label }),
-      ...(input.type !== undefined && { type: input.type as Prisma.FormFieldUncheckedUpdateInput['type'] }),
+      ...(input.type !== undefined && { type: input.type as FieldType }),
       ...(input.required !== undefined && { required: input.required }),
-      ...(input.options !== undefined && { options: this.toJson(input.options) }),
+      ...(input.options !== undefined && { options: input.options }),
       ...(input.order !== undefined && { order: input.order }),
     });
     await this.repo.touchEvent(eventId, editorId);
@@ -97,8 +101,8 @@ export class FormFieldsService {
   ): void {
     const nextType = input.type;
     const nextOptions = input.options !== undefined ? input.options : field.options;
-    const isOptionsBased = nextType === 'select' || nextType === 'multiselect';
-    const hasUsableOptions = Array.isArray(nextOptions) && nextOptions.length > 0;
+    const isOptionsBased = FormFieldEntity.isOptionsBased(nextType ?? '');
+    const hasUsableOptions = FormFieldEntity.hasUsableOptions(nextOptions);
 
     if (isOptionsBased && !hasUsableOptions) {
       this.logger.warn(
@@ -132,9 +136,5 @@ export class FormFieldsService {
     if (!event.isEditable()) {
       throw new ForbiddenException('Cancelled or ended events cannot be edited');
     }
-  }
-
-  private toJson(options: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNull {
-    return options != null ? (options as Prisma.InputJsonValue) : Prisma.JsonNull;
   }
 }
