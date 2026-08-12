@@ -1,3 +1,5 @@
+import { EntityBase } from '@domain/shared/entity.base';
+
 export type EventStatus = 'draft' | 'published' | 'cancelled' | 'ended';
 
 const STATUS_TRANSITIONS: Record<EventStatus, EventStatus[]> = {
@@ -7,9 +9,9 @@ const STATUS_TRANSITIONS: Record<EventStatus, EventStatus[]> = {
   ended: [],
 };
 
-export class EventEntity {
+export class EventEntity extends EntityBase {
   constructor(
-    public readonly id: string,
+    id: string,
     public readonly ownerId: string,
     public title: string,
     public slug: string,
@@ -30,7 +32,9 @@ export class EventEntity {
     public recurrenceFreq?: string,
     public recurrenceInterval?: number,
     public recurrenceUntil?: Date,
-  ) {}
+  ) {
+    super(id);
+  }
 
   isEditable(): boolean {
     return this.status !== 'cancelled' && this.status !== 'ended';
