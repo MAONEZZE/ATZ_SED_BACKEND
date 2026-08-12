@@ -3,14 +3,18 @@ import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
 } from '@domain/event_module/i-repository-event';
-import { CollaboratorsRepository } from '@infra/repositories/collaborator_module/collaborators.repository';
+import {
+  COLLABORATOR_REPOSITORY_PORT,
+  CollaboratorRepositoryPort,
+} from '@domain/collaborator_module/i-repository-collaborator';
 import { ProfileRepository } from '@infra/repositories/profile_module/profile.repository';
 
 @Injectable()
 export class CollaboratorsService {
   constructor(
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
-    private readonly collaborators: CollaboratorsRepository,
+    @Inject(COLLABORATOR_REPOSITORY_PORT)
+    private readonly collaborators: CollaboratorRepositoryPort,
     private readonly profiles: ProfileRepository,
   ) {}
 
