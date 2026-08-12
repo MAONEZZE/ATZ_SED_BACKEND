@@ -3,21 +3,49 @@ import { Prisma } from '@prisma/client';
 import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-repository.base';
 import { FormKind } from '@domain/shared/form-kind.type';
 import { EventDuplicationForm } from '@domain/event_module/i-repository-event';
-import { FormRepositoryPort, FormRow, UpdateFormData } from '@domain/form_module/i-repository-form';
+import { FormEntity } from '@domain/form_module/form.entity';
+import { FormRepositoryPort, UpdateFormData } from '@domain/form_module/i-repository-form';
 
 @Injectable()
 export class PrismaFormRepository extends PrismaRepositoryBase implements FormRepositoryPort {
-  findByEventAndKind(eventId: string, kind: FormKind): Promise<FormRow | null> {
-    return this.prisma.form.findUnique({ where: { eventId_kind: { eventId, kind } } });
+  private toEntity(row: {
+    id: string;
+    eventId: string;
+    kind: string;
+    description: string | null;
+    postRegistrationMessage: string | null;
+    linkPostSubscription: string | null;
+    requireImageAuthorization: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  }): FormEntity {
+    return new FormEntity(
+      row.id,
+      row.eventId,
+      row.kind as FormKind,
+      row.description,
+      row.postRegistrationMessage,
+      row.linkPostSubscription,
+      row.requireImageAuthorization,
+      row.createdAt,
+      row.updatedAt,
+    );
   }
 
-  create(eventId: string, kind: FormKind): Promise<FormRow> {
-    return this.prisma.form.create({ data: { eventId, kind } });
+  async findByEventAndKind(eventId: string, kind: FormKind): Promise<FormEntity | null> {
+    const row = await this.prisma.form.findUnique({
+      where: { eventId_kind: { eventId, kind } },
+    });
+    return row ? this.toEntity(row) : null;
+  }
+
+  async create(eventId: string, kind: FormKind): Promise<FormEntity> {
+    return this.toEntity(await this.prisma.form.create({ data: { eventId, kind } }));
   }
 
   /** Translates the port's optional-key contract into a Prisma update payload:
    * only keys present on `data` reach the database. */
-  update(id: string, data: UpdateFormData): Promise<FormRow> {
+  async update(id: string, data: UpdateFormData): Promise<FormEntity> {
     const payload: Prisma.FormUncheckedUpdateInput = {
       ...(data.description !== undefined && { description: data.description }),
       ...(data.postRegistrationMessage !== undefined && {
@@ -30,11 +58,11 @@ export class PrismaFormRepository extends PrismaRepositoryBase implements FormRe
         requireImageAuthorization: data.requireImageAuthorization,
       }),
     };
-    return this.prisma.form.update({ where: { id }, data: payload });
+    return this.toEntity(await this.prisma.form.update({ where: { id }, data: payload }));
   }
 
-  createWithFields(eventId: string, form: EventDuplicationForm): Promise<FormRow> {
-    return this.prisma.form.create({
+  async createWithFields(eventId: string, form: EventDuplicationForm): Promise<FormEntity> {
+    const row = await this.prisma.form.create({
       data: {
         eventId,
         kind: form.kind as FormKind,
@@ -53,5 +81,6 @@ export class PrismaFormRepository extends PrismaRepositoryBase implements FormRe
         },
       },
     });
+    return this.toEntity(row);
   }
 }

@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '@infra/prisma/prisma.service';
 import { PrismaFormRepository } from '@infra/repositories/form_module/prisma-form.repository';
+import { FormEntity } from '@domain/form_module/form.entity';
 
 async function makeRepo(update = jest.fn().mockResolvedValue({ id: 'form-1' })) {
   const findUnique = jest.fn().mockResolvedValue(null);
@@ -80,5 +81,52 @@ describe('PrismaFormRepository', () => {
         data: { requireImageAuthorization: false },
       });
     });
+  });
+});
+
+describe('PrismaFormRepository entity mapping', () => {
+  const ROW = {
+    id: 'form-1',
+    eventId: 'evt-1',
+    kind: 'registration',
+    description: null,
+    postRegistrationMessage: null,
+    linkPostSubscription: null,
+    requireImageAuthorization: false,
+    createdAt: new Date('2026-07-01'),
+    updatedAt: new Date('2026-07-01'),
+  };
+
+  it('returns a FormEntity', async () => {
+    const { repo } = await makeRepo();
+    (repo as unknown as { prisma: { form: { findUnique: jest.Mock } } }).prisma.form.findUnique =
+      jest.fn().mockResolvedValue(ROW);
+
+    const form = await repo.findByEventAndKind('evt-1', 'registration');
+
+    expect(form).toBeInstanceOf(FormEntity);
+    // Recém-materializado: nenhum campo editável preenchido.
+    expect(form!.isBlank()).toBe(true);
+  });
+
+  it('is not blank once any editable field is filled', async () => {
+    const { repo } = await makeRepo();
+    (repo as unknown as { prisma: { form: { findUnique: jest.Mock } } }).prisma.form.findUnique =
+      jest.fn().mockResolvedValue({ ...ROW, description: 'Bem-vindo' });
+
+    const form = await repo.findByEventAndKind('evt-1', 'registration');
+
+    expect(form!.isBlank()).toBe(false);
+  });
+
+  // Espaço em branco não conta como preenchido.
+  it('treats a whitespace-only description as blank', async () => {
+    const { repo } = await makeRepo();
+    (repo as unknown as { prisma: { form: { findUnique: jest.Mock } } }).prisma.form.findUnique =
+      jest.fn().mockResolvedValue({ ...ROW, description: '   ' });
+
+    const form = await repo.findByEventAndKind('evt-1', 'registration');
+
+    expect(form!.isBlank()).toBe(true);
   });
 });

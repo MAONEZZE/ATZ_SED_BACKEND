@@ -2,9 +2,11 @@ import { Injectable, Inject } from '@nestjs/common';
 import {
   USER_SUBSCRIPTION_REPOSITORY_PORT,
   UserSubscriptionRepositoryPort,
-  UserSubscriptionRow,
-  PipedriveStatus,
 } from '@domain/user_subscription_module/i-repository-user-subscription';
+import {
+  PipedriveStatus,
+  UserSubscriptionEntity,
+} from '@domain/user_subscription_module/user-subscription.entity';
 import { FormKind } from '@domain/shared/form-kind.type';
 import { resolveAnswerByKeys } from '@domain/shared/answer-validation';
 
@@ -25,7 +27,7 @@ export class UserSubscriptionsService {
     kind: FormKind,
     answers: Record<string, unknown>,
     contactOverride?: { name?: string; email?: string; phone?: string },
-  ): Promise<UserSubscriptionRow> {
+  ): Promise<UserSubscriptionEntity> {
     // Explicit contact (e.g. post-event/NPS identifier) wins; otherwise the
     // contact is extracted from the answers (e.g. main registration form).
     const name = contactOverride?.name || this.extractString(answers, ['nome', 'name']);
@@ -57,7 +59,7 @@ export class UserSubscriptionsService {
     page: number,
     limit: number,
     search?: string,
-  ): Promise<{ data: UserSubscriptionRow[]; total: number }> {
+  ): Promise<{ data: UserSubscriptionEntity[]; total: number }> {
     return this.repo.findAllByEventPaginated(
       eventId,
       { skip: (page - 1) * limit, take: limit },
@@ -65,7 +67,7 @@ export class UserSubscriptionsService {
     );
   }
 
-  async findAllByEvent(eventId: string, search?: string): Promise<UserSubscriptionRow[]> {
+  async findAllByEvent(eventId: string, search?: string): Promise<UserSubscriptionEntity[]> {
     return this.repo.findAllByEvent(eventId, search);
   }
 

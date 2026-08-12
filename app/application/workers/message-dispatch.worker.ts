@@ -7,10 +7,10 @@ import { WHATSAPP_PORT, WhatsappPort, WhatsappRestrictionError } from '@domain/s
 import { QUEUE_MESSAGE_DISPATCH } from '@infra/queue/bull-queues.module';
 import { WhatsappPacingService } from '@application/outbox_module/whatsapp-pacing.service';
 import { IcsGeneratorService } from '@application/shared/ics-generator.service';
+import { OutboxMessageEntity } from '@domain/outbox_module/outbox-message.entity';
 import {
   OUTBOX_REPOSITORY_PORT,
   OutboxRepositoryPort,
-  OutboxDispatchMessage,
   InviteConfigInput,
   OutboxAttachment,
 } from '@domain/outbox_module/i-repository-outbox';
@@ -141,7 +141,7 @@ export class MessageDispatchWorker extends WorkerHost {
           outbox.recipient,
           outbox.renderedBody,
           {
-            startIndex: outbox.sentParts,
+            startIndex: outbox.nextPartIndex(),
             trackId: outbox.id,
             onPartSent: async (index) => {
               await this.outboxRepo.updateSentParts(outbox.id, index + 1);
@@ -150,7 +150,7 @@ export class MessageDispatchWorker extends WorkerHost {
         );
 
         const attachments = (outbox.attachments as OutboxAttachment[] | null) ?? [];
-        for (let i = outbox.sentAttachments; i < attachments.length; i++) {
+        for (let i = outbox.nextAttachmentIndex(); i < attachments.length; i++) {
           const a = attachments[i];
           const mediaMessageId = await this.whatsapp.sendMedia(
             token,
@@ -220,7 +220,7 @@ export class MessageDispatchWorker extends WorkerHost {
    * UID estável por (eventId + destinatário) evita duplicação no calendário em reenvios.
    */
   private async buildInvite(
-    outbox: OutboxDispatchMessage,
+    outbox: OutboxMessageEntity,
     wantsRecurrent: boolean,
   ): Promise<string | undefined> {
     const event = outbox.eventId ? await this.eventRepo.findById(outbox.eventId) : null;

@@ -4,17 +4,20 @@ import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-reposito
 import { normalizePhone } from '@shared/handlers/phone';
 import {
   UserSubscriptionRepositoryPort,
-  UserSubscriptionRow,
   UpsertContact,
-  PipedriveStatus,
 } from '@domain/user_subscription_module/i-repository-user-subscription';
+import {
+  PipedriveStatus,
+  UserSubscriptionEntity,
+} from '@domain/user_subscription_module/user-subscription.entity';
 import { FormKind } from '@domain/shared/form-kind.type';
 
-const ANSWERS_COLUMN: Record<FormKind, 'registrationAnswers' | 'postEventAnswers' | 'npsAnswers'> = {
-  registration: 'registrationAnswers',
-  post_event: 'postEventAnswers',
-  nps: 'npsAnswers',
-};
+const ANSWERS_COLUMN: Record<FormKind, 'registrationAnswers' | 'postEventAnswers' | 'npsAnswers'> =
+  {
+    registration: 'registrationAnswers',
+    post_event: 'postEventAnswers',
+    nps: 'npsAnswers',
+  };
 
 type Row = {
   id: string;
@@ -36,21 +39,21 @@ export class PrismaUserSubscriptionRepository
   extends PrismaRepositoryBase
   implements UserSubscriptionRepositoryPort
 {
-  private map(row: Row): UserSubscriptionRow {
-    return {
-      id: row.id,
-      eventId: row.eventId,
-      name: row.name,
-      email: row.email,
-      phone: row.phone,
-      registrationAnswers: row.registrationAnswers as Record<string, unknown> | null,
-      postEventAnswers: row.postEventAnswers as Record<string, unknown> | null,
-      npsAnswers: row.npsAnswers as Record<string, unknown> | null,
-      sendToPipedrive: row.sendToPipedrive,
-      pipedriveStatus: row.pipedriveStatus as PipedriveStatus | null,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    };
+  private map(row: Row): UserSubscriptionEntity {
+    return new UserSubscriptionEntity(
+      row.id,
+      row.eventId,
+      row.name,
+      row.email,
+      row.phone,
+      row.registrationAnswers as Record<string, unknown> | null,
+      row.postEventAnswers as Record<string, unknown> | null,
+      row.npsAnswers as Record<string, unknown> | null,
+      row.sendToPipedrive,
+      row.pipedriveStatus as PipedriveStatus | null,
+      row.createdAt,
+      row.updatedAt,
+    );
   }
 
   private buildWhere(eventId: string, search?: string) {
@@ -64,7 +67,7 @@ export class PrismaUserSubscriptionRepository
     eventId: string,
     pagination: { skip: number; take: number },
     search?: string,
-  ): Promise<{ data: UserSubscriptionRow[]; total: number }> {
+  ): Promise<{ data: UserSubscriptionEntity[]; total: number }> {
     const where = this.buildWhere(eventId, search);
     const [rows, total] = await Promise.all([
       this.prisma.userSubscription.findMany({
@@ -78,7 +81,7 @@ export class PrismaUserSubscriptionRepository
     return { data: rows.map((r) => this.map(r)), total };
   }
 
-  async findAllByEvent(eventId: string, search?: string): Promise<UserSubscriptionRow[]> {
+  async findAllByEvent(eventId: string, search?: string): Promise<UserSubscriptionEntity[]> {
     const rows = await this.prisma.userSubscription.findMany({
       where: this.buildWhere(eventId, search),
       orderBy: { createdAt: 'desc' },
@@ -89,7 +92,7 @@ export class PrismaUserSubscriptionRepository
   async findByEventAndContact(
     eventId: string,
     contact: { email?: string; phone?: string },
-  ): Promise<UserSubscriptionRow | null> {
+  ): Promise<UserSubscriptionEntity | null> {
     if (contact.email) {
       const row = await this.prisma.userSubscription.findFirst({
         where: { eventId, email: { equals: contact.email, mode: 'insensitive' } },
@@ -113,7 +116,7 @@ export class PrismaUserSubscriptionRepository
     contact: UpsertContact;
     kind: FormKind;
     answers: Record<string, unknown>;
-  }): Promise<UserSubscriptionRow> {
+  }): Promise<UserSubscriptionEntity> {
     const row = await this.prisma.userSubscription.create({
       data: {
         eventId: data.eventId,
@@ -129,7 +132,7 @@ export class PrismaUserSubscriptionRepository
   async update(
     id: string,
     data: { contact: UpsertContact; kind: FormKind; answers: Record<string, unknown> },
-  ): Promise<UserSubscriptionRow> {
+  ): Promise<UserSubscriptionEntity> {
     const current = await this.prisma.userSubscription.findUniqueOrThrow({ where: { id } });
     const row = await this.prisma.userSubscription.update({
       where: { id },

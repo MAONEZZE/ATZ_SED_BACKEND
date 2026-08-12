@@ -1,4 +1,5 @@
 import type { MessageChannel } from '@domain/shared/message-channel.type';
+import { OutboxMessageEntity } from './outbox-message.entity';
 
 export const OUTBOX_REPOSITORY_PORT = Symbol('OUTBOX_REPOSITORY_PORT');
 
@@ -64,22 +65,12 @@ export interface OutboxDeliveryTarget {
   trackId?: string | null;
 }
 
-export interface OutboxDispatchMessage {
-  id: string;
-  eventId: string | null;
-  ownerId: string | null;
-  registrationId: string | null;
-  channel: MessageChannel;
-  recipient: string;
-  instancia: string | null;
-  renderedBody: string;
-  renderedSubject: string | null;
-  inviteConfig: unknown;
-  attachments: unknown;
-  sentParts: number;
-  sentAttachments: number;
-  status: string;
-}
+/**
+ * `getPending` continua devolvendo uma projeção crua, e não a entidade: é a
+ * consulta de sondagem da fila, roda com frequência e seleciona só as colunas
+ * que o enfileiramento precisa. Alargá-la para montar a entidade custaria IO
+ * num caminho quente sem ninguém usar o resto.
+ */
 
 export interface OutboxRepositoryPort {
   enqueue(
@@ -93,12 +84,12 @@ export interface OutboxRepositoryPort {
   markDeliveredIfUnset(target: OutboxDeliveryTarget, at: Date): Promise<void>;
   markReadIfUnset(target: OutboxDeliveryTarget, at: Date): Promise<void>;
   markFailedIfUndelivered(target: OutboxDeliveryTarget, error: string): Promise<void>;
-  findDispatchById(id: string): Promise<OutboxDispatchMessage | null>;
+  findDispatchById(id: string): Promise<OutboxMessageEntity | null>;
   findPendingDispatchByTrigger(
     registrationId: string | undefined,
     templateId: string | undefined,
     trigger: string | undefined,
-  ): Promise<OutboxDispatchMessage | null>;
+  ): Promise<OutboxMessageEntity | null>;
   markProcessingAttempt(id: string): Promise<void>;
   updateSentParts(id: string, sentParts: number): Promise<void>;
   updateSentAttachments(id: string, sentAttachments: number): Promise<void>;
