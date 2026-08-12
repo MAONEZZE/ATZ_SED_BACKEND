@@ -1,0 +1,22 @@
+import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-repository.base';
+
+@Injectable()
+export class ProfileRepository extends PrismaRepositoryBase {
+  findByUserId(userId: string) {
+    return this.prisma.profile.findUnique({ where: { userId } });
+  }
+
+  findByEmail(email: string) {
+    return this.prisma.profile.findFirst({ where: { email } });
+  }
+
+  create(data: Prisma.ProfileUncheckedCreateInput) {
+    return this.prisma.profile.create({ data });
+  }
+
+  update(userId: string, data: Prisma.ProfileUncheckedUpdateInput) {
+    return this.prisma.profile.update({ where: { userId }, data });
+  }
+}

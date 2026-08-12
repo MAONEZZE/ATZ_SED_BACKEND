@@ -1,0 +1,31 @@
+import { PartialType } from '@nestjs/swagger';
+import { IsBoolean, IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
+import { ApiPropertyOptional, ApiProperty } from '@nestjs/swagger';
+import { CreateEventDto } from './create-event.dto';
+import { EventStatus } from '@domain/event_module/event.entity';
+
+export class UpdateEventDto extends PartialType(CreateEventDto) {
+  @ApiPropertyOptional({ example: 'c1a2b3c4-...' })
+  @IsOptional()
+  @IsUUID()
+  whatsappInstanceId?: string;
+
+  @ApiPropertyOptional({ example: 'token-whatsapp' })
+  @IsOptional()
+  @IsString()
+  whatsappToken?: string;
+}
+
+export class UpdateEventStatusDto {
+  @ApiProperty({ enum: ['draft', 'published', 'cancelled', 'ended'], example: 'published' })
+  @IsIn(['draft', 'published', 'cancelled', 'ended'])
+  status!: EventStatus;
+
+  @ApiPropertyOptional({
+    description: 'Só para status=cancelled: notifica os participantes do cancelamento.',
+    example: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  notifyParticipants?: boolean;
+}

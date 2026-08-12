@@ -5,22 +5,26 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { LoggingInterceptor } from '@shared/interceptors/logging.interceptor';
+import { LoggingInterceptor } from '@api/config/interceptors/logging.interceptor';
 import { validateEnv } from '@shared/config/env.validation';
 import { PrismaModule } from '@infra/prisma/prisma.module';
-import { HealthModule } from '@shared/health/health.module';
-import { RequestIdMiddleware } from '@shared/middleware/request-id.middleware';
-import { AuthModule } from '@infra/auth/auth.module';
-import { GuardsModule } from '@shared/guards/guards.module';
-import { EventsModule } from '@modules/events/events.module';
-import { RegistrationsModule } from '@modules/registrations/registrations.module';
-import { WorkersModule } from '@workers/workers.module';
-import { AutomationsModule } from '@modules/automations/automations.module';
-import { MessagingModule } from '@modules/messaging/messaging.module';
-import { GlobalMessagingModule } from '@modules/messaging/global-messaging.module';
-import { UsersModule } from '@modules/users/users.module';
-import { PublicModule } from '@modules/public/public.module';
-import { UazapiInstancesModule } from '@modules/uazapi-instances/uazapi-instances.module';
+import { RequestIdMiddleware } from '@api/config/middlewares/request-id.middleware';
+import { AuthModule } from '@api/adapters/modules/auth.module';
+import { GuardsModule } from '@api/config/modules/guards.module';
+import { EventsModule } from '@domain/event_module/events.module';
+import { FormsModule } from '@domain/form_module/forms.module';
+import { FormFieldsModule } from '@domain/form_field_module/form-fields.module';
+import { CollaboratorsModule } from '@domain/collaborator_module/collaborators.module';
+import { RegistrationsModule } from '@domain/registration_module/registrations.module';
+import { UserSubscriptionsModule } from '@domain/user_subscription_module/user-subscriptions.module';
+import { PostEventResponsesModule } from '@domain/post_event_response_module/post-event-responses.module';
+import { WorkersModule } from '@application/workers/workers.module';
+import { AutomationsModule } from '@domain/automation_module/automations.module';
+import { OutboxModule } from '@domain/outbox_module/outbox.module';
+import { MessageTemplatesModule } from '@domain/message_template_module/message-templates.module';
+import { MessageLogsModule } from '@domain/message_log_module/message-logs.module';
+import { ProfileModule } from '@domain/profile_module/profile.module';
+import { WhatsappInstancesModule } from '@domain/whatsapp_instance_module/whatsapp-instances.module';
 
 @Module({
   imports: [
@@ -43,18 +47,22 @@ import { UazapiInstancesModule } from '@modules/uazapi-instances/uazapi-instance
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     PrismaModule,
-    HealthModule,
     AuthModule,
     GuardsModule,
     EventsModule,
+    FormsModule,
+    FormFieldsModule,
+    CollaboratorsModule,
     RegistrationsModule,
+    UserSubscriptionsModule,
+    PostEventResponsesModule,
     WorkersModule,
     AutomationsModule,
-    MessagingModule,
-    GlobalMessagingModule,
-    UsersModule,
-    PublicModule,
-    UazapiInstancesModule,
+    OutboxModule,
+    MessageTemplatesModule,
+    MessageLogsModule,
+    ProfileModule,
+    WhatsappInstancesModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
