@@ -1,10 +1,16 @@
-import { Injectable } from '@nestjs/common';
-import { PostEventResponsesRepository } from '@infra/repositories/post_event_response_module/post-event-responses.repository';
+import { Inject, Injectable } from '@nestjs/common';
+import {
+  POST_EVENT_RESPONSE_REPOSITORY_PORT,
+  PostEventResponseRepositoryPort,
+} from '@domain/post_event_response_module/i-repository-post-event-response';
 import { CsvPostEventResponse } from '@application/post_event_response_module/post-event-responses-csv';
 
 @Injectable()
 export class PostEventResponsesService {
-  constructor(private readonly repo: PostEventResponsesRepository) {}
+  constructor(
+    @Inject(POST_EVENT_RESPONSE_REPOSITORY_PORT)
+    private readonly repo: PostEventResponseRepositoryPort,
+  ) {}
 
   listPaginated(eventId: string, page: number, limit: number) {
     return this.repo.findAllByEventPaginated(eventId, { skip: (page - 1) * limit, take: limit });
@@ -12,12 +18,12 @@ export class PostEventResponsesService {
 
   async exportRows(eventId: string): Promise<CsvPostEventResponse[]> {
     const responses = await this.repo.findAllByEvent(eventId);
-    return responses.map((r) => ({
-      name: r.registration.name,
-      email: r.registration.email,
-      phone: r.registration.phone,
-      answers: (r.answers ?? {}) as Record<string, unknown>,
-      createdAt: r.createdAt,
+    return responses.map(({ response, respondent }) => ({
+      name: respondent.name,
+      email: respondent.email,
+      phone: respondent.phone,
+      answers: response.answers,
+      createdAt: response.createdAt,
     }));
   }
 }
