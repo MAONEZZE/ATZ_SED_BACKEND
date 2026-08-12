@@ -12,7 +12,10 @@ import { STORAGE_PORT, StoragePort } from '@domain/shared/i-storage';
 import { OutboxService } from '@application/outbox_module/outbox.service';
 import { TemplateRenderer } from '@application/shared/template-renderer.service';
 import { MessageTemplatesRepository } from '@infra/repositories/message_template_module/message-templates.repository';
-import { WhatsappInstancesRepository } from '@infra/repositories/whatsapp_instance_module/whatsapp-instances.repository';
+import {
+  WHATSAPP_INSTANCE_REPOSITORY_PORT,
+  WhatsappInstanceRepositoryPort,
+} from '@domain/whatsapp_instance_module/i-repository-whatsapp-instance';
 import {
   COLLABORATOR_REPOSITORY_PORT,
   CollaboratorRepositoryPort,
@@ -80,7 +83,8 @@ export class ManualSendService {
     private readonly config: ConfigService,
     @Inject(STORAGE_PORT) private readonly storage: StoragePort,
     private readonly templates: MessageTemplatesRepository,
-    private readonly whatsappInstances: WhatsappInstancesRepository,
+    @Inject(WHATSAPP_INSTANCE_REPOSITORY_PORT)
+    private readonly whatsappInstances: WhatsappInstanceRepositoryPort,
     @Inject(COLLABORATOR_REPOSITORY_PORT)
     private readonly collaborators: CollaboratorRepositoryPort,
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
@@ -150,9 +154,9 @@ export class ManualSendService {
     if (!input.eventId && input.instanceId) {
       const instance = await this.whatsappInstances.findById(input.instanceId);
       if (!instance) throw new NotFoundException('Whatsapp instance not found');
-      if (!instance.token)
+      if (!instance.hasToken())
         throw new BadRequestException('Whatsapp instance has no token configured');
-      instancia = instance.token;
+      instancia = instance.token!;
     }
 
     // Atribuição da mensagem fica sempre com o dono do evento (resolve a instância

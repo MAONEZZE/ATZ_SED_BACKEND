@@ -1,12 +1,16 @@
 import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { WhatsappInstancesRepository } from '@infra/repositories/whatsapp_instance_module/whatsapp-instances.repository';
+import {
+  WHATSAPP_INSTANCE_REPOSITORY_PORT,
+  WhatsappInstanceRepositoryPort,
+} from '@domain/whatsapp_instance_module/i-repository-whatsapp-instance';
 import { WHATSAPP_PORT, WhatsappPort } from '@domain/shared/i-whatsapp';
 
 @Injectable()
 export class WhatsappInstancesService {
   constructor(
-    private readonly repo: WhatsappInstancesRepository,
+    @Inject(WHATSAPP_INSTANCE_REPOSITORY_PORT)
+    private readonly repo: WhatsappInstanceRepositoryPort,
     private readonly config: ConfigService,
     @Inject(WHATSAPP_PORT) private readonly whatsapp: WhatsappPort,
   ) {}
@@ -15,26 +19,26 @@ export class WhatsappInstancesService {
   // quando status === 'connected'. Consulta por instância em paralelo e tolerante
   // a falha por item (offline/erro → active:false, sem derrubar a listagem).
   async list() {
-    const rows = await this.repo.list();
+    const instances = await this.repo.list();
     return Promise.all(
-      rows.map(async ({ token, ...rest }) => {
+      instances.map(async (instance) => {
         let active = false;
-        if (token && token.trim()) {
+        if (instance.hasToken()) {
           try {
-            active = (await this.whatsapp.getInstanceStatus(token)) === 'connected';
+            active = (await this.whatsapp.getInstanceStatus(instance.token!)) === 'connected';
           } catch {
             active = false;
           }
         }
-        return { ...rest, active };
+        return { id: instance.id, nickname: instance.nickname, active };
       }),
     );
   }
 
   async getToken(id: string): Promise<string> {
-    const token = await this.repo.findTokenById(id);
-    if (!token) throw new NotFoundException('Whatsapp instance token not found');
-    return token;
+    const instance = await this.repo.findById(id);
+    if (!instance?.hasToken()) throw new NotFoundException('Whatsapp instance token not found');
+    return instance.token!;
   }
 
   // Registra na Whatsapp o webhook de status de entrega apontando para esta app.
