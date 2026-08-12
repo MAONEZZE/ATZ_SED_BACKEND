@@ -9,22 +9,22 @@ import { LoggingInterceptor } from '@api/config/interceptors/logging.interceptor
 import { validateEnv } from '@shared/config/env.validation';
 import { PrismaModule } from '@infra/prisma/prisma.module';
 import { RequestIdMiddleware } from '@api/config/middlewares/request-id.middleware';
-import { AuthModule } from '@api/config/modules/auth.module';
-import { GuardsModule } from '@api/config/modules/guards.module';
-import { EventModule } from '@api/config/modules/event.module';
-import { FormModule } from '@api/config/modules/form.module';
-import { FormFieldModule } from '@api/config/modules/form-field.module';
-import { CollaboratorModule } from '@api/config/modules/collaborator.module';
-import { RegistrationModule } from '@api/config/modules/registration.module';
-import { UserSubscriptionModule } from '@api/config/modules/user-subscription.module';
-import { PostEventResponseModule } from '@api/config/modules/post-event-response.module';
-import { WorkersModule } from '@api/config/modules/workers.module';
-import { AutomationModule } from '@api/config/modules/automation.module';
-import { OutboxModule } from '@api/config/modules/outbox.module';
-import { MessageTemplateModule } from '@api/config/modules/message-template.module';
-import { MessageLogModule } from '@api/config/modules/message-log.module';
-import { ProfileModule } from '@api/config/modules/profile.module';
-import { WhatsappInstanceModule } from '@api/config/modules/whatsapp-instance.module';
+import { AuthModule } from '@shared/modules/auth.module';
+import { GuardsModule } from '@shared/modules/guards.module';
+import { EventModule } from '@shared/modules/event.module';
+import { FormModule } from '@shared/modules/form.module';
+import { FormFieldModule } from '@shared/modules/form-field.module';
+import { CollaboratorModule } from '@shared/modules/collaborator.module';
+import { RegistrationModule } from '@shared/modules/registration.module';
+import { UserSubscriptionModule } from '@shared/modules/user-subscription.module';
+import { PostEventResponseModule } from '@shared/modules/post-event-response.module';
+import { WorkersModule } from '@shared/modules/workers.module';
+import { AutomationModule } from '@shared/modules/automation.module';
+import { OutboxModule } from '@shared/modules/outbox.module';
+import { MessageTemplateModule } from '@shared/modules/message-template.module';
+import { MessageLogModule } from '@shared/modules/message-log.module';
+import { ProfileModule } from '@shared/modules/profile.module';
+import { WhatsappInstanceModule } from '@shared/modules/whatsapp-instance.module';
 
 @Module({
   imports: [

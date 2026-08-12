@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
-import { JwtAuthGuard } from '../guards/jwt-auth.guard';
-import { OwnershipGuard } from '../guards/ownership.guard';
-import { AuthModule } from '@api/config/modules/auth.module';
+import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
+import { OwnershipGuard } from '@api/config/guards/ownership.guard';
+import { AuthModule } from '@shared/modules/auth.module';
 import { EventDbModule } from '@infra/repositories/event_module/event-db.module';
 
 @Module({

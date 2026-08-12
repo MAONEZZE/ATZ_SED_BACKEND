@@ -9,8 +9,8 @@ import { TemplateRenderer } from '@application/shared/template-renderer.service'
 import { OutboxDbModule } from '@infra/repositories/outbox_module/outbox-db.module';
 import { MessageTemplateDbModule } from '@infra/repositories/message_template_module/message-template-db.module';
 import { MessageLogDbModule } from '@infra/repositories/message_log_module/message-log-db.module';
-import { StorageModule } from '@api/config/modules/storage.module';
-import { GuardsModule } from '@api/config/modules/guards.module';
+import { StorageModule } from '@shared/modules/storage.module';
+import { GuardsModule } from '@shared/modules/guards.module';
 import { BullQueuesModule } from '@infra/queue/bull-queues.module';
 
 @Module({

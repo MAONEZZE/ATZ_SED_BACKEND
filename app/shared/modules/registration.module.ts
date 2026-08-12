@@ -5,12 +5,12 @@ import { PublicPostEventController } from '@api/controllers/registration_module/
 import { PublicNpsController } from '@api/controllers/registration_module/public-nps.controller';
 import { RegistrationService } from '@application/registration_module/registration.service';
 import { RegistrationDbModule } from '@infra/repositories/registration_module/registration-db.module';
-import { AdaptersModule } from '@api/config/modules/adapters.module';
-import { GuardsModule } from '@api/config/modules/guards.module';
-import { EventModule } from '@api/config/modules/event.module';
-import { FormModule } from '@api/config/modules/form.module';
-import { FormFieldModule } from '@api/config/modules/form-field.module';
-import { UserSubscriptionModule } from '@api/config/modules/user-subscription.module';
+import { AdaptersModule } from '@shared/modules/adapters.module';
+import { GuardsModule } from '@shared/modules/guards.module';
+import { EventModule } from '@shared/modules/event.module';
+import { FormModule } from '@shared/modules/form.module';
+import { FormFieldModule } from '@shared/modules/form-field.module';
+import { UserSubscriptionModule } from '@shared/modules/user-subscription.module';
 
 @Module({
   imports: [
