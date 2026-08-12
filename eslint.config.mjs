@@ -36,4 +36,69 @@ export default tseslint.config(
       'prettier/prettier': ['error', { endOfLine: 'auto' }],
     },
   },
+
+  // ---------------------------------------------------------------------------
+  // Fronteira entre camadas.
+  //
+  // As dependências apontam para dentro: api -> application -> domain, e
+  // infra -> domain. O domínio não conhece ninguém. Em C# isso é de graça — um
+  // .csproj sem referência não compila. Em TypeScript nada impede o import, então
+  // a garantia vem daqui. Sem essa regra a separação é só convenção, e foi assim
+  // que FormFieldKind acabou definido no infra e importado pela camada api.
+  // ---------------------------------------------------------------------------
+  {
+    files: ['app/domain/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@api/*', '@application/*', '@infra/*', '**/api/**', '**/application/**', '**/infra/**'],
+              message:
+                'domain não pode depender de outra camada. Se precisa de algo de fora, declare o contrato aqui (i-*.ts) e implemente no infra.',
+            },
+            {
+              group: ['@prisma/client'],
+              message:
+                'domain não pode conhecer o ORM. Declare o tipo na porta (i-repository-*.ts); a tradução para o Prisma mora no repositório.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['app/application/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@api/*', '**/api/**'],
+              message:
+                'application não pode depender da camada api. Controllers dependem de services, nunca o contrário.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['app/infra/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@api/*', '@application/*', '**/api/**', '**/application/**'],
+              message: 'infra implementa contratos do domain; não conhece application nem api.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 );
