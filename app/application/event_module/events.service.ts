@@ -11,6 +11,7 @@ import {
 } from '@domain/event_module/i-repository-event';
 import { STORAGE_PORT, StoragePort } from '@domain/shared/i-storage';
 import { EventEntity, EventStatus } from '@domain/event_module/event.entity';
+import { EventValidator } from '@domain/event_module/event.validator';
 import { ConfigService } from '@nestjs/config';
 
 export interface CreateEventInput {
@@ -94,9 +95,8 @@ export class EventsService {
   }
 
   private assertValidPeriod(eventDate?: Date, endDate?: Date): void {
-    if (eventDate && endDate && endDate.getTime() <= eventDate.getTime()) {
-      throw new BadRequestException('endDate must be after eventDate');
-    }
+    const errors = new EventValidator().validate({ eventDate, endDate });
+    if (errors.length > 0) throw new BadRequestException(errors[0]);
   }
 
   async updateStatus(id: string, status: EventStatus, editorId?: string): Promise<EventEntity> {

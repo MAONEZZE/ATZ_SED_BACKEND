@@ -9,6 +9,7 @@ import {
   AutomationRuleEntity,
   AutomationTrigger,
 } from '@domain/automation_module/automation-rule.entity';
+import { AutomationValidator } from '@domain/automation_module/automation.validator';
 import {
   AUTOMATION_REPOSITORY_PORT,
   AutomationRepositoryPort,
@@ -131,9 +132,8 @@ export class AutomationsService {
     cron?: string | null,
     timezone?: string | null,
   ): void {
-    if (trigger !== 'recurring') return;
-    if (!cron) throw new BadRequestException('cron é obrigatório para trigger "recurring"');
-    if (!timezone) throw new BadRequestException('timezone é obrigatório para trigger "recurring"');
+    const errors = new AutomationValidator().validate({ trigger, cron, timezone });
+    if (errors.length > 0) throw new BadRequestException(errors[0]);
   }
 
   private async syncRecurringScheduler(rule: RecurringSyncable): Promise<void> {

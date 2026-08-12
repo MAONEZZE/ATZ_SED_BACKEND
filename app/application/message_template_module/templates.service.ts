@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { MessageChannel } from '@domain/shared/message-channel.type';
-import { MessageTemplateEntity } from '@domain/message_template_module/message-template.entity';
+import { MessageTemplateValidator } from '@domain/message_template_module/message-template.validator';
 import {
   MESSAGE_TEMPLATE_REPOSITORY_PORT,
   MessageTemplateFilter,
@@ -76,9 +76,11 @@ export class TemplatesService {
     // template existente também é inválido.
     const resolvedChannel = (input.channel ?? existing.channel) as MessageChannel;
     const resolvedSubject = input.subject !== undefined ? input.subject : existing.subject;
-    if (MessageTemplateEntity.requiresSubject(resolvedChannel, resolvedSubject)) {
-      throw new BadRequestException('subject é obrigatório para templates de email');
-    }
+    const errors = new MessageTemplateValidator().validate({
+      channel: resolvedChannel,
+      subject: resolvedSubject,
+    });
+    if (errors.length > 0) throw new BadRequestException(errors[0]);
 
     return this.repo.update(id, {
       ...(input.name !== undefined && { name: input.name }),
