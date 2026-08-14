@@ -7,7 +7,7 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-  schemas   = ["ATZ_SED"]
+  schemas   = ["SED"]
 }
 
 // ==================== ENUMS ====================
@@ -18,7 +18,7 @@ enum EventStatus {
   cancelled
   ended
 
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 enum FunnelStatus {
@@ -26,7 +26,7 @@ enum FunnelStatus {
   approved
   rejected
 
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 enum FormFieldKind {
@@ -34,7 +34,7 @@ enum FormFieldKind {
   post_event
   nps
 
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 enum FieldType {
@@ -50,14 +50,14 @@ enum FieldType {
   linkedin
   instagram
 
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 enum MessageChannel {
   whatsapp
   email
 
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 enum AutomationTrigger {
@@ -68,7 +68,7 @@ enum AutomationTrigger {
   on_rejection
   recurring
 
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 enum OutboxStatus {
@@ -77,7 +77,7 @@ enum OutboxStatus {
   sent
   failed
 
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 enum PipedriveStatus {
@@ -86,7 +86,7 @@ enum PipedriveStatus {
   failed
   skipped
 
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 // ==================== MODELS ====================
@@ -107,7 +107,7 @@ model Profile {
   messageLogs    MessageLog[]        @relation("MessageLogOwner")
 
   @@map("profiles")
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 model Event {
@@ -148,7 +148,7 @@ model Event {
   @@index([ownerId])
   @@index([whatsappInstanceId])
   @@map("events")
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 model WhatsappInstance {
@@ -161,7 +161,7 @@ model WhatsappInstance {
   events    Event[]
 
   @@map("whatsapp_instances")
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 model Form {
@@ -179,7 +179,7 @@ model Form {
 
   @@unique([eventId, kind])
   @@map("forms")
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 model EventCollaborator {
@@ -193,7 +193,7 @@ model EventCollaborator {
   @@unique([eventId, profileId])
   @@index([profileId])
   @@map("event_collaborators")
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 model FormField {
@@ -210,7 +210,7 @@ model FormField {
 
   @@index([formId])
   @@map("form_fields")
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 model Registration {
@@ -231,7 +231,7 @@ model Registration {
 
   @@index([eventId, status])
   @@map("registrations")
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 model PostEventResponse {
@@ -247,7 +247,7 @@ model PostEventResponse {
   @@unique([registrationId])
   @@index([eventId])
   @@map("post_event_responses")
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 model UserSubscription {
@@ -269,7 +269,7 @@ model UserSubscription {
   @@index([eventId, email])
   @@index([eventId, phone])
   @@map("user_subscriptions")
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 model MessageTemplate {
@@ -292,7 +292,7 @@ model MessageTemplate {
   @@index([ownerId])
   @@index([eventId])
   @@map("message_templates")
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 model AutomationRule {
@@ -310,7 +310,7 @@ model AutomationRule {
 
   @@index([eventId, trigger, active])
   @@map("automation_rules")
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 model OutboxMessage {
@@ -350,7 +350,7 @@ model OutboxMessage {
   @@index([ownerId])
   @@index([providerMessageId])
   @@map("outbox_messages")
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
 
 model MessageLog {
@@ -377,5 +377,5 @@ model MessageLog {
   @@index([ownerId])
   @@index([providerMessageId])
   @@map("message_logs")
-  @@schema("ATZ_SED")
+  @@schema("SED")
 }
