@@ -25,15 +25,6 @@ export class FormEntity extends EntityBase {
     super(id);
   }
 
-  /** Nenhum dos campos editáveis foi preenchido ainda. */
-  isBlank(): boolean {
-    return (
-      !this.description?.trim() &&
-      !this.postRegistrationMessage?.trim() &&
-      !this.linkPostSubscription?.trim()
-    );
-  }
-
   /** Slug a partir do nome: é o que vai na URL pública do formulário. */
   static generateSlug(name: string): string {
     return name

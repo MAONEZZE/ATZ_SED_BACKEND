@@ -39,17 +39,6 @@ export interface FormFieldValidationRule {
   isFixed: boolean;
 }
 
-/**
- * Validação do envio público. Sem `isFixed`: o formulário público valida todos
- * os campos igual, não distingue fixo de dinâmico.
- */
-export interface PublicFormFieldValidationRule {
-  label: string;
-  type: string;
-  required: boolean;
-  options: unknown;
-}
-
 /** Campo como o formulário público o renderiza — sem `isFixed` nem `formId`. */
 export interface PublicFormField {
   id: string;

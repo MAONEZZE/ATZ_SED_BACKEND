@@ -46,18 +46,6 @@ export interface EnqueueMessageData {
   attachments?: OutboxAttachment[];
 }
 
-export interface PendingOutboxMessage {
-  id: string;
-  registrationId: string | null;
-  channel: MessageChannel;
-  recipient: string;
-  instancia: string | null;
-  renderedBody: string;
-  renderedSubject: string | null;
-  templateId: string | null;
-  trigger: string;
-}
-
 export interface OutboxDeliveryTarget {
   /** id da mensagem no provedor (whatsapp messageid) */
   providerMessageId?: string | null;
@@ -65,22 +53,10 @@ export interface OutboxDeliveryTarget {
   trackId?: string | null;
 }
 
-/**
- * `getPending` continua devolvendo uma projeção crua, e não a entidade: é a
- * consulta de sondagem da fila, roda com frequência e seleciona só as colunas
- * que o enfileiramento precisa. Alargá-la para montar a entidade custaria IO
- * num caminho quente sem ninguém usar o resto.
- */
-
 export interface OutboxRepositoryPort {
   enqueue(
     data: EnqueueMessageData & { dedupKey: string },
   ): Promise<{ id: string; created: boolean }>;
-  claimStuck(olderThanMinutes: number): Promise<number>;
-  markProcessing(id: string): Promise<void>;
-  markSent(id: string): Promise<void>;
-  markFailed(id: string, error: string): Promise<void>;
-  getPending(limit: number): Promise<PendingOutboxMessage[]>;
   markDeliveredIfUnset(target: OutboxDeliveryTarget, at: Date): Promise<void>;
   markReadIfUnset(target: OutboxDeliveryTarget, at: Date): Promise<void>;
   markFailedIfUndelivered(target: OutboxDeliveryTarget, error: string): Promise<void>;

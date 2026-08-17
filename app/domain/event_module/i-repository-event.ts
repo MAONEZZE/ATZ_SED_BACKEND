@@ -159,7 +159,6 @@ export interface EventRepositoryPort {
   findDuplicationSource(id: string): Promise<EventDuplicationSource | null>;
   createDuplicate(data: CreateDuplicateEventData): Promise<CreatedDuplicateEvent>;
   findPublicBySlug(slug: string): Promise<PublicEventSummary | null>;
-  findStatusBySlug(slug: string): Promise<{ id: string; status: EventStatus } | null>;
   findAutomationContext(id: string): Promise<EventAutomationContext | null>;
   findWithApprovedRegistrationIds(
     id: string,

@@ -256,10 +256,6 @@ export class PrismaEventRepository implements EventRepositoryPort {
     return this.prisma.event.findUnique({ where: { slug }, select: PUBLIC_EVENT_SELECT });
   }
 
-  findStatusBySlug(slug: string): Promise<{ id: string; status: EventStatus } | null> {
-    return this.prisma.event.findUnique({ where: { slug }, select: { id: true, status: true } });
-  }
-
   async findAutomationContext(id: string): Promise<EventAutomationContext | null> {
     const row = await this.prisma.event.findUnique({
       where: { id },

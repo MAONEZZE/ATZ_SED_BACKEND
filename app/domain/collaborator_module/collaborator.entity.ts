@@ -16,9 +16,4 @@ export class CollaboratorEntity extends EntityBase {
   ) {
     super(id);
   }
-
-  /** O dono do evento já tem acesso total; colaborador é sempre outra pessoa. */
-  isOwner(ownerId: string): boolean {
-    return this.profileId === ownerId;
-  }
 }

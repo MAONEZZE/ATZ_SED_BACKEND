@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { RegistrationController } from '@api/controllers/registration_module/registration.controller';
+import { PublicCheckinController } from '@api/controllers/registration_module/public-checkin.controller';
 import { RegistrationService } from '@application/registration_module/registration.service';
 import { RegistrationDbModule } from '@infra/repositories/registration_module/registration-db.module';
 import { FormResponseDbModule } from '@infra/repositories/form_response_module/form-response-db.module';
@@ -19,7 +20,7 @@ import { FormFieldModule } from '@shared/modules/form-field.module';
     FormModule,
     FormFieldModule,
   ],
-  controllers: [RegistrationController],
+  controllers: [RegistrationController, PublicCheckinController],
   providers: [RegistrationService],
   exports: [RegistrationService],
 })

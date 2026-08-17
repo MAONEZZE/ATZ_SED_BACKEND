@@ -23,10 +23,4 @@ export class SupabaseAuthAdapter implements AuthPort {
 
     return new AuthenticatedUser(data.user.id, data.user.email ?? '');
   }
-
-  async getUser(id: string): Promise<AuthenticatedUser | null> {
-    const { data, error } = await this.supabase.auth.admin.getUserById(id);
-    if (error || !data.user) return null;
-    return new AuthenticatedUser(id, data.user.email ?? '');
-  }
 }
