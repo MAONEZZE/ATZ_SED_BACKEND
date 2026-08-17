@@ -1,13 +1,9 @@
 import { EntityBase } from '@domain/shared/entity.base';
-import { FormKind } from '@domain/shared/form-kind.type';
 
 /**
- * Metadados de um escopo de formulário de um evento. Identidade real é o par
- * `(eventId, kind)`, único no banco — o `id` existe para as chaves estrangeiras
- * dos campos.
- *
- * Um formulário é materializado na primeira vez que alguém o acessa, então
- * existir não quer dizer estar preenchido.
+ * Um formulário do evento. Desde 2026-08-17 um evento tem **N** formulários (os
+ * 3 tipos fixos registration/post_event/nps morreram): a identidade pública é o
+ * par `(eventId, slug)`, único no banco, e `order` define a posição na listagem.
  *
  * Campos públicos com o nome das colunas: o formulário é serializado direto
  * como corpo da resposta.
@@ -16,7 +12,9 @@ export class FormEntity extends EntityBase {
   constructor(
     id: string,
     public readonly eventId: string,
-    public readonly kind: FormKind,
+    public readonly name: string,
+    public readonly slug: string,
+    public readonly order: number,
     public readonly description: string | null,
     public readonly postRegistrationMessage: string | null,
     public readonly linkPostSubscription: string | null,
@@ -27,12 +25,22 @@ export class FormEntity extends EntityBase {
     super(id);
   }
 
-  /** Recém-materializado: nenhum dos campos editáveis foi preenchido ainda. */
+  /** Nenhum dos campos editáveis foi preenchido ainda. */
   isBlank(): boolean {
     return (
       !this.description?.trim() &&
       !this.postRegistrationMessage?.trim() &&
       !this.linkPostSubscription?.trim()
     );
+  }
+
+  /** Slug a partir do nome: é o que vai na URL pública do formulário. */
+  static generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
   }
 }

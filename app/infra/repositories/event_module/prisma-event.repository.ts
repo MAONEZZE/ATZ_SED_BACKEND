@@ -163,7 +163,11 @@ export class PrismaEventRepository implements EventRepositoryPort {
     return this.map(row);
   }
 
-  async updateStatus(id: string, status: EventStatus, editorId?: string): Promise<EventEntity> {
+  async updateStatus(
+    id: string,
+    status: EventStatus,
+    editorId?: string,
+  ): Promise<EventEntity> {
     const row = await this.prisma.event.update({
       where: { id },
       data: { status, ...(editorId ? { lastEditedById: editorId } : {}) },
@@ -180,11 +184,17 @@ export class PrismaEventRepository implements EventRepositoryPort {
       where: { id },
       select: {
         ownerId: true,
-        collaborators: { where: { profileId }, select: { id: true }, take: 1 },
+        collaborators: { where: { profileId }, select: { id: true, role: true }, take: 1 },
       },
     });
     if (!event) return null;
-    return { ownerId: event.ownerId, isCollaborator: event.collaborators.length > 0 };
+    const collaborator = event.collaborators[0];
+    return {
+      ownerId: event.ownerId,
+      isCollaborator: collaborator !== undefined,
+      // O dono é admin implícito; quem não tem vínculo nenhum não tem papel.
+      role: event.ownerId === profileId ? 'admin' : collaborator ? collaborator.role : null,
+    };
   }
 
   async findWhatsappInstanceToken(id: string): Promise<string | null> {
@@ -211,7 +221,9 @@ export class PrismaEventRepository implements EventRepositoryPort {
       endDate: row.endDate,
       sendToPipedrive: row.sendToPipedrive,
       forms: row.forms.map((form) => ({
-        kind: form.kind,
+        name: form.name,
+        slug: form.slug,
+        order: form.order,
         description: form.description,
         postRegistrationMessage: form.postRegistrationMessage,
         linkPostSubscription: form.linkPostSubscription,

@@ -10,6 +10,10 @@ import {
   EventRepositoryPort,
 } from '@domain/event_module/i-repository-event';
 import {
+  COLLABORATOR_REPOSITORY_PORT,
+  CollaboratorRepositoryPort,
+} from '@domain/collaborator_module/i-repository-collaborator';
+import {
   FOLDER_REPOSITORY_PORT,
   FolderRepositoryPort,
 } from '@domain/folder_module/i-repository-folder';
@@ -59,6 +63,8 @@ export interface UpdateEventInput {
 export class EventService {
   constructor(
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
+    @Inject(COLLABORATOR_REPOSITORY_PORT)
+    private readonly collaborators: CollaboratorRepositoryPort,
     @Inject(FOLDER_REPOSITORY_PORT) private readonly folders: FolderRepositoryPort,
     @Inject(WHATSAPP_INSTANCE_REPOSITORY_PORT)
     private readonly whatsappInstances: WhatsappInstanceRepositoryPort,
@@ -137,7 +143,11 @@ export class EventService {
     if (errors.length > 0) throw new BadRequestException(errors[0]);
   }
 
-  async updateStatus(id: string, status: EventStatus, editorId?: string): Promise<EventEntity> {
+  async updateStatus(
+    id: string,
+    status: EventStatus,
+    editorId?: string,
+  ): Promise<EventEntity> {
     const event = await this.findById(id);
     if (!event.canTransitionTo(status)) {
       throw new BadRequestException(`Cannot transition from '${event.status}' to '${status}'`);
@@ -178,8 +188,22 @@ export class EventService {
     );
   }
 
-  async delete(id: string): Promise<void> {
+  /**
+   * Dono e `admin` apagam o evento. Para `invited` e `read`, deletar significa
+   * "tirar do meu painel": remove o próprio vínculo e o evento continua vivo
+   * para os outros.
+   */
+  async delete(id: string, userId: string): Promise<{ deleted: boolean }> {
     await this.findById(id);
-    await this.eventRepo.delete(id);
+    const ownership = await this.eventRepo.findOwnershipById(id, userId);
+    if (!ownership?.role) throw new ForbiddenException('Not your event');
+
+    if (ownership.ownerId === userId || ownership.role === 'admin') {
+      await this.eventRepo.delete(id);
+      return { deleted: true };
+    }
+
+    await this.collaborators.remove(id, userId);
+    return { deleted: false };
   }
 }

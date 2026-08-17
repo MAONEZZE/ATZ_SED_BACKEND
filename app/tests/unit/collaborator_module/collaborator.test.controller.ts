@@ -26,7 +26,7 @@ describe('CollaboratorController', () => {
     const created = { id: 'c1', eventId: 'evt-1', profileId: 'p2' };
     service.add.mockResolvedValue(created);
     await expect(ctrl.add('evt-1', { email: 'bob@x.com' })).resolves.toBe(created);
-    expect(service.add).toHaveBeenCalledWith('evt-1', 'bob@x.com');
+    expect(service.add).toHaveBeenCalledWith('evt-1', 'bob@x.com', undefined);
   });
 
   it('remove delegates eventId and profileId to service.remove', async () => {

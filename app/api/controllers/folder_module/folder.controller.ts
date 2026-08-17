@@ -59,7 +59,7 @@ export class FolderController {
     summary: 'Deletar pasta — subpastas sobem para o pai e eventos são desassociados',
   })
   @ApiParam({ name: 'id', description: 'UUID da pasta' })
-  @ApiResponse({ status: 204, description: 'Pasta deletada; nenhum evento é apagado' })
+  @ApiResponse({ status: 204, description: 'Pasta deletada; nenhum evento é apagada' })
   delete(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.folders.delete(id, user.id);
   }

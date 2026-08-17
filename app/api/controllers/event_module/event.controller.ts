@@ -28,6 +28,7 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
+import { RequireEventRole } from '@api/config/decorators/require-event-role.decorator';
 import { CurrentUser } from '@api/config/decorators/current-user.decorator';
 import { AuthenticatedUser } from '@domain/shared/authenticated-user.entity';
 import { EventService } from '@application/event_module/event.service';
@@ -82,7 +83,12 @@ export class EventController {
     // A query string não carrega null: a literal 'null' pede a raiz, como no
     // filtro de templates. Ausente = sem filtro de pasta.
     const scope = folderId === 'null' ? null : folderId;
-    const { data, total } = await this.eventsService.findAllPaginated(user.id, page, limit, scope);
+    const { data, total } = await this.eventsService.findAllPaginated(
+      user.id,
+      page,
+      limit,
+      scope,
+    );
     return { data, total, page, limit };
   }
 
@@ -90,7 +96,8 @@ export class EventController {
   @Patch('reorder')
   @HttpCode(204)
   @ApiOperation({
-    summary: 'Reordenar eventos dentro de uma pasta (drag & drop): order = índice na lista de ids',
+    summary:
+      'Reordenar eventos dentro de uma pasta (drag & drop): order = índice na lista de ids',
   })
   @ApiResponse({ status: 204, description: 'Ordem reescrita' })
   reorder(@CurrentUser() user: AuthenticatedUser, @Body() dto: ReorderEventsDto) {
@@ -184,14 +191,22 @@ export class EventController {
     return this.eventsService.deleteCover(id, user.id);
   }
 
+  // Qualquer papel pode chamar: para invited/read isto desvincula em vez de
+  // apagar, então o guard não pode barrar pelo verbo.
   @Delete(':id')
   @UseGuards(OwnershipGuard)
+  @RequireEventRole('read')
   @HttpCode(204)
-  @ApiOperation({ summary: 'Deletar evento' })
+  @ApiOperation({
+    summary: 'Deletar evento (dono/admin) ou sair do evento compartilhada (invited/read)',
+  })
   @ApiParam({ name: 'id', description: 'UUID do evento' })
-  @ApiResponse({ status: 204, description: 'Evento deletado' })
-  delete(@Param('id') id: string) {
-    return this.eventsService.delete(id);
+  @ApiResponse({
+    status: 204,
+    description: 'Evento deletado, ou o usuário desvinculado quando o papel não é dono/admin',
+  })
+  async delete(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    await this.eventsService.delete(id, user.id);
   }
 
   @Post(':id/duplicate')

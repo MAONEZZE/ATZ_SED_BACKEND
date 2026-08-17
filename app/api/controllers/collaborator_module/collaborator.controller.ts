@@ -1,9 +1,23 @@
-import { Controller, Get, Post, Delete, Param, Body, UseGuards, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  HttpCode,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
+import { RequireEventRole } from '@api/config/decorators/require-event-role.decorator';
 import { CollaboratorService } from '@application/collaborator_module/collaborator.service';
-import { AddCollaboratorDto } from '@api/dto/collaborator_module/add-collaborator.dto';
+import {
+  AddCollaboratorDto,
+  UpdateCollaboratorRoleDto,
+} from '@api/dto/collaborator_module/add-collaborator.dto';
 
 @ApiTags('Collaborators')
 @ApiBearerAuth()
@@ -20,23 +34,44 @@ export class CollaboratorController {
     return this.collaborators.list(eventId);
   }
 
+  // Quem tem acesso ao evento gerencia? Não: mexer em quem entra é do dono/admin.
   @Post()
+  @RequireEventRole('admin')
   @HttpCode(201)
   @ApiOperation({ summary: 'Adicionar colaborador por email (usuário já cadastrado)' })
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiResponse({ status: 201, description: 'Colaborador adicionado' })
+  @ApiResponse({ status: 403, description: 'Exige papel admin no evento' })
   @ApiResponse({ status: 404, description: 'Nenhum usuário cadastrado com esse email' })
   @ApiResponse({ status: 409, description: 'Email pertence ao dono do evento' })
   add(@Param('eventId') eventId: string, @Body() dto: AddCollaboratorDto) {
-    return this.collaborators.add(eventId, dto.email);
+    return this.collaborators.add(eventId, dto.email, dto.role);
+  }
+
+  @Patch(':profileId')
+  @RequireEventRole('admin')
+  @ApiOperation({ summary: 'Trocar o papel do colaborador (admin | invited | read)' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiParam({ name: 'profileId', description: 'ID do perfil do colaborador' })
+  @ApiResponse({ status: 200, description: 'Papel atualizado' })
+  @ApiResponse({ status: 403, description: 'Exige papel admin no evento' })
+  @ApiResponse({ status: 404, description: 'Colaborador não encontrado' })
+  updateRole(
+    @Param('eventId') eventId: string,
+    @Param('profileId') profileId: string,
+    @Body() dto: UpdateCollaboratorRoleDto,
+  ) {
+    return this.collaborators.updateRole(eventId, profileId, dto.role);
   }
 
   @Delete(':profileId')
+  @RequireEventRole('admin')
   @HttpCode(204)
   @ApiOperation({ summary: 'Remover colaborador' })
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiParam({ name: 'profileId', description: 'ID do perfil do colaborador' })
   @ApiResponse({ status: 204, description: 'Colaborador removido' })
+  @ApiResponse({ status: 403, description: 'Exige papel admin no evento' })
   @ApiResponse({ status: 404, description: 'Colaborador não encontrado' })
   remove(@Param('eventId') eventId: string, @Param('profileId') profileId: string) {
     return this.collaborators.remove(eventId, profileId);

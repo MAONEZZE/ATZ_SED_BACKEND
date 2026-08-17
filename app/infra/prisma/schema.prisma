@@ -21,18 +21,20 @@ enum EventStatus {
   @@schema("SED")
 }
 
-enum FunnelStatus {
-  pending
-  approved
-  rejected
+/// Papel de um colaborador dentro do evento. Ordem de poder: read < invited < admin.
+/// O dono do evento é admin implícito (não tem linha em event_collaborators).
+enum EventRole {
+  admin
+  invited
+  read
 
   @@schema("SED")
 }
 
-enum FormFieldKind {
-  registration
-  post_event
-  nps
+enum FunnelStatus {
+  pending
+  approved
+  rejected
 
   @@schema("SED")
 }
@@ -67,6 +69,7 @@ enum AutomationTrigger {
   on_approval
   on_rejection
   recurring
+  on_form_submitted
 
   @@schema("SED")
 }
@@ -92,20 +95,20 @@ enum PipedriveStatus {
 // ==================== MODELS ====================
 
 model Profile {
-  id             String              @id @default(uuid())
-  userId         String              @unique @map("user_id")
-  name           String
-  email          String
-  photoUrl       String?             @map("photo_url")
-  createdAt      DateTime            @default(now()) @map("created_at")
-  updatedAt      DateTime            @updatedAt @map("updated_at")
-  events         Event[]             @relation("EventOwner")
-  editedEvents   Event[]             @relation("EventLastEditor")
-  collaborations EventCollaborator[]
-  templates      MessageTemplate[]
-  outboxMessages OutboxMessage[]
-  messageLogs    MessageLog[]        @relation("MessageLogOwner")
-  folders        Folder[]
+  id                       String                    @id @default(uuid())
+  userId                   String                    @unique @map("user_id")
+  name                     String
+  email                    String
+  photoUrl                 String?                   @map("photo_url")
+  createdAt                DateTime                  @default(now()) @map("created_at")
+  updatedAt                DateTime                  @updatedAt @map("updated_at")
+  events                   Event[]                   @relation("EventOwner")
+  editedEvents             Event[]                   @relation("EventLastEditor")
+  collaborations           EventCollaborator[]
+  templates                MessageTemplate[]
+  outboxMessages           OutboxMessage[]
+  messageLogs              MessageLog[]              @relation("MessageLogOwner")
+  folders                  Folder[]
   allowedWhatsappInstances ProfileWhatsappInstance[]
 
   @@map("profiles")
@@ -143,11 +146,10 @@ model Event {
   collaborators      EventCollaborator[]
   forms              Form[]
   registrations      Registration[]
-  postEventResponses PostEventResponse[]
+  formResponses      FormResponse[]
   automationRules    AutomationRule[]
   outboxMessages     OutboxMessage[]
   messageLogs        MessageLog[]
-  userSubscriptions  UserSubscription[]
   messageTemplates   MessageTemplate[]
 
   @@index([ownerId])
@@ -180,13 +182,13 @@ model Folder {
 }
 
 model WhatsappInstance {
-  id            String                     @id @default(uuid())
-  name          String                     @unique
-  nickname      String
-  token         String?                    @map("token")
-  createdAt     DateTime                   @default(now()) @map("created_at")
-  updatedAt     DateTime                   @updatedAt @map("updated_at")
-  events        Event[]
+  id              String                    @id @default(uuid())
+  name            String                    @unique
+  nickname        String
+  token           String?                   @map("token")
+  createdAt       DateTime                  @default(now()) @map("created_at")
+  updatedAt       DateTime                  @updatedAt @map("updated_at")
+  events          Event[]
   allowedProfiles ProfileWhatsappInstance[]
 
   @@map("whatsapp_instances")
@@ -209,31 +211,39 @@ model ProfileWhatsappInstance {
   @@schema("SED")
 }
 
+/// Formulário do evento. Um evento tem N formulários (o `kind` fixo
+/// registration/post_event/nps morreu em 2026-08-17); `slug` é a chave pública
+/// dentro do evento e `order` posiciona na listagem.
 model Form {
-  id                        String        @id @default(uuid())
-  eventId                   String        @map("event_id")
-  kind                      FormFieldKind @default(registration)
+  id                        String           @id @default(uuid())
+  eventId                   String           @map("event_id")
+  name                      String
+  slug                      String
+  order                     Int              @default(0)
   description               String?
-  postRegistrationMessage   String?       @map("post_registration_message")
-  linkPostSubscription      String?       @map("link_post_subscription")
-  requireImageAuthorization Boolean       @default(false) @map("require_image_authorization")
-  createdAt                 DateTime      @default(now()) @map("created_at")
-  updatedAt                 DateTime      @updatedAt @map("updated_at")
-  event                     Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  postRegistrationMessage   String?          @map("post_registration_message")
+  linkPostSubscription      String?          @map("link_post_subscription")
+  requireImageAuthorization Boolean          @default(false) @map("require_image_authorization")
+  createdAt                 DateTime         @default(now()) @map("created_at")
+  updatedAt                 DateTime         @updatedAt @map("updated_at")
+  event                     Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
   fields                    FormField[]
+  responses                 FormResponse[]
+  automationRules           AutomationRule[]
 
-  @@unique([eventId, kind])
+  @@unique([eventId, slug])
   @@map("forms")
   @@schema("SED")
 }
 
 model EventCollaborator {
-  id        String   @id @default(uuid())
-  eventId   String   @map("event_id")
-  profileId String   @map("profile_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  id        String    @id @default(uuid())
+  eventId   String    @map("event_id")
+  profileId String    @map("profile_id")
+  role      EventRole @default(invited)
+  createdAt DateTime  @default(now()) @map("created_at")
+  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  profile   Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, profileId])
   @@index([profileId])
@@ -258,63 +268,46 @@ model FormField {
   @@schema("SED")
 }
 
-model Registration {
-  id                 String             @id @default(uuid())
-  eventId            String             @map("event_id")
-  status             FunnelStatus       @default(pending)
-  answers            Json
-  name               String
-  email              String
-  phone              String
-  imageAuthorization Boolean            @default(false) @map("image_authorization")
-  attended           Boolean            @default(false)
-  createdAt          DateTime           @default(now()) @map("created_at")
-  updatedAt          DateTime           @updatedAt @map("updated_at")
-  event              Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  outboxMessages     OutboxMessage[]
-  messageLogs        MessageLog[]
-  postEventResponse  PostEventResponse?
-
-  @@index([eventId, status])
-  @@map("registrations")
-  @@schema("SED")
-}
-
-model PostEventResponse {
+/// Resposta de um inscrito a um formulário — a junção N formulários × N pessoas.
+/// Uma resposta por (form, inscrito): reenviar sobrescreve, como o pós-evento já fazia.
+model FormResponse {
   id             String       @id @default(uuid())
+  formId         String       @map("form_id")
   eventId        String       @map("event_id")
   registrationId String       @map("registration_id")
   answers        Json
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
+  form           Form         @relation(fields: [formId], references: [id], onDelete: Cascade)
   event          Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
   registration   Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
 
-  @@unique([registrationId])
+  @@unique([formId, registrationId])
   @@index([eventId])
-  @@map("post_event_responses")
+  @@index([registrationId])
+  @@map("form_responses")
   @@schema("SED")
 }
 
-model UserSubscription {
-  id                  String           @id @default(uuid())
-  eventId             String           @map("event_id")
-  name                String?
-  email               String?
-  phone               String?
-  registrationAnswers Json?            @map("registration_answers")
-  postEventAnswers    Json?            @map("post_event_answers")
-  npsAnswers          Json?            @map("nps_answers")
-  sendToPipedrive     Boolean          @default(false) @map("send_to_pipedrive")
-  pipedriveStatus     PipedriveStatus? @map("pipedrive_status")
-  createdAt           DateTime         @default(now()) @map("created_at")
-  updatedAt           DateTime         @updatedAt @map("updated_at")
-  event               Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+model Registration {
+  id                 String          @id @default(uuid())
+  eventId            String          @map("event_id")
+  status             FunnelStatus    @default(pending)
+  answers            Json
+  name               String
+  email              String
+  phone              String
+  imageAuthorization Boolean         @default(false) @map("image_authorization")
+  attended           Boolean         @default(false)
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+  event              Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  outboxMessages     OutboxMessage[]
+  messageLogs        MessageLog[]
+  formResponses      FormResponse[]
 
-  @@index([eventId])
-  @@index([eventId, email])
-  @@index([eventId, phone])
-  @@map("user_subscriptions")
+  @@index([eventId, status])
+  @@map("registrations")
   @@schema("SED")
 }
 
@@ -345,6 +338,8 @@ model AutomationRule {
   id           String            @id @default(uuid())
   eventId      String            @map("event_id")
   templateId   String            @map("template_id")
+  /// Só para o gatilho on_form_submitted: qual formulário dispara a regra.
+  formId       String?           @map("form_id")
   trigger      AutomationTrigger
   delayMinutes Int?              @map("delay_minutes")
   cron         String?
@@ -353,8 +348,10 @@ model AutomationRule {
   createdAt    DateTime          @default(now()) @map("created_at")
   event        Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   template     MessageTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  form         Form?             @relation(fields: [formId], references: [id], onDelete: SetNull)
 
   @@index([eventId, trigger, active])
+  @@index([formId])
   @@map("automation_rules")
   @@schema("SED")
 }

@@ -11,6 +11,7 @@ import {
   PROFILE_REPOSITORY_PORT,
   ProfileRepositoryPort,
 } from '@domain/profile_module/i-repository-profile';
+import { EventRole } from '@domain/collaborator_module/event-role.type';
 
 @Injectable()
 export class CollaboratorService {
@@ -26,7 +27,7 @@ export class CollaboratorService {
     return this.collaborators.list(eventId);
   }
 
-  async add(eventId: string, email: string) {
+  async add(eventId: string, email: string, role: EventRole = 'invited') {
     const event = await this.eventRepo.findById(eventId);
     if (!event) throw new NotFoundException('Event not found');
 
@@ -38,7 +39,13 @@ export class CollaboratorService {
       throw new ConflictException('User is already the event owner');
     }
 
-    return this.collaborators.upsert(eventId, profile.id);
+    return this.collaborators.upsert(eventId, profile.id, role);
+  }
+
+  async updateRole(eventId: string, profileId: string, role: EventRole) {
+    const updated = await this.collaborators.updateRole(eventId, profileId, role);
+    if (!updated) throw new NotFoundException('Collaborator not found');
+    return updated;
   }
 
   async remove(eventId: string, profileId: string): Promise<void> {

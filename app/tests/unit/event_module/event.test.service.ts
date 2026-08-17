@@ -27,14 +27,16 @@ function makeService() {
   const storage = { upload: jest.fn(), delete: jest.fn(), getPublicUrl: jest.fn() };
   const config = { get: jest.fn().mockReturnValue(undefined) };
   const whatsappInstances = { isAllowedForProfile: jest.fn().mockResolvedValue(true) };
+  const collaborators = { remove: jest.fn().mockResolvedValue(1) };
   const service = new EventService(
     eventRepo as any,
+    collaborators as any,
     folders as any,
     whatsappInstances as any,
     storage,
     config as any,
   );
-  return { service, eventRepo, folders, whatsappInstances, storage, config };
+  return { service, collaborators, eventRepo, folders, whatsappInstances, storage, config };
 }
 
 describe('EventService endDate validation', () => {

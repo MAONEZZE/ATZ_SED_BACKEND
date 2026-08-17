@@ -16,8 +16,12 @@ export type AutomationTrigger = (typeof AUTOMATION_TRIGGERS)[number];
  * Regra que dispara uma mensagem a partir de um acontecimento do evento.
  *
  * `recurring` é o gatilho fora da curva: em vez de reagir a um acontecimento,
- * roda por agenda, e por isso é o único que exige `cron` + `timezone` e o único
- * que pode conviver com outras regras ativas do mesmo gatilho.
+ * roda por agenda, e por isso é o único que exige `cron` + `timezone`.
+ *
+ * Qualquer gatilho aceita mais de uma regra ativa no mesmo evento, desde que
+ * usem templates diferentes (ex: aprovação mandando e-mail e WhatsApp). Repetir
+ * o mesmo template no mesmo gatilho é recusado com 409 — as duas linhas
+ * colidiriam no `dedupKey` do outbox e a segunda nunca sairia.
  *
  * Campos públicos com o nome das colunas: as listagens são serializadas direto
  * como corpo da resposta.

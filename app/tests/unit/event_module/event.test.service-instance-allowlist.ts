@@ -15,14 +15,16 @@ function makeService(instanceAllowed = true) {
   };
   const storage = { upload: jest.fn(), delete: jest.fn(), getPublicUrl: jest.fn() };
   const config = { get: jest.fn().mockReturnValue(undefined) };
+  const collaborators = { remove: jest.fn().mockResolvedValue(1) };
   const service = new EventService(
     eventRepo as any,
+    collaborators as any,
     folders as any,
     whatsappInstances as any,
     storage,
     config as any,
   );
-  return { service, eventRepo, whatsappInstances };
+  return { service, collaborators, eventRepo, whatsappInstances };
 }
 
 // Vincular a instância ao evento é o outro caminho para disparar por ela, então

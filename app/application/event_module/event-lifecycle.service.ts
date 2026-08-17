@@ -86,7 +86,13 @@ export class EventLifecycleService {
     }
 
     this.logger.log({ sourceId: eventId, newId: newEvent.id }, 'Event duplicated');
-    return new EventEntity(newEvent.id, newEvent.ownerId, newEvent.title, newEvent.slug, 'draft');
+    return new EventEntity(
+      newEvent.id,
+      newEvent.ownerId,
+      newEvent.title,
+      newEvent.slug,
+      'draft',
+    );
   }
 
   private async notifyCancellation(event: EventEntity): Promise<void> {

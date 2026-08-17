@@ -1,3 +1,4 @@
+import { EventRole } from '@domain/collaborator_module/event-role.type';
 import { EventEntity, EventStatus } from './event.entity';
 
 export const EVENT_REPOSITORY_PORT = Symbol('EVENT_REPOSITORY_PORT');
@@ -41,10 +42,14 @@ export interface UpdateEventData {
 export interface EventOwnership {
   ownerId: string;
   isCollaborator: boolean;
+  /** Papel efetivo do usuário consultado: dono → 'admin'; sem vínculo → null. */
+  role: EventRole | null;
 }
 
 export interface EventDuplicationForm {
-  kind: string;
+  name: string;
+  slug: string;
+  order: number;
   description: string | null;
   postRegistrationMessage: string | null;
   linkPostSubscription: string | null;
