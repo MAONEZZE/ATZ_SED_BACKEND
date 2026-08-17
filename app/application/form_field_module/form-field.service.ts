@@ -4,7 +4,6 @@ import {
   FORM_FIELD_REPOSITORY_PORT,
   FormFieldRepositoryPort,
 } from '@domain/form_field_module/i-repository-form-field';
-import { FormKind } from '@domain/shared/form-kind.type';
 import { FormService } from '@application/form_module/form.service';
 import { EventService } from '@application/event_module/event.service';
 
@@ -14,7 +13,8 @@ export interface CreateFormFieldInput {
   required?: boolean;
   options?: unknown;
   order?: number;
-  kind?: FormKind;
+  /** Formulário do evento onde o campo entra. */
+  formId: string;
 }
 
 export interface UpdateFormFieldInput {
@@ -36,26 +36,33 @@ export class FormFieldService {
     private readonly formsService: FormService,
   ) {}
 
-  listPaginated(eventId: string, kind: FormKind | undefined, page: number, limit: number) {
-    return this.repo.findAllByEventPaginated(eventId, kind, {
+  listPaginated(eventId: string, formId: string | undefined, page: number, limit: number) {
+    return this.repo.findAllByEventPaginated(eventId, formId, {
       skip: (page - 1) * limit,
       take: limit,
     });
   }
 
-  /** Ordered labels for CSV export headers (optionally only dynamic fields). */
-  exportLabels(eventId: string, kind: FormKind, onlyDynamic = false) {
-    return this.repo.listLabels(eventId, kind, onlyDynamic);
+  /** Rótulos na ordem de exibição — cabeçalho de coluna no CSV. */
+  exportLabels(formId: string, onlyDynamic = false) {
+    return this.repo.listLabels(formId, onlyDynamic);
   }
 
-  /** Field metadata for validating submitted answers. */
-  validationFields(eventId: string, kind: FormKind) {
-    return this.repo.listValidationFields(eventId, kind);
+  /** Metadados para validar as respostas enviadas. */
+  validationFields(formId: string) {
+    return this.repo.listValidationFields(formId);
+  }
+
+  /** Campos como o formulário público os renderiza. */
+  publicFields(formId: string) {
+    return this.repo.listPublicByForm(formId);
   }
 
   async create(eventId: string, editorId: string, input: CreateFormFieldInput) {
     await this.assertEventEditable(eventId);
-    const form = await this.formsService.getOrCreate(eventId, input.kind ?? 'registration');
+    // O formulário é escolhido explicitamente: sem os 3 tipos fixos não existe
+    // mais "o form padrão" para materializar na hora.
+    const form = await this.formsService.findOne(input.formId, eventId);
     const field = await this.repo.create({
       formId: form.id,
       label: input.label,

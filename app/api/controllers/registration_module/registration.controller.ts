@@ -26,6 +26,7 @@ import { CurrentUser } from '@api/config/decorators/current-user.decorator';
 import { AuthenticatedUser } from '@domain/shared/authenticated-user.entity';
 import { RegistrationService } from '@application/registration_module/registration.service';
 import { FormFieldService } from '@application/form_field_module/form-field.service';
+import { FormService } from '@application/form_module/form.service';
 import { buildRegistrationsCsv } from '@application/registration_module/registration-csv';
 import { UpdateRegistrationStatusDto } from '@api/dto/registration_module/update-registration-status.dto';
 import { UpdateRegistrationAnswersDto } from '@api/dto/registration_module/update-registration-answers.dto';
@@ -45,6 +46,7 @@ export class RegistrationController {
   constructor(
     private readonly registrations: RegistrationService,
     private readonly formFields: FormFieldService,
+    private readonly forms: FormService,
   ) {}
 
   @Get()
@@ -64,9 +66,13 @@ export class RegistrationController {
   ): Promise<Paginated<object> | string> {
     const { status, search, format, attended } = query;
     if (format === 'csv') {
+      // As colunas dinâmicas do CSV são os campos do formulário principal do
+      // evento (o de menor `order`) — sem os 3 tipos fixos, é ele que faz o papel
+      // do antigo kind=registration.
+      const primary = await this.forms.primary(eventId);
       const [regs, formFields] = await Promise.all([
         this.registrations.findAll(eventId, status, search, attended),
-        this.formFields.exportLabels(eventId, 'registration', true),
+        primary ? this.formFields.exportLabels(primary.id, true) : Promise.resolve([]),
       ]);
       const date = new Date().toISOString().slice(0, 10);
       res!.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -150,7 +156,8 @@ export class RegistrationController {
     @Param('id') id: string,
     @Body() dto: UpdateRegistrationAnswersDto,
   ) {
-    const formFields = await this.formFields.validationFields(eventId, 'registration');
+    const primary = await this.forms.primary(eventId);
+    const formFields = primary ? await this.formFields.validationFields(primary.id) : [];
     return this.registrations.updateAnswers(id, eventId, dto.answers, formFields);
   }
 

@@ -15,10 +15,12 @@ import {
   AutomationRepositoryPort,
 } from '@domain/automation_module/i-repository-automation';
 import { RecurringSchedulerService } from '@application/automation_module/recurring-scheduler.service';
+import { FORM_REPOSITORY_PORT, FormRepositoryPort } from '@domain/form_module/i-repository-form';
 
 export interface CreateAutomationInput {
   templateId: string;
   trigger: string;
+  formId?: string | null;
   delayMinutes?: number | null;
   cron?: string | null;
   timezone?: string | null;
@@ -28,6 +30,7 @@ export interface CreateAutomationInput {
 export interface UpdateAutomationInput {
   templateId?: string;
   trigger?: string;
+  formId?: string | null;
   delayMinutes?: number | null;
   cron?: string | null;
   timezone?: string | null;
@@ -48,6 +51,7 @@ export class AutomationService {
     @Inject(AUTOMATION_REPOSITORY_PORT)
     private readonly repo: AutomationRepositoryPort,
     private readonly scheduler: RecurringSchedulerService,
+    @Inject(FORM_REPOSITORY_PORT) private readonly forms: FormRepositoryPort,
   ) {}
 
   listPaginated(eventId: string, page: number, limit: number) {
@@ -67,7 +71,8 @@ export class AutomationService {
 
   async create(eventId: string, input: CreateAutomationInput) {
     await this.assertTemplateExists(input.templateId, eventId);
-    this.assertRecurringScheduleValid(input.trigger, input.cron, input.timezone);
+    this.assertRuleValid(input.trigger, input.cron, input.timezone, input.formId);
+    if (input.formId) await this.assertFormBelongsToEvent(input.formId, eventId);
     // Gatilho repetido é permitido (e-mail + WhatsApp na mesma etapa, por
     // exemplo). Só a repetição do mesmo template no mesmo gatilho é barrada.
     if (input.active !== false) {
@@ -76,6 +81,7 @@ export class AutomationService {
     const rule = await this.repo.create({
       eventId,
       templateId: input.templateId,
+      formId: AutomationRuleEntity.requiresForm(input.trigger) ? (input.formId ?? null) : null,
       trigger: input.trigger as AutomationTrigger,
       // delayMinutes nulo = disparo imediato. O front pode mandar 0 com a mesma
       // intenção; normalizamos 0 -> null para a regra não cair no buraco entre o
@@ -99,7 +105,9 @@ export class AutomationService {
     const templateId = input.templateId ?? existing.templateId;
     const cron = input.cron !== undefined ? input.cron : existing.cron;
     const timezone = input.timezone !== undefined ? input.timezone : existing.timezone;
-    this.assertRecurringScheduleValid(trigger, cron, timezone);
+    const formId = input.formId !== undefined ? input.formId : existing.formId;
+    this.assertRuleValid(trigger, cron, timezone, formId);
+    if (input.formId) await this.assertFormBelongsToEvent(input.formId, eventId);
 
     // A regra vale sobre o resultado da mesclagem: trocar só o template também
     // pode colidir com outra regra ativa do mesmo gatilho.
@@ -110,6 +118,9 @@ export class AutomationService {
     const updated = await this.repo.update(id, {
       ...(input.templateId && { templateId: input.templateId }),
       ...(input.trigger && { trigger: input.trigger as AutomationTrigger }),
+      ...(input.formId !== undefined && {
+        formId: AutomationRuleEntity.requiresForm(trigger) ? input.formId : null,
+      }),
       ...(input.delayMinutes !== undefined && { delayMinutes: input.delayMinutes || null }),
       ...(input.cron !== undefined && { cron: input.cron }),
       ...(input.timezone !== undefined && { timezone: input.timezone }),
@@ -128,13 +139,20 @@ export class AutomationService {
     }
   }
 
-  private assertRecurringScheduleValid(
+  private assertRuleValid(
     trigger: string,
     cron?: string | null,
     timezone?: string | null,
+    formId?: string | null,
   ): void {
-    const errors = new AutomationValidator().validate({ trigger, cron, timezone });
+    const errors = new AutomationValidator().validate({ trigger, cron, timezone, formId });
     if (errors.length > 0) throw new BadRequestException(errors[0]);
+  }
+
+  /** O formulário do gatilho tem que ser do próprio evento. */
+  private async assertFormBelongsToEvent(formId: string, eventId: string): Promise<void> {
+    const form = await this.forms.findByIdAndEvent(formId, eventId);
+    if (!form) throw new NotFoundException('Form not found');
   }
 
   private async syncRecurringScheduler(rule: RecurringSyncable): Promise<void> {

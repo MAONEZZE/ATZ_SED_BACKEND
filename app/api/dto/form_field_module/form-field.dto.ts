@@ -1,6 +1,5 @@
-import { IsString, IsIn, IsOptional, IsBoolean, IsInt, Min } from 'class-validator';
+import { IsString, IsIn, IsOptional, IsBoolean, IsInt, Min, IsUUID } from 'class-validator';
 import { PartialType, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { FORM_KINDS, FormKind } from '@domain/shared/form-kind.type';
 
 const FORM_FIELD_TYPES = [
   'text',
@@ -17,6 +16,10 @@ const FORM_FIELD_TYPES = [
 ] as const;
 
 export class CreateFormFieldDto {
+  @ApiProperty({ example: 'uuid-do-formulario', description: 'Formulário do evento onde o campo entra.' })
+  @IsUUID()
+  formId!: string;
+
   @ApiProperty({ example: 'Nome completo' })
   @IsString()
   label!: string;
@@ -40,10 +43,6 @@ export class CreateFormFieldDto {
   @Min(0)
   order?: number;
 
-  @ApiPropertyOptional({ enum: FORM_KINDS, example: 'registration' })
-  @IsOptional()
-  @IsIn(FORM_KINDS)
-  kind?: FormKind;
 }
 
 export class UpdateFormFieldDto extends PartialType(CreateFormFieldDto) {}

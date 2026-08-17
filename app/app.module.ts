@@ -14,11 +14,11 @@ import { GuardsModule } from '@shared/modules/guards.module';
 import { EventModule } from '@shared/modules/event.module';
 import { FolderModule } from '@shared/modules/folder.module';
 import { FormModule } from '@shared/modules/form.module';
+import { FormResponseModule } from '@shared/modules/form-response.module';
+import { PublicFormModule } from '@shared/modules/public-form.module';
 import { FormFieldModule } from '@shared/modules/form-field.module';
 import { CollaboratorModule } from '@shared/modules/collaborator.module';
 import { RegistrationModule } from '@shared/modules/registration.module';
-import { UserSubscriptionModule } from '@shared/modules/user-subscription.module';
-import { PostEventResponseModule } from '@shared/modules/post-event-response.module';
 import { WorkersModule } from '@shared/modules/workers.module';
 import { AutomationModule } from '@shared/modules/automation.module';
 import { OutboxModule } from '@shared/modules/outbox.module';
@@ -53,11 +53,11 @@ import { WhatsappInstanceModule } from '@shared/modules/whatsapp-instance.module
     EventModule,
     FolderModule,
     FormModule,
+    FormResponseModule,
+    PublicFormModule,
     FormFieldModule,
     CollaboratorModule,
     RegistrationModule,
-    UserSubscriptionModule,
-    PostEventResponseModule,
     WorkersModule,
     AutomationModule,
     OutboxModule,

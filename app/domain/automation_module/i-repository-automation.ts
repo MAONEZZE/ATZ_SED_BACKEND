@@ -8,6 +8,8 @@ export const AUTOMATION_REPOSITORY_PORT = Symbol('AUTOMATION_REPOSITORY_PORT');
 export interface CreateAutomationRuleData {
   eventId: string;
   templateId: string;
+  /** Obrigatório no gatilho on_form_submitted; ignorado nos outros. */
+  formId?: string | null;
   trigger: AutomationTrigger;
   delayMinutes?: number | null;
   cron?: string | null;
@@ -18,6 +20,7 @@ export interface CreateAutomationRuleData {
 /** Chave ausente deixa a coluna intacta. */
 export interface UpdateAutomationRuleData {
   templateId?: string;
+  formId?: string | null;
   trigger?: AutomationTrigger;
   delayMinutes?: number | null;
   cron?: string | null;

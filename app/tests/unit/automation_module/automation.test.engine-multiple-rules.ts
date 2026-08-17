@@ -110,3 +110,47 @@ describe('AutomationEngine — múltiplas regras no mesmo gatilho', () => {
     expect(keys[1]).toContain('tpl-whats');
   });
 });
+
+// on_form_submitted: as regras do evento são filtradas pelo formulário respondido.
+describe('AutomationEngine — gatilho por formulário', () => {
+  function formRule(id: string, templateId: string, formId: string | null) {
+    return {
+      id,
+      templateId,
+      formId,
+      trigger: 'on_form_submitted',
+      template: { id: templateId, channel: 'email', subject: 'Obrigado', body: 'Oi {{nome}}' },
+    };
+  }
+
+  it('fires only the rules bound to the submitted form', async () => {
+    const { engine, outbox, automations } = makeEngine([
+      formRule('rule-nps', 'tpl-nps', 'form-nps'),
+      formRule('rule-pos', 'tpl-pos', 'form-pos'),
+    ]);
+
+    await engine.fireForForm('evt-1', 'form-nps', {
+      name: 'João',
+      email: 'joao@test.com',
+      phone: '+5511999998888',
+    });
+
+    // A segunda chamada (dentro do dispatch) recebe os ruleIds já filtrados.
+    expect(automations.findActiveTriggerRules).toHaveBeenLastCalledWith('evt-1', 'on_form_submitted', [
+      'rule-nps',
+    ]);
+    expect(outbox.enqueue).toHaveBeenCalled();
+  });
+
+  it('does nothing when no rule is bound to that form', async () => {
+    const { engine, outbox } = makeEngine([formRule('rule-pos', 'tpl-pos', 'form-pos')]);
+
+    await engine.fireForForm('evt-1', 'form-nps', {
+      name: 'João',
+      email: 'joao@test.com',
+      phone: '+5511999998888',
+    });
+
+    expect(outbox.enqueue).not.toHaveBeenCalled();
+  });
+});

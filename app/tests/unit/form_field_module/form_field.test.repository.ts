@@ -73,11 +73,11 @@ describe('PrismaFormFieldRepository.listLabels', () => {
     const findMany = jest.fn().mockResolvedValue([]);
     const { repo } = await makeRepo({ findMany });
 
-    await repo.listLabels('evt-1', 'registration');
+    await repo.listLabels('form-1');
 
     const [args] = findMany.mock.calls[0] as [{ where: Record<string, unknown> }];
     expect(args).toMatchObject({
-      where: { form: { eventId: 'evt-1', kind: 'registration' } },
+      where: { formId: 'form-1' },
       orderBy: { order: 'asc' },
     });
     expect(args.where).not.toHaveProperty('isFixed');
@@ -89,7 +89,7 @@ describe('PrismaFormFieldRepository.listLabels', () => {
     const findMany = jest.fn().mockResolvedValue([]);
     const { repo } = await makeRepo({ findMany });
 
-    await repo.listLabels('evt-1', 'registration', true);
+    await repo.listLabels('form-1', true);
 
     const [args] = findMany.mock.calls[0] as [{ where: Record<string, unknown> }];
     expect(args.where).toMatchObject({ isFixed: false });

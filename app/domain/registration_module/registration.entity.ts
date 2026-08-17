@@ -2,6 +2,9 @@ import { EntityBase } from '@domain/shared/entity.base';
 
 export type FunnelStatus = 'pending' | 'approved' | 'rejected';
 
+/** Resultado do envio ao Pipedrive. `null` = o evento não pede envio. */
+export type PipedriveStatus = 'pending' | 'sent' | 'failed' | 'skipped';
+
 export const FUNNEL_STATUSES: FunnelStatus[] = ['pending', 'approved', 'rejected'];
 
 export class RegistrationEntity extends EntityBase {
@@ -18,6 +21,7 @@ export class RegistrationEntity extends EntityBase {
     public readonly imageAuthorization: boolean = false,
     /** Presença no evento. `false` = não compareceu ou ainda não foi conferido. */
     public readonly attended: boolean = false,
+    public readonly pipedriveStatus: PipedriveStatus | null = null,
   ) {
     super(id);
   }

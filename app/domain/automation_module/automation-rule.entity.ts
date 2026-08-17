@@ -3,11 +3,10 @@ import { EntityBase } from '@domain/shared/entity.base';
 /** Gatilhos aceitos, espelhando o enum `AutomationTrigger` do banco. */
 export const AUTOMATION_TRIGGERS = [
   'on_registration',
-  'on_post_event',
-  'on_nps',
   'on_approval',
   'on_rejection',
   'recurring',
+  'on_form_submitted',
 ] as const;
 
 export type AutomationTrigger = (typeof AUTOMATION_TRIGGERS)[number];
@@ -32,6 +31,8 @@ export class AutomationRuleEntity extends EntityBase {
     public readonly eventId: string,
     public readonly templateId: string,
     public readonly trigger: AutomationTrigger,
+    /** Só no gatilho `on_form_submitted`: qual formulário dispara a regra. */
+    public readonly formId: string | null,
     public readonly delayMinutes: number | null,
     public readonly cron: string | null,
     public readonly timezone: string | null,
@@ -43,6 +44,11 @@ export class AutomationRuleEntity extends EntityBase {
 
   isRecurring(): boolean {
     return AutomationRuleEntity.isRecurring(this.trigger);
+  }
+
+  /** `on_form_submitted` é escopado por formulário, então exige `formId`. */
+  static requiresForm(trigger: string): boolean {
+    return trigger === 'on_form_submitted';
   }
 
   static isRecurring(trigger: string): boolean {

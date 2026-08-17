@@ -26,16 +26,14 @@ function makeService(regOverrides: Partial<{ id: string; eventId: string }> = {}
     findAllByEventPaginated: jest.fn(),
   };
   const eventsService = { findBySlug: jest.fn(), findById: jest.fn() };
-  const eventEmitter = { emit: jest.fn() };
-  const userSubscriptions = { upsertFromForm: jest.fn().mockResolvedValue({}) };
-  const pipedrive = { send: jest.fn() };
   const service = new RegistrationService(
     regRepo as any,
     eventsService as any,
-    eventEmitter as any,
-    userSubscriptions as any,
-    pipedrive,
-    {} as any,
+    { emit: jest.fn() } as any,
+    { send: jest.fn() } as any,
+    { findOne: jest.fn(), primary: jest.fn(), findPublic: jest.fn() } as any,
+    { upsert: jest.fn() } as any,
+    { listValidationFields: jest.fn().mockResolvedValue([]) } as any,
   );
   return { service, regRepo };
 }

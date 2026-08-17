@@ -6,11 +6,11 @@ import {
   RegistrationRepositoryPort,
   CreateRegistrationData,
   UpdateAnswersData,
-  PostEventResponseData,
 } from '@domain/registration_module/i-repository-registration';
 import {
   RegistrationEntity,
   FunnelStatus,
+  PipedriveStatus,
 } from '@domain/registration_module/registration.entity';
 
 @Injectable()
@@ -30,6 +30,7 @@ export class PrismaRegistrationRepository
     updatedAt: Date;
     imageAuthorization: boolean;
     attended: boolean;
+    pipedriveStatus: string | null;
   }): RegistrationEntity {
     return new RegistrationEntity(
       row.id,
@@ -43,6 +44,7 @@ export class PrismaRegistrationRepository
       row.updatedAt,
       row.imageAuthorization,
       row.attended,
+      row.pipedriveStatus as PipedriveStatus | null,
     );
   }
 
@@ -163,16 +165,8 @@ export class PrismaRegistrationRepository
     return null;
   }
 
-  async upsertPostEventResponse(data: PostEventResponseData): Promise<void> {
-    await this.prisma.postEventResponse.upsert({
-      where: { registrationId: data.registrationId },
-      create: {
-        eventId: data.eventId,
-        registrationId: data.registrationId,
-        answers: data.answers as Prisma.InputJsonValue,
-      },
-      update: { answers: data.answers as Prisma.InputJsonValue },
-    });
+  async setPipedriveStatus(id: string, status: PipedriveStatus): Promise<void> {
+    await this.prisma.registration.update({ where: { id }, data: { pipedriveStatus: status } });
   }
 
   countByEvent(eventId: string): Promise<number> {

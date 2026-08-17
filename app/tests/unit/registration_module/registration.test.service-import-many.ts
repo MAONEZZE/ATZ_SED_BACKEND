@@ -7,17 +7,17 @@ function make(existingByContact: Record<string, unknown> | null = null) {
   };
   const eventsService = { findBySlug: jest.fn(), findById: jest.fn() };
   const emitter = { emit: jest.fn() };
-  const userSubscriptions = { upsertFromForm: jest.fn(), markPipedrive: jest.fn() };
   const pipedrive = { send: jest.fn() };
   const svc = new RegistrationService(
     regRepo as any,
     eventsService as any,
     emitter as any,
-    userSubscriptions as any,
-    pipedrive,
-    {} as any,
+    pipedrive as any,
+    { findOne: jest.fn(), primary: jest.fn(), findPublic: jest.fn() } as any,
+    { upsert: jest.fn() } as any,
+    { listValidationFields: jest.fn().mockResolvedValue([]) } as any,
   );
-  return { svc, regRepo, emitter, userSubscriptions, pipedrive };
+  return { svc, regRepo, emitter, pipedrive };
 }
 
 describe('RegistrationService.importMany', () => {
@@ -59,12 +59,12 @@ describe('RegistrationService.importMany', () => {
     expect(regRepo.create).not.toHaveBeenCalled();
   });
 
-  it('does not emit registration.status_changed nor call pipedrive/user-subscriptions', async () => {
-    const { svc, emitter, userSubscriptions, pipedrive } = make(null);
+  // Import em lote é carga de planilha: não dispara automação nem CRM.
+  it('does not emit registration.status_changed nor call pipedrive', async () => {
+    const { svc, emitter, pipedrive } = make(null);
     await svc.importMany('evt-1', [{ nome: 'Fulano', email: 'fulano@x.com' }]);
 
     expect(emitter.emit).not.toHaveBeenCalled();
-    expect(userSubscriptions.upsertFromForm).not.toHaveBeenCalled();
     expect(pipedrive.send).not.toHaveBeenCalled();
   });
 

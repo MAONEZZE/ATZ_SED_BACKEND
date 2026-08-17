@@ -8,9 +8,17 @@ import { RegistrationEntity, FunnelStatus } from '@domain/registration_module/re
 import { RegistrationStatusChanged } from '@domain/registration_module/registration-status-changed.event';
 import { FormSubmitted } from '@domain/registration_module/form-submitted.event';
 import { EventService } from '@application/event_module/event.service';
-import { UserSubscriptionService } from '@application/user_subscription_module/user-subscription.service';
+import { EventEntity } from '@domain/event_module/event.entity';
 import { CRM_PORT, CrmPort } from '@domain/shared/i-crm';
 import { FormService } from '@application/form_module/form.service';
+import {
+  FORM_RESPONSE_REPOSITORY_PORT,
+  FormResponseRepositoryPort,
+} from '@domain/form_response_module/i-repository-form-response';
+import {
+  FORM_FIELD_REPOSITORY_PORT,
+  FormFieldRepositoryPort,
+} from '@domain/form_field_module/i-repository-form-field';
 import {
   validateAnswers,
   resolveAnswer,
@@ -32,58 +40,101 @@ export class RegistrationService {
     private readonly regRepo: RegistrationRepositoryPort,
     private readonly eventsService: EventService,
     private readonly eventEmitter: EventEmitter2,
-    private readonly userSubscriptions: UserSubscriptionService,
     @Inject(CRM_PORT) private readonly pipedrive: CrmPort,
     private readonly formsService: FormService,
+    @Inject(FORM_RESPONSE_REPOSITORY_PORT)
+    private readonly formResponses: FormResponseRepositoryPort,
+    @Inject(FORM_FIELD_REPOSITORY_PORT)
+    private readonly formFields: FormFieldRepositoryPort,
   ) {}
 
-  async createPublic(
-    slug: string,
-    answers: Record<string, unknown>,
-    fields: AnswerFieldMeta[],
-    sendToPipedrive?: boolean,
-    imageAuthorization?: boolean,
-  ): Promise<RegistrationEntity> {
-    const event = await this.eventsService.findBySlug(slug);
-    if (event.status !== 'published') {
-      throw new BadRequestException('Event is not accepting registrations');
-    }
+  /**
+   * Submissão pública de **qualquer** formulário do evento (os 3 tipos fixos
+   * morreram em 2026-08-17). O telefone é a identidade: normalizado, ele casa
+   * com um inscrito do evento; sem match, o inscrito é criado ali mesmo.
+   *
+   * A resposta sempre vai para `FormResponse` (uma por form + inscrito, reenviar
+   * sobrescreve); `Registration.answers` guarda o que veio no primeiro contato.
+   */
+  /** Evento público por slug — a listagem pública de formulários precisa do id. */
+  publicEventBySlug(slug: string) {
+    return this.eventsService.findBySlug(slug);
+  }
 
+  async submitForm(
+    eventSlug: string,
+    formSlug: string,
+    phone: string,
+    answers: Record<string, unknown>,
+    options?: { sendToPipedrive?: boolean; imageAuthorization?: boolean },
+  ): Promise<{ registration: RegistrationEntity; created: boolean }> {
+    const event = await this.eventsService.findBySlug(eventSlug);
+    if (event.status !== 'published' && event.status !== 'ended') {
+      throw new BadRequestException('Event is not accepting form responses');
+    }
+    const form = await this.formsService.findPublic(eventSlug, formSlug);
+
+    const fields = await this.formFields.listValidationFields(form.id);
     validateAnswers(fields, answers);
 
+    const normalized = normalizePhone(phone) ?? phone.replace(/\D/g, '');
+    if (!normalized) throw new BadRequestException('Telefone é obrigatório');
+
+    const existing = await this.regRepo.findByEventAndContact(event.id, { phone: normalized });
+    const registration = existing
+      ? existing
+      : await this.createFromForm(event, form, normalized, answers, options?.imageAuthorization);
+
+    await this.formResponses.upsert({
+      formId: form.id,
+      eventId: event.id,
+      registrationId: registration.id,
+      answers,
+    });
+
+    this.eventEmitter.emit(
+      'form.submitted',
+      new FormSubmitted(event.id, form.id, {
+        name: registration.name,
+        email: registration.email,
+        phone: registration.phone,
+      }),
+    );
+
+    if (!existing) {
+      await this.sendToPipedrive(event, registration, answers, options?.sendToPipedrive);
+    }
+
+    return { registration, created: !existing };
+  }
+
+  /** Inscrito novo a partir de um formulário: aplica capacidade e o funil. */
+  private async createFromForm(
+    event: EventEntity,
+    form: { id: string; requireImageAuthorization: boolean },
+    phone: string,
+    answers: Record<string, unknown>,
+    imageAuthorization?: boolean,
+  ): Promise<RegistrationEntity> {
+    if (event.status !== 'published') {
+      throw new BadRequestException('Event is not accepting new registrations');
+    }
     if (event.capacity != null) {
       const currentCount = await this.regRepo.countByEvent(event.id);
       if (currentCount >= event.capacity) {
         throw new BadRequestException('Event has reached its registration capacity');
       }
     }
-
-    const form = await this.formsService.getOrCreate(event.id, 'registration');
     if (form.requireImageAuthorization && imageAuthorization !== true) {
       throw new BadRequestException('Autorização de uso de imagem é obrigatória');
     }
 
-    // Body flag overrides; otherwise fall back to the event-level default.
-    const shouldSendToPipedrive = sendToPipedrive ?? event.sendToPipedrive;
-
-    const name = this.extractString(answers, ['nome', 'name']);
-    const email = this.extractByFieldType(answers, fields, 'email', ['email']);
-    const phone = this.extractByFieldType(answers, fields, 'phone', ['telefone', 'phone']);
-    const linkedin = this.extractByFieldType(answers, fields, 'linkedin', [
-      'linkedin',
-      'Linkedin',
-      'LinkedIn',
-    ]);
-    const instagram = this.extractByFieldType(answers, fields, 'instagram', [
-      'instagram',
-      'Instagram',
-    ]);
-
+    const fields = await this.formFields.listValidationFields(form.id);
     const reg = await this.regRepo.create({
       eventId: event.id,
       answers,
-      name,
-      email,
+      name: this.extractString(answers, ['nome', 'name']),
+      email: this.extractByFieldType(answers, fields, 'email', ['email']),
       phone,
       imageAuthorization: imageAuthorization === true,
     });
@@ -92,43 +143,39 @@ export class RegistrationService {
       'registration.status_changed',
       new RegistrationStatusChanged(reg.id, event.id, 'pending', 'pending', event.ownerId),
     );
-
-    const subscription = await this.userSubscriptions.upsertFromForm(
-      event.id,
-      'registration',
-      answers,
-    );
-
-    if (shouldSendToPipedrive) {
-      await this.userSubscriptions.markPipedrive(subscription.id, true, 'pending');
-      // Fire-and-forget: don't block the response on the webhook; record the
-      // outcome asynchronously.
-      void this.pipedrive
-        .send({
-          event: { id: event.id, slug: event.slug, title: event.title },
-          form: 'registration',
-          contact: { email, phone, ...(linkedin && { linkedin }), ...(instagram && { instagram }) },
-          answers,
-        })
-        .then(() => this.userSubscriptions.markPipedrive(subscription.id, true, 'sent'))
-        .catch((err) => {
-          this.logger.error({ err, eventId: event.id }, 'Pipedrive webhook error');
-          return this.userSubscriptions.markPipedrive(subscription.id, true, 'failed');
-        });
-    } else {
-      await this.userSubscriptions.markPipedrive(subscription.id, false, 'skipped');
-    }
-
     return reg;
   }
 
   /**
-   * Bulk-imports registrations from an external list (e.g. spreadsheet).
-   * Dedups against existing registrations by normalized phone/email and
-   * skips duplicates. Does not emit `registration.status_changed` — an
-   * imported batch shouldn't trigger `on_registration` automations for
-   * every row.
+   * Fire-and-forget: não bloqueia a resposta pública no webhook. O resultado
+   * fica em `Registration.pipedriveStatus` (antes vivia em user_subscriptions).
    */
+  private async sendToPipedrive(
+    event: EventEntity,
+    reg: RegistrationEntity,
+    answers: Record<string, unknown>,
+    override?: boolean,
+  ): Promise<void> {
+    const should = override ?? event.sendToPipedrive;
+    if (!should) {
+      await this.regRepo.setPipedriveStatus(reg.id, 'skipped');
+      return;
+    }
+    await this.regRepo.setPipedriveStatus(reg.id, 'pending');
+    void this.pipedrive
+      .send({
+        event: { id: event.id, slug: event.slug, title: event.title },
+        form: 'registration',
+        contact: { email: reg.email, phone: reg.phone },
+        answers,
+      })
+      .then(() => this.regRepo.setPipedriveStatus(reg.id, 'sent'))
+      .catch((err) => {
+        this.logger.error({ err, eventId: event.id }, 'Pipedrive webhook error');
+        return this.regRepo.setPipedriveStatus(reg.id, 'failed');
+      });
+  }
+
   async importMany(
     eventId: string,
     items: Array<{ nome: string; telefone?: string; email?: string }>,
@@ -320,82 +367,6 @@ export class RegistrationService {
     if (phone) updateData.phone = phone;
 
     return this.regRepo.updateAnswers(id, updateData);
-  }
-
-  async submitPostEvent(
-    slug: string,
-    identifier: string,
-    answers: Record<string, unknown>,
-    postEventFields: AnswerFieldMeta[],
-  ): Promise<void> {
-    await this.submitCrossForm(slug, 'post_event', identifier, answers, postEventFields);
-  }
-
-  async submitNps(
-    slug: string,
-    identifier: string,
-    answers: Record<string, unknown>,
-    npsFields: AnswerFieldMeta[],
-  ): Promise<void> {
-    await this.submitCrossForm(slug, 'nps', identifier, answers, npsFields);
-  }
-
-  /**
-   * Shared flow for the post-event and NPS forms: validates fields, requires
-   * the contact to match an existing registration, persists per-form storage
-   * when applicable, consolidates into user_subscriptions, and fires the
-   * matching automation trigger.
-   */
-  private async submitCrossForm(
-    slug: string,
-    kind: 'post_event' | 'nps',
-    identifier: string,
-    answers: Record<string, unknown>,
-    fields: AnswerFieldMeta[],
-  ): Promise<void> {
-    const event = await this.eventsService.findBySlug(slug);
-    if (event.status !== 'published' && event.status !== 'ended') {
-      throw new BadRequestException('Event is not accepting form responses');
-    }
-
-    const id = identifier?.trim() ?? '';
-    const contact = id.includes('@')
-      ? { email: id.toLowerCase() }
-      : { phone: normalizePhone(id) ?? id.replace(/\D/g, '') };
-
-    if (!contact.email && !contact.phone) {
-      throw new BadRequestException('Identificador (email ou telefone) é obrigatório');
-    }
-
-    validateAnswers(fields, answers);
-
-    // A matching registration is required — post-event/NPS responses are only
-    // meaningful for people who actually registered for the event.
-    const reg = await this.regRepo.findByEventAndContact(event.id, contact);
-    if (!reg) {
-      throw new NotFoundException('Registration not found for this identifier');
-    }
-
-    if (kind === 'post_event') {
-      await this.regRepo.upsertPostEventResponse({
-        eventId: event.id,
-        registrationId: reg.id,
-        answers,
-      });
-    }
-
-    const contactOverride = { name: reg.name, email: reg.email, phone: reg.phone };
-
-    await this.userSubscriptions.upsertFromForm(event.id, kind, answers, contactOverride);
-
-    this.eventEmitter.emit(
-      'form.submitted',
-      new FormSubmitted(event.id, kind === 'post_event' ? 'on_post_event' : 'on_nps', {
-        name: contactOverride.name ?? '',
-        email: contactOverride.email ?? '',
-        phone: contactOverride.phone ?? '',
-      }),
-    );
   }
 
   private extractString(answers: Record<string, unknown>, keys: string[]): string {

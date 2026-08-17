@@ -26,6 +26,7 @@ type AutomationRuleRow = {
   id: string;
   eventId: string;
   templateId: string;
+  formId: string | null;
   trigger: string;
   delayMinutes: number | null;
   cron: string | null;
@@ -59,6 +60,7 @@ export class PrismaAutomationRepository
       row.eventId,
       row.templateId,
       row.trigger as AutomationTrigger,
+      row.formId,
       row.delayMinutes,
       row.cron,
       row.timezone,

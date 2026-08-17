@@ -8,6 +8,7 @@ import {
   Max,
   registerDecorator,
   ValidationOptions,
+  IsUUID,
 } from 'class-validator';
 import { PartialType, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IANAZone } from 'luxon';
@@ -70,6 +71,14 @@ export class CreateAutomationDto {
   @ApiProperty({ enum: AUTOMATION_TRIGGERS, example: 'on_registration' })
   @IsIn(AUTOMATION_TRIGGERS)
   trigger!: string;
+
+  @ApiPropertyOptional({
+    example: 'uuid-do-formulario',
+    description: 'Obrigatório quando trigger="on_form_submitted": qual formulário dispara a regra.',
+  })
+  @IsOptional()
+  @IsUUID()
+  formId?: string;
 
   @ApiPropertyOptional({ example: 0, description: 'Minutos de delay após o trigger' })
   @IsOptional()

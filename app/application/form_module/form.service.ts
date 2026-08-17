@@ -22,6 +22,16 @@ export class FormService {
     return this.repo.listByEvent(eventId);
   }
 
+  /**
+   * Formulário principal do evento: o de menor `order`. Sem os 3 tipos fixos, é
+   * ele que representa "o formulário do evento" onde antes se assumia
+   * `kind=registration` — página pública e colunas do CSV de inscritos.
+   */
+  async primary(eventId: string): Promise<FormEntity | null> {
+    const forms = await this.repo.listByEvent(eventId);
+    return forms[0] ?? null;
+  }
+
   async findOne(id: string, eventId: string): Promise<FormEntity> {
     const form = await this.repo.findByIdAndEvent(id, eventId);
     if (!form) throw new NotFoundException('Form not found');

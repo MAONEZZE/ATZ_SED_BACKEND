@@ -35,9 +35,10 @@ function makeService(overrides?: { registration?: RegistrationEntity | null; sta
     regRepo as any,
     eventsService as any,
     { emit: jest.fn() } as any,
-    { upsertFromForm: jest.fn(), markPipedrive: jest.fn() } as any,
     { send: jest.fn() } as any,
-    { getOrCreate: jest.fn() } as any,
+    { findOne: jest.fn(), primary: jest.fn(), findPublic: jest.fn() } as any,
+    { upsert: jest.fn() } as any,
+    { listValidationFields: jest.fn().mockResolvedValue([]) } as any,
   );
   return { service, regRepo, eventsService };
 }

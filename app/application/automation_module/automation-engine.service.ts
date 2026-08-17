@@ -55,13 +55,28 @@ export class AutomationEngine {
   @OnEvent('form.submitted')
   async handleFormSubmitted(ev: FormSubmitted): Promise<void> {
     try {
-      await this.fireForContact(ev.eventId, ev.trigger, ev.contact);
+      await this.fireForForm(ev.eventId, ev.formId, ev.contact);
     } catch (err) {
       this.logger.error(
-        { err, eventId: ev.eventId, trigger: ev.trigger },
+        { err, eventId: ev.eventId, formId: ev.formId },
         'AutomationEngine form.submitted error',
       );
     }
+  }
+
+  /**
+   * Gatilho `on_form_submitted`: as regras do evento são filtradas pelo
+   * formulário respondido, então cada formulário dispara só as suas.
+   */
+  async fireForForm(
+    eventId: string,
+    formId: string,
+    contact: { name: string; email: string; phone: string },
+  ): Promise<void> {
+    const rules = await this.automations.findActiveTriggerRules(eventId, 'on_form_submitted');
+    const ruleIds = rules.filter((r) => r.formId === formId).map((r) => r.id);
+    if (!ruleIds.length) return;
+    await this.dispatchTrigger(eventId, 'on_form_submitted', contact, ruleIds);
   }
 
   async fireAutomations(

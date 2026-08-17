@@ -19,6 +19,7 @@ function rule(overrides: {
     'tpl-1',
     overrides.trigger,
     null,
+    null,
     overrides.cron ?? null,
     overrides.timezone ?? null,
     overrides.active ?? true,
@@ -40,8 +41,9 @@ function make() {
     remove: jest.fn().mockResolvedValue(undefined),
     syncAll: jest.fn().mockResolvedValue(undefined),
   };
-  const svc = new AutomationService(repo as any, scheduler as any);
-  return { svc, repo, scheduler };
+  const forms = { findByIdAndEvent: jest.fn().mockResolvedValue({ id: 'form-1' }) };
+  const svc = new AutomationService(repo as any, scheduler as any, forms as any);
+  return { svc, repo, scheduler, forms };
 }
 
 describe('AutomationService — recurring trigger', () => {
@@ -242,5 +244,55 @@ describe('AutomationService — recurring trigger', () => {
     await svc.delete('evt-1', 'rule-1');
 
     expect(scheduler.remove).not.toHaveBeenCalled();
+  });
+});
+
+// Gatilho por formulário (2026-08-17): substituiu on_post_event/on_nps.
+describe('AutomationService — gatilho on_form_submitted', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('rejects the rule without a formId', async () => {
+    const { svc, repo } = make();
+
+    await expect(
+      svc.create('evt-1', { templateId: 'tpl-1', trigger: 'on_form_submitted' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  it('stores the formId when given', async () => {
+    const { svc, repo } = make();
+
+    await svc.create('evt-1', {
+      templateId: 'tpl-1',
+      trigger: 'on_form_submitted',
+      formId: 'form-1',
+    });
+
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ formId: 'form-1' }));
+  });
+
+  // O formulário do gatilho tem que ser do próprio evento.
+  it('404s a form from another event', async () => {
+    const { svc, repo, forms } = make();
+    forms.findByIdAndEvent.mockResolvedValue(null);
+
+    await expect(
+      svc.create('evt-1', { templateId: 'tpl-1', trigger: 'on_form_submitted', formId: 'form-x' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  // Nos outros gatilhos o formId não faz sentido e é descartado.
+  it('nulls the formId on a trigger that is not form-scoped', async () => {
+    const { svc, repo } = make();
+
+    await svc.create('evt-1', {
+      templateId: 'tpl-1',
+      trigger: 'on_approval',
+      formId: 'form-1',
+    });
+
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ formId: null }));
   });
 });

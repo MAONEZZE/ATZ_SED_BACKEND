@@ -1,4 +1,4 @@
-import { RegistrationEntity, FunnelStatus } from './registration.entity';
+import { RegistrationEntity, FunnelStatus, PipedriveStatus } from './registration.entity';
 
 export const REGISTRATION_REPOSITORY_PORT = Symbol('REGISTRATION_REPOSITORY_PORT');
 
@@ -16,12 +16,6 @@ export interface UpdateAnswersData {
   name?: string;
   email?: string;
   phone?: string;
-}
-
-export interface PostEventResponseData {
-  eventId: string;
-  registrationId: string;
-  answers: Record<string, unknown>;
 }
 
 export interface RegistrationRepositoryPort {
@@ -50,7 +44,8 @@ export interface RegistrationRepositoryPort {
     eventId: string,
     contact: { email?: string; phone?: string },
   ): Promise<RegistrationEntity | null>;
-  upsertPostEventResponse(data: PostEventResponseData): Promise<void>;
+  /** Resultado do envio ao Pipedrive por inscrito (antes vivia em user_subscriptions). */
+  setPipedriveStatus(id: string, status: PipedriveStatus): Promise<void>;
   countByEvent(eventId: string): Promise<number>;
   /** Registrations still in the funnel (approved/pending) — used for cancellation notices. */
   findActiveByEvent(eventId: string): Promise<RegistrationEntity[]>;

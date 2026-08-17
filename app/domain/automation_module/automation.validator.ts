@@ -5,6 +5,7 @@ export interface AutomationScheduleInput {
   trigger: string;
   cron?: string | null;
   timezone?: string | null;
+  formId?: string | null;
 }
 
 /**
@@ -20,6 +21,11 @@ export class AutomationValidator extends ValidatorBase<AutomationScheduleInput> 
     if (AutomationRuleEntity.isRecurring(input.trigger)) {
       if (!input.cron) errors.push('cron é obrigatório para trigger "recurring"');
       if (!input.timezone) errors.push('timezone é obrigatório para trigger "recurring"');
+    }
+
+    // O gatilho por formulário precisa saber QUAL formulário dispara.
+    if (AutomationRuleEntity.requiresForm(input.trigger) && !input.formId) {
+      errors.push('formId é obrigatório para trigger "on_form_submitted"');
     }
 
     return errors;
