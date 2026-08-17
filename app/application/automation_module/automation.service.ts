@@ -66,10 +66,12 @@ export class AutomationService {
   }
 
   async create(eventId: string, input: CreateAutomationInput) {
-    await this.assertTemplateExists(input.templateId);
+    await this.assertTemplateExists(input.templateId, eventId);
     this.assertRecurringScheduleValid(input.trigger, input.cron, input.timezone);
-    if (input.active !== false && !AutomationRuleEntity.allowsDuplicateActive(input.trigger)) {
-      await this.assertNoActiveDuplicate(eventId, input.trigger);
+    // Gatilho repetido é permitido (e-mail + WhatsApp na mesma etapa, por
+    // exemplo). Só a repetição do mesmo template no mesmo gatilho é barrada.
+    if (input.active !== false) {
+      await this.assertNoActiveDuplicate(eventId, input.trigger, input.templateId);
     }
     const rule = await this.repo.create({
       eventId,
@@ -90,20 +92,19 @@ export class AutomationService {
   async update(eventId: string, id: string, input: UpdateAutomationInput) {
     const existing = await this.repo.findByEvent(eventId, id);
     if (!existing) throw new NotFoundException('Automation rule not found');
-    if (input.templateId) await this.assertTemplateExists(input.templateId);
+    if (input.templateId) await this.assertTemplateExists(input.templateId, eventId);
 
     const willBeActive = input.active ?? existing.active;
     const trigger = input.trigger ?? existing.trigger;
+    const templateId = input.templateId ?? existing.templateId;
     const cron = input.cron !== undefined ? input.cron : existing.cron;
     const timezone = input.timezone !== undefined ? input.timezone : existing.timezone;
     this.assertRecurringScheduleValid(trigger, cron, timezone);
 
-    if (
-      willBeActive &&
-      !AutomationRuleEntity.allowsDuplicateActive(trigger) &&
-      (input.trigger || input.active === true)
-    ) {
-      await this.assertNoActiveDuplicate(eventId, trigger, id);
+    // A regra vale sobre o resultado da mesclagem: trocar só o template também
+    // pode colidir com outra regra ativa do mesmo gatilho.
+    if (willBeActive && (input.trigger || input.templateId || input.active === true)) {
+      await this.assertNoActiveDuplicate(eventId, trigger, templateId, id);
     }
 
     const updated = await this.repo.update(id, {
@@ -144,20 +145,26 @@ export class AutomationService {
     }
   }
 
-  private async assertTemplateExists(templateId: string): Promise<void> {
-    const template = await this.repo.templateById(templateId);
+  private async assertTemplateExists(templateId: string, eventId: string): Promise<void> {
+    const template = await this.repo.templateById(templateId, eventId);
     if (!template) throw new NotFoundException('Template not found');
   }
 
   private async assertNoActiveDuplicate(
     eventId: string,
     trigger: string,
+    templateId: string,
     excludeId?: string,
   ): Promise<void> {
-    const duplicate = await this.repo.findActiveByEventAndTrigger(eventId, trigger, excludeId);
+    const duplicate = await this.repo.findActiveByEventTriggerAndTemplate(
+      eventId,
+      trigger,
+      templateId,
+      excludeId,
+    );
     if (duplicate) {
       throw new ConflictException(
-        `An active automation for trigger '${trigger}' already exists on this event`,
+        `An active automation for trigger '${trigger}' with this template already exists on this event`,
       );
     }
   }

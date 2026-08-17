@@ -98,20 +98,23 @@ export class AttachmentRefDto {
   mimetype!: string;
 }
 
-function HasEventOrInstance(validationOptions?: ValidationOptions) {
+// Só o WhatsApp precisa de origem: o token da instância vem do instanceId ou do
+// evento. E-mail avulso (sem evento e sem instância) é válido.
+function WhatsappNeedsInstance(validationOptions?: ValidationOptions) {
   return function (object: object, propertyName: string) {
     registerDecorator({
-      name: 'hasEventOrInstance',
+      name: 'whatsappNeedsInstance',
       target: object.constructor,
       propertyName,
       options: validationOptions,
       validator: {
         validate(_value: unknown, args: ValidationArguments) {
           const item = args.object as SendMessageDto;
+          if (item.channel !== 'whatsapp') return true;
           return Boolean(item.eventId || item.instanceId);
         },
         defaultMessage() {
-          return 'Informe eventId ou instanceId';
+          return 'Selecione uma instância WhatsApp para enviar por WhatsApp';
         },
       },
     });
@@ -121,19 +124,21 @@ function HasEventOrInstance(validationOptions?: ValidationOptions) {
 export class SendMessageDto {
   @ApiPropertyOptional({
     example: 'uuid-do-evento',
-    description: 'Vincula disparo a um evento. Opcional (exige instanceId se ausente).',
+    description:
+      'Vincula o disparo a um evento (atribui o log ao dono e resolve a instância Whatsapp do evento). Opcional em qualquer canal.',
   })
   @IsOptional()
   @IsUUID()
-  @HasEventOrInstance()
   eventId?: string;
 
   @ApiPropertyOptional({
     example: 'uuid-da-instancia',
-    description: 'Instância Whatsapp a usar quando não há eventId.',
+    description:
+      'Instância Whatsapp a usar. Tem precedência sobre a instância do evento. Obrigatória no canal whatsapp quando não há eventId.',
   })
   @IsOptional()
   @IsUUID()
+  @WhatsappNeedsInstance()
   instanceId?: string;
 
   @ApiProperty({ enum: ['whatsapp', 'email'], example: 'whatsapp' })

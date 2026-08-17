@@ -33,7 +33,11 @@ import { AuthenticatedUser } from '@domain/shared/authenticated-user.entity';
 import { EventService } from '@application/event_module/event.service';
 import { EventLifecycleService } from '@application/event_module/event-lifecycle.service';
 import { CreateEventDto } from '@api/dto/event_module/create-event.dto';
-import { UpdateEventDto, UpdateEventStatusDto } from '@api/dto/event_module/update-event.dto';
+import {
+  ReorderEventsDto,
+  UpdateEventDto,
+  UpdateEventStatusDto,
+} from '@api/dto/event_module/update-event.dto';
 import { PaginationQueryDto, Paginated } from '@api/dto/shared/pagination';
 
 @ApiTags('Events')
@@ -62,15 +66,35 @@ export class EventController {
   @ApiOperation({ summary: 'Listar eventos do usuário' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({
+    name: 'folderId',
+    required: false,
+    description: "Filtra por pasta. 'null' retorna só os eventos fora de pasta.",
+  })
   @ApiResponse({ status: 200, description: 'Lista paginada de eventos' })
   async findAll(
     @CurrentUser() user: AuthenticatedUser,
     @Query() pagination: PaginationQueryDto,
+    @Query('folderId') folderId?: string,
   ): Promise<Paginated<object>> {
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 20;
-    const { data, total } = await this.eventsService.findAllPaginated(user.id, page, limit);
+    // A query string não carrega null: a literal 'null' pede a raiz, como no
+    // filtro de templates. Ausente = sem filtro de pasta.
+    const scope = folderId === 'null' ? null : folderId;
+    const { data, total } = await this.eventsService.findAllPaginated(user.id, page, limit, scope);
     return { data, total, page, limit };
+  }
+
+  // Antes do PATCH /:id — declarada depois, a rota 'reorder' cairia no :id.
+  @Patch('reorder')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: 'Reordenar eventos dentro de uma pasta (drag & drop): order = índice na lista de ids',
+  })
+  @ApiResponse({ status: 204, description: 'Ordem reescrita' })
+  reorder(@CurrentUser() user: AuthenticatedUser, @Body() dto: ReorderEventsDto) {
+    return this.eventsService.reorder(user.id, dto.folderId ?? null, dto.ids);
   }
 
   @Get(':id')

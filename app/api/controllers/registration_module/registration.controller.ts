@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards, Query, Res } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  Query,
+  Res,
+  HttpCode,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import {
   ApiTags,
@@ -19,6 +31,10 @@ import { UpdateRegistrationStatusDto } from '@api/dto/registration_module/update
 import { UpdateRegistrationAnswersDto } from '@api/dto/registration_module/update-registration-answers.dto';
 import { ListRegistrationsQueryDto } from '@api/dto/registration_module/list-registrations-query.dto';
 import { ImportRegistrationsDto } from '@api/dto/registration_module/import-registrations.dto';
+import {
+  DeleteRegistrationsDto,
+  SetAttendanceDto,
+} from '@api/dto/registration_module/registration-batch.dto';
 import { Paginated } from '@api/dto/shared/pagination';
 
 @ApiTags('Registrations')
@@ -38,6 +54,7 @@ export class RegistrationController {
   @ApiQuery({ name: 'search', required: false, description: 'Busca por nome ou email' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'attended', required: false, type: Boolean, description: 'Filtra por presença' })
   @ApiQuery({ name: 'format', required: false, enum: ['json', 'csv'] })
   @ApiResponse({ status: 200, description: 'Lista paginada (JSON) ou arquivo CSV' })
   async findAll(
@@ -45,10 +62,10 @@ export class RegistrationController {
     @Query() query: ListRegistrationsQueryDto,
     @Res({ passthrough: true }) res?: Response,
   ): Promise<Paginated<object> | string> {
-    const { status, search, format } = query;
+    const { status, search, format, attended } = query;
     if (format === 'csv') {
       const [regs, formFields] = await Promise.all([
-        this.registrations.findAll(eventId, status, search),
+        this.registrations.findAll(eventId, status, search, attended),
         this.formFields.exportLabels(eventId, 'registration', true),
       ]);
       const date = new Date().toISOString().slice(0, 10);
@@ -68,6 +85,7 @@ export class RegistrationController {
       limit,
       status,
       search,
+      attended,
     );
     return { data, total, page, limit };
   }
@@ -81,6 +99,33 @@ export class RegistrationController {
     @Body() dto: ImportRegistrationsDto,
   ): Promise<{ created: number; skipped: number }> {
     return this.registrations.importMany(eventId, dto.registrations);
+  }
+
+  @Delete()
+  @ApiOperation({ summary: 'Deletar inscrições em massa (por ids explícitos, máx. 500)' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiResponse({ status: 200, description: '{ deleted: n } — apaga também mensagens e logs' })
+  deleteMany(
+    @Param('eventId') eventId: string,
+    @Body() dto: DeleteRegistrationsDto,
+  ): Promise<{ deleted: number }> {
+    return this.registrations
+      .deleteMany(dto.ids, eventId)
+      .then((deleted) => ({ deleted }));
+  }
+
+  // Antes do PATCH /:id — declarada depois, 'attendance' cairia no :id.
+  @Patch('attendance')
+  @ApiOperation({ summary: 'Marcar/desmarcar presença em lote (check-in pelo painel)' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiResponse({ status: 200, description: '{ updated: n }' })
+  setAttendance(
+    @Param('eventId') eventId: string,
+    @Body() dto: SetAttendanceDto,
+  ): Promise<{ updated: number }> {
+    return this.registrations
+      .setAttendance(dto.ids, eventId, dto.attended)
+      .then((updated) => ({ updated }));
   }
 
   @Get(':id')
@@ -107,6 +152,17 @@ export class RegistrationController {
   ) {
     const formFields = await this.formFields.validationFields(eventId, 'registration');
     return this.registrations.updateAnswers(id, eventId, dto.answers, formFields);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Deletar inscrição' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiParam({ name: 'id', description: 'UUID da inscrição' })
+  @ApiResponse({ status: 204, description: 'Inscrição apagada (com mensagens e logs dela)' })
+  @ApiResponse({ status: 404, description: 'Inscrição não encontrada' })
+  delete(@Param('eventId') eventId: string, @Param('id') id: string) {
+    return this.registrations.delete(id, eventId);
   }
 
   @Patch(':id/status')

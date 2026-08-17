@@ -74,15 +74,22 @@ export interface AutomationRepositoryPort {
 
   findOneWithTemplate(eventId: string, id: string): Promise<AutomationRuleWithFullTemplate | null>;
 
-  /** Usado para barrar um segundo gatilho ativo igual no mesmo evento. */
-  findActiveByEventAndTrigger(
+  /**
+   * Barra a única duplicata que não funciona: mesma regra (gatilho + template)
+   * ativa duas vezes no mesmo evento. O `dedupKey` do outbox carrega
+   * `templateId`, então as duas linhas colidiriam no @unique e a segunda nunca
+   * sairia. Gatilho repetido com templates **diferentes** é liberado — é o caso
+   * de mandar a mesma etapa por e-mail e por WhatsApp.
+   */
+  findActiveByEventTriggerAndTemplate(
     eventId: string,
     trigger: string,
+    templateId: string,
     excludeId?: string,
   ): Promise<AutomationRuleEntity | null>;
 
-  /** O template referenciado existe? Não devolve a regra, só valida o vínculo. */
-  templateById(templateId: string): Promise<MessageTemplateEntity | null>;
+  /** O template referenciado existe e é alcançável pelo evento (dele ou global)? */
+  templateById(templateId: string, eventId?: string): Promise<MessageTemplateEntity | null>;
 
   create(data: CreateAutomationRuleData): Promise<AutomationRuleWithTemplate>;
   update(id: string, data: UpdateAutomationRuleData): Promise<AutomationRuleWithTemplate>;

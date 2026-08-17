@@ -154,8 +154,18 @@ export class ManualSendService {
     } | null = null;
 
     // `instancia` carrega o token Whatsapp da instância (a Whatsapp autentica por token).
+    // Instância explícita tem precedência sobre a do evento: o worker prefere
+    // `outbox.instancia` ao token resolvido pelo evento.
     let instancia: string | undefined;
-    if (!input.eventId && input.instanceId) {
+    if (input.instanceId) {
+      // A instância tem que estar na lista fixa do usuário, senão ele disparava
+      // pelo telefone de outro time (`profile_whatsapp_instances`).
+      const allowed = await this.whatsappInstances.isAllowedForProfile(input.instanceId, userId);
+      if (!allowed) {
+        throw new ForbiddenException(
+          'Esta instância WhatsApp não está liberada para o seu usuário',
+        );
+      }
       const instance = await this.whatsappInstances.findById(input.instanceId);
       if (!instance) throw new NotFoundException('Whatsapp instance not found');
       if (!instance.hasToken())
@@ -195,7 +205,7 @@ export class ManualSendService {
       body: string;
     } | null = null;
     if (input.templateId) {
-      template = await this.templates.findByIdForOwner(input.templateId, userId);
+      template = await this.templates.findByIdForUser(input.templateId, userId);
       if (!template) throw new NotFoundException('Template not found');
       if (template.channel !== input.channel) {
         throw new BadRequestException(
@@ -272,12 +282,15 @@ export class ManualSendService {
     const batchMinDelay = this.config.get<number>('MANUAL_BATCH_MIN_DELAY_MS') ?? 3_600_000;
     const batchMaxDelay = this.config.get<number>('MANUAL_BATCH_MAX_DELAY_MS') ?? 7_200_000;
 
-    // Gate ON: roteia o whatsapp pelo cursor compartilhado (mesmo de automações),
-    // em vez do delay cumulativo pré-calculado. Precisa do token da instância.
-    // Non-event já tem em `instancia`; event-scoped resolve do evento.
+    // Token efetivo do disparo: instância explícita ou a do evento. Sem ele o
+    // whatsapp só falharia no worker (UnrecoverableError), então barra aqui.
+    // Também é o token do cursor compartilhado quando o gate está ligado.
     let paceToken = instancia;
-    if (gate && isWhatsapp && !paceToken && input.eventId) {
+    if (isWhatsapp && !paceToken && input.eventId) {
       paceToken = (await this.eventRepo.findWhatsappInstanceToken(input.eventId)) ?? undefined;
+    }
+    if (isWhatsapp && !paceToken) {
+      throw new BadRequestException('Selecione uma instância WhatsApp para enviar por WhatsApp');
     }
 
     const batches = chunk(validRecipients, batchSize);

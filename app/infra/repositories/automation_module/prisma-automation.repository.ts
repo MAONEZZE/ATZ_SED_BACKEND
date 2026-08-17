@@ -172,15 +172,17 @@ export class PrismaAutomationRepository
     return row ? this.withFullTemplate(row) : null;
   }
 
-  async findActiveByEventAndTrigger(
+  async findActiveByEventTriggerAndTemplate(
     eventId: string,
     trigger: string,
+    templateId: string,
     excludeId?: string,
   ): Promise<AutomationRuleEntity | null> {
     const row = await this.prisma.automationRule.findFirst({
       where: {
         eventId,
         trigger: trigger as Prisma.AutomationRuleUncheckedCreateInput['trigger'],
+        templateId,
         active: true,
         ...(excludeId && { id: { not: excludeId } }),
       },
@@ -188,8 +190,15 @@ export class PrismaAutomationRepository
     return row ? this.toEntity(row) : null;
   }
 
-  async templateById(templateId: string): Promise<MessageTemplateEntity | null> {
-    const row = await this.prisma.messageTemplate.findFirst({ where: { id: templateId } });
+  // Com `eventId`, só aceita template do próprio evento ou global — antes um id
+  // conhecido de template de outro evento passava.
+  async templateById(templateId: string, eventId?: string): Promise<MessageTemplateEntity | null> {
+    const row = await this.prisma.messageTemplate.findFirst({
+      where: {
+        id: templateId,
+        ...(eventId && { OR: [{ eventId }, { eventId: null }] }),
+      },
+    });
     return row ? this.toTemplateEntity(row) : null;
   }
 

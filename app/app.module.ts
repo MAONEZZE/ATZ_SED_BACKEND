@@ -12,6 +12,7 @@ import { RequestIdMiddleware } from '@api/config/middlewares/request-id.middlewa
 import { AuthModule } from '@shared/modules/auth.module';
 import { GuardsModule } from '@shared/modules/guards.module';
 import { EventModule } from '@shared/modules/event.module';
+import { FolderModule } from '@shared/modules/folder.module';
 import { FormModule } from '@shared/modules/form.module';
 import { FormFieldModule } from '@shared/modules/form-field.module';
 import { CollaboratorModule } from '@shared/modules/collaborator.module';
@@ -50,6 +51,7 @@ import { WhatsappInstanceModule } from '@shared/modules/whatsapp-instance.module
     AuthModule,
     GuardsModule,
     EventModule,
+    FolderModule,
     FormModule,
     FormFieldModule,
     CollaboratorModule,

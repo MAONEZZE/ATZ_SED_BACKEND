@@ -48,9 +48,16 @@ export class MessageTemplateService {
     });
   }
 
-  list(userId: string, eventId: string | undefined, page: number, limit: number, channel?: string) {
+  async list(
+    userId: string,
+    eventId: string | undefined,
+    page: number,
+    limit: number,
+    channel?: string,
+  ) {
     // A query string carrega a literal 'null' para pedir só os templates
     // globais; o filtro da porta distingue isso de "sem filtro" (undefined).
+    if (eventId && eventId !== 'null') await this.assertEventAccess(eventId, userId);
     const filter: MessageTemplateFilter = {
       ...(eventId === 'null' ? { eventId: null } : eventId ? { eventId } : {}),
       ...(channel && { channel: channel as MessageChannel }),
@@ -62,7 +69,7 @@ export class MessageTemplateService {
   }
 
   async findOne(userId: string, id: string) {
-    const template = await this.repo.findByIdForOwner(id, userId);
+    const template = await this.repo.findByIdForUser(id, userId);
     if (!template) throw new NotFoundException('Template not found');
     return template;
   }

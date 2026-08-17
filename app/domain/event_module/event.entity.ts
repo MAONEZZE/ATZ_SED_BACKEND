@@ -32,6 +32,10 @@ export class EventEntity extends EntityBase {
     public recurrenceFreq?: string,
     public recurrenceInterval?: number,
     public recurrenceUntil?: Date,
+    /** Pasta do painel. null = raiz. */
+    public folderId: string | null = null,
+    /** Posição manual dentro da pasta (ou da raiz). */
+    public order: number = 0,
   ) {
     super(id);
   }

@@ -57,10 +57,21 @@ export class PrismaMessageTemplateRepository
     ownerId: string,
     filter: MessageTemplateFilter,
   ): Prisma.MessageTemplateWhereInput {
+    const channel = filter.channel && { channel: filter.channel };
+
+    // Escopo de evento: os templates do evento (de qualquer dono, já que o
+    // acesso ao evento foi verificado no service) mais os globais do usuário.
+    if (typeof filter.eventId === 'string') {
+      return {
+        OR: [{ eventId: filter.eventId }, { ownerId, eventId: null }],
+        ...channel,
+      };
+    }
+
     return {
       ownerId,
-      ...(filter.eventId !== undefined && { eventId: filter.eventId }),
-      ...(filter.channel && { channel: filter.channel }),
+      ...(filter.eventId === null && { eventId: null }),
+      ...channel,
     };
   }
 
@@ -80,8 +91,20 @@ export class PrismaMessageTemplateRepository
     return this.toEntity(row);
   }
 
-  async findByIdForOwner(id: string, ownerId: string): Promise<MessageTemplateEntity | null> {
-    const row = await this.prisma.messageTemplate.findFirst({ where: { id, ownerId } });
+  async findByIdForUser(id: string, userId: string): Promise<MessageTemplateEntity | null> {
+    const row = await this.prisma.messageTemplate.findFirst({
+      where: {
+        id,
+        OR: [
+          { ownerId: userId },
+          {
+            event: {
+              OR: [{ ownerId: userId }, { collaborators: { some: { profileId: userId } } }],
+            },
+          },
+        ],
+      },
+    });
     return row ? this.toEntity(row) : null;
   }
 

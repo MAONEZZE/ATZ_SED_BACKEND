@@ -45,12 +45,13 @@ function makeService(overrides?: {
   collaboratorCount?: number;
   gate?: boolean;
   eventToken?: string | null;
+  instanceAllowed?: boolean;
 }) {
   const registrations = {
     findByIdsAndEvent: jest.fn().mockResolvedValue(overrides?.registrations ?? [regJoao]),
   };
   const templates = {
-    findByIdForOwner: jest
+    findByIdForUser: jest
       .fn()
       .mockResolvedValue(overrides && 'template' in overrides ? overrides.template : template),
   };
@@ -65,7 +66,10 @@ function makeService(overrides?: {
       .mockResolvedValue(overrides && 'eventToken' in overrides ? overrides.eventToken : 'tok-evt'),
   };
   const whatsappInstances = {
-    findById: jest.fn().mockResolvedValue({ id: 'inst-1', token: 'tok-manual' }),
+    findById: jest
+      .fn()
+      .mockResolvedValue({ id: 'inst-1', token: 'tok-manual', hasToken: () => true }),
+    isAllowedForProfile: jest.fn().mockResolvedValue(overrides?.instanceAllowed ?? true),
   };
   const outbox = { enqueue: jest.fn().mockResolvedValue(undefined) };
   const storage = { getPublicUrl: jest.fn((_b: string, p: string) => `https://cdn/${p}`), upload: jest.fn(), delete: jest.fn() };
@@ -310,10 +314,11 @@ describe('ManualSendService.send', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
-  it('enqueues whatsapp without eventId (instancia resolved from DB at dispatch time)', async () => {
+  it('enqueues whatsapp without eventId using the given instance token', async () => {
     const { service, eventRepo, outbox } = makeService({ registrations: [] });
     const result = await service.send(
       {
+        instanceId: 'inst-1',
         channel: 'whatsapp',
         body: 'oi {{nome}}',
         manualRecipients: [{ name: 'Zap', phone: '+5511999999999' }],
@@ -326,7 +331,81 @@ describe('ManualSendService.send', () => {
       expect.objectContaining({
         recipient: '+5511999999999',
         channel: 'whatsapp',
+        instancia: 'tok-manual',
       }),
+      expect.any(Object),
+    );
+  });
+
+  // Envio avulso por e-mail: sem evento e sem instância é válido, porque o
+  // token de instância só existe para o whatsapp.
+  it('enqueues email without eventId and without instanceId', async () => {
+    const { service, eventRepo, outbox } = makeService({ registrations: [], template: null });
+    const result = await service.send(
+      {
+        channel: 'email',
+        body: 'oi {{nome}}',
+        manualRecipients: [{ name: 'Zap', email: 'zap@test.com' }],
+      },
+      'user-1',
+    );
+    expect(eventRepo.findById).not.toHaveBeenCalled();
+    expect(result.queued).toBe(1);
+    expect(outbox.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ recipient: 'zap@test.com', channel: 'email', instancia: undefined }),
+      expect.any(Object),
+    );
+  });
+
+  it('rejects whatsapp without eventId and without instanceId', async () => {
+    const { service, outbox } = makeService({ registrations: [] });
+    await expect(
+      service.send(
+        {
+          channel: 'whatsapp',
+          body: 'oi',
+          manualRecipients: [{ name: 'Zap', phone: '+5511999999999' }],
+        },
+        'user-1',
+      ),
+    ).rejects.toThrow(BadRequestException);
+    expect(outbox.enqueue).not.toHaveBeenCalled();
+  });
+
+  // A instância tem que estar na lista fixa do usuário (profile_whatsapp_instances),
+  // senão ele dispararia pelo telefone de outro time.
+  it('rejects an instance not allowed for the user', async () => {
+    const { service, outbox } = makeService({ registrations: [], instanceAllowed: false });
+    await expect(
+      service.send(
+        {
+          instanceId: 'inst-1',
+          channel: 'whatsapp',
+          body: 'oi',
+          manualRecipients: [{ name: 'Zap', phone: '+5511999999999' }],
+        },
+        'user-1',
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(outbox.enqueue).not.toHaveBeenCalled();
+  });
+
+  // A instância explícita ganha da instância do evento: o worker prefere
+  // `outbox.instancia` ao token resolvido pelo eventId.
+  it('prefers instanceId over the event instance', async () => {
+    const { service, outbox } = makeService();
+    await service.send(
+      {
+        eventId: 'evt-1',
+        instanceId: 'inst-1',
+        channel: 'whatsapp',
+        body: 'oi',
+        registrationIds: ['reg-1'],
+      },
+      'user-1',
+    );
+    expect(outbox.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ instancia: 'tok-manual' }),
       expect.any(Object),
     );
   });
@@ -335,6 +414,7 @@ describe('ManualSendService.send', () => {
     const { service, outbox } = makeService({ registrations: [] });
     await service.send(
       {
+        instanceId: 'inst-1',
         channel: 'whatsapp',
         body: 'oi',
         manualRecipients: [{ name: 'Zap', phone: '+5511999999999' }],
@@ -353,6 +433,7 @@ describe('ManualSendService.send', () => {
     const { service, eventRepo } = makeService({ registrations: [] });
     await service.send(
       {
+        instanceId: 'inst-1',
         channel: 'whatsapp',
         body: 'oi',
         manualRecipients: [{ name: 'Zap', phone: '+5511999999999' }],
@@ -538,18 +619,25 @@ describe('ManualSendService.send — DISPATCH_GATE_ENABLED (gate ON)', () => {
     );
   });
 
-  it('sem token resolvível cai no legado (delayMs cumulativo)', async () => {
-    const { service, outbox } = makeService({
-      gate: true,
-      eventToken: null, // evento sem instância → sem token
-    });
+  // Antes o disparo sem token era enfileirado e só morria no worker
+  // (UnrecoverableError). Agora falha no POST, com ou sem gate.
+  it('evento sem instância recusa o disparo de whatsapp', async () => {
+    const { service, outbox } = makeService({ gate: true, eventToken: null });
+    await expect(
+      service.send(
+        { eventId: 'evt-1', channel: 'whatsapp', body: 'oi', registrationIds: ['reg-1'] },
+        'user-1',
+      ),
+    ).rejects.toThrow(BadRequestException);
+    expect(outbox.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('evento sem instância não afeta o e-mail', async () => {
+    const { service, outbox } = makeService({ gate: true, eventToken: null });
     await service.send(
-      { eventId: 'evt-1', channel: 'whatsapp', body: 'oi', registrationIds: ['reg-1'] },
+      { eventId: 'evt-1', channel: 'email', body: 'oi', registrationIds: ['reg-1'] },
       'user-1',
     );
-    expect(outbox.enqueue).toHaveBeenCalledWith(
-      expect.any(Object),
-      expect.objectContaining({ delayMs: 1000 }), // legado: innerDelayCursor (min=max=1000)
-    );
+    expect(outbox.enqueue).toHaveBeenCalledTimes(1);
   });
 });

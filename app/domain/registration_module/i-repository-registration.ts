@@ -30,13 +30,19 @@ export interface RegistrationRepositoryPort {
     eventId: string,
     status?: FunnelStatus,
     search?: string,
+    attended?: boolean,
   ): Promise<RegistrationEntity[]>;
   findAllByEventPaginated(
     eventId: string,
     pagination: { skip: number; take: number },
     status?: FunnelStatus,
     search?: string,
+    attended?: boolean,
   ): Promise<{ data: RegistrationEntity[]; total: number }>;
+  /** Apaga de vez. Cascateia as mensagens (outbox + logs) e a resposta de pós-evento do inscrito. */
+  deleteMany(ids: string[], eventId: string): Promise<number>;
+  /** Marca presença em lote. Retorna quantas inscrições do evento foram afetadas. */
+  setAttendance(ids: string[], eventId: string, attended: boolean): Promise<number>;
   create(data: CreateRegistrationData): Promise<RegistrationEntity>;
   updateStatus(id: string, status: FunnelStatus): Promise<RegistrationEntity>;
   updateAnswers(id: string, data: UpdateAnswersData): Promise<RegistrationEntity>;

@@ -9,4 +9,8 @@ export const WHATSAPP_INSTANCE_REPOSITORY_PORT = Symbol('WHATSAPP_INSTANCE_REPOS
 export interface WhatsappInstanceRepositoryPort {
   list(): Promise<WhatsappInstanceEntity[]>;
   findById(id: string): Promise<WhatsappInstanceEntity | null>;
+  /** Só as instâncias que o perfil pode usar (`profile_whatsapp_instances`, populada por SQL). */
+  listForProfile(profileId: string): Promise<WhatsappInstanceEntity[]>;
+  /** Falso também quando o perfil não tem nenhuma instância liberada. */
+  isAllowedForProfile(instanceId: string, profileId: string): Promise<boolean>;
 }

@@ -61,12 +61,4 @@ export class AutomationRuleEntity extends EntityBase {
   ): boolean {
     return AutomationRuleEntity.isRecurring(trigger) && (!cron?.trim() || !timezone?.trim());
   }
-
-  /**
-   * Fora do `recurring`, dois gatilhos iguais ativos no mesmo evento mandariam
-   * a mensagem em duplicidade.
-   */
-  static allowsDuplicateActive(trigger: string): boolean {
-    return AutomationRuleEntity.isRecurring(trigger);
-  }
 }

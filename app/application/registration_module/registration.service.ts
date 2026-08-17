@@ -20,6 +20,9 @@ import {
 } from '@domain/shared/answer-validation';
 import { normalizePhone } from '@handlers/phone';
 
+/** Teto de ids por requisição em lote (delete e presença). */
+const MAX_BATCH = 500;
+
 @Injectable()
 export class RegistrationService {
   private readonly logger = new Logger(RegistrationService.name);
@@ -176,8 +179,9 @@ export class RegistrationService {
     eventId: string,
     status?: FunnelStatus,
     search?: string,
+    attended?: boolean,
   ): Promise<RegistrationEntity[]> {
-    return this.regRepo.findAllByEvent(eventId, status, search);
+    return this.regRepo.findAllByEvent(eventId, status, search, attended);
   }
 
   async findAllPaginated(
@@ -186,13 +190,62 @@ export class RegistrationService {
     limit: number,
     status?: FunnelStatus,
     search?: string,
+    attended?: boolean,
   ): Promise<{ data: RegistrationEntity[]; total: number }> {
     return this.regRepo.findAllByEventPaginated(
       eventId,
       { skip: (page - 1) * limit, take: limit },
       status,
       search,
+      attended,
     );
+  }
+
+  /**
+   * Delete definitivo: leva junto as mensagens (outbox + logs) e a resposta de
+   * pós-evento do inscrito, por cascata do banco.
+   */
+  async delete(id: string, eventId: string): Promise<void> {
+    await this.findById(id, eventId);
+    await this.regRepo.deleteMany([id], eventId);
+  }
+
+  /** Só ids explícitos: o front manda exatamente quem foi selecionado na tela. */
+  async deleteMany(ids: string[], eventId: string): Promise<number> {
+    this.assertBatch(ids);
+    return this.regRepo.deleteMany(ids, eventId);
+  }
+
+  async setAttendance(ids: string[], eventId: string, attended: boolean): Promise<number> {
+    this.assertBatch(ids);
+    return this.regRepo.setAttendance(ids, eventId, attended);
+  }
+
+  /**
+   * Check-in público: QR único do evento → a pessoa informa o telefone. Casa
+   * com o inscrito pelo telefone normalizado; quem não está inscrito não entra
+   * na lista por aqui (404).
+   */
+  async checkIn(slug: string, phone: string): Promise<RegistrationEntity> {
+    const event = await this.eventsService.findBySlug(slug);
+    if (event.status !== 'published' && event.status !== 'ended') {
+      throw new BadRequestException('Event is not accepting check-ins');
+    }
+    const normalized = normalizePhone(phone) ?? phone.replace(/\D/g, '');
+    if (!normalized) throw new BadRequestException('Telefone é obrigatório');
+
+    const reg = await this.regRepo.findByEventAndContact(event.id, { phone: normalized });
+    if (!reg) throw new NotFoundException('Registration not found for this phone');
+
+    await this.regRepo.setAttendance([reg.id], event.id, true);
+    return this.findById(reg.id, event.id);
+  }
+
+  private assertBatch(ids: string[]): void {
+    if (ids.length === 0) throw new BadRequestException('Informe ao menos um id');
+    if (ids.length > MAX_BATCH) {
+      throw new BadRequestException(`Máximo de ${MAX_BATCH} inscrições por requisição`);
+    }
   }
 
   async findById(id: string, eventId: string): Promise<RegistrationEntity> {

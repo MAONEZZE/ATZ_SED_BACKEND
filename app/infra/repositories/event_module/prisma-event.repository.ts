@@ -54,6 +54,8 @@ export class PrismaEventRepository implements EventRepositoryPort {
     recurrenceFreq: string | null;
     recurrenceInterval: number | null;
     recurrenceUntil: Date | null;
+    folderId: string | null;
+    order: number;
   }): EventEntity {
     return new EventEntity(
       row.id,
@@ -77,6 +79,8 @@ export class PrismaEventRepository implements EventRepositoryPort {
       row.recurrenceFreq ?? undefined,
       row.recurrenceInterval ?? undefined,
       row.recurrenceUntil ?? undefined,
+      row.folderId,
+      row.order,
     );
   }
 
@@ -107,18 +111,35 @@ export class PrismaEventRepository implements EventRepositoryPort {
   async findAllByOwnerPaginated(
     ownerId: string,
     pagination: { skip: number; take: number },
+    folderId?: string | null,
   ): Promise<{ data: EventEntity[]; total: number }> {
-    const where = this.accessibleWhere(ownerId);
+    const where = {
+      ...this.accessibleWhere(ownerId),
+      ...(folderId !== undefined && { folderId }),
+    };
     const [rows, total] = await Promise.all([
       this.prisma.event.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        // `order` é a posição manual do drag & drop; createdAt desempata e
+        // mantém o comportamento antigo para quem nunca reordenou (tudo em 0).
+        orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
         skip: pagination.skip,
         take: pagination.take,
       }),
       this.prisma.event.count({ where }),
     ]);
     return { data: rows.map((r) => this.map(r)), total };
+  }
+
+  async reorder(ownerId: string, folderId: string | null, ids: string[]): Promise<void> {
+    await this.prisma.$transaction(
+      ids.map((id, index) =>
+        this.prisma.event.updateMany({
+          where: { id, folderId, ...this.accessibleWhere(ownerId) },
+          data: { order: index },
+        }),
+      ),
+    );
   }
 
   async create(data: CreateEventData): Promise<EventEntity> {

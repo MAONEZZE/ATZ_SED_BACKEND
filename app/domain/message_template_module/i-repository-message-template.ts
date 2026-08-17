@@ -28,8 +28,9 @@ export interface UpdateMessageTemplateData {
 /**
  * Filtro semântico da listagem. `eventId` distingue três casos:
  *   undefined → todos os templates do dono
- *   null      → só os globais
- *   string    → só os daquele evento
+ *   null      → só os globais do dono
+ *   string    → os daquele evento (de qualquer dono, o acesso ao evento é
+ *               verificado antes) mais os globais do dono
  */
 export interface MessageTemplateFilter {
   eventId?: string | null;
@@ -40,10 +41,11 @@ export interface MessageTemplateRepositoryPort {
   create(data: CreateMessageTemplateData): Promise<MessageTemplateEntity>;
 
   /**
-   * O dono é parte da consulta, não um filtro aplicado depois: sem ele um id
-   * conhecido devolveria template de outra conta.
+   * O acesso é parte da consulta, não um filtro aplicado depois: sem ele um id
+   * conhecido devolveria template de outra conta. Acessa quem é dono do template
+   * ou quem é dono/colaborador do evento ao qual ele está vinculado.
    */
-  findByIdForOwner(id: string, ownerId: string): Promise<MessageTemplateEntity | null>;
+  findByIdForUser(id: string, userId: string): Promise<MessageTemplateEntity | null>;
 
   findFirstForOwner(ownerId: string): Promise<MessageTemplateEntity | null>;
 

@@ -105,6 +105,8 @@ model Profile {
   templates      MessageTemplate[]
   outboxMessages OutboxMessage[]
   messageLogs    MessageLog[]        @relation("MessageLogOwner")
+  folders        Folder[]
+  allowedWhatsappInstances ProfileWhatsappInstance[]
 
   @@map("profiles")
   @@schema("SED")
@@ -129,12 +131,15 @@ model Event {
   status             EventStatus         @default(draft)
   whatsappInstanceId String?             @map("whatsapp_instance_id")
   whatsappToken      String?             @map("whatsapp_token")
+  folderId           String?             @map("folder_id")
+  order              Int                 @default(0)
   lastEditedById     String?             @map("last_edited_by")
   createdAt          DateTime            @default(now()) @map("created_at")
   updatedAt          DateTime            @updatedAt @map("updated_at")
   owner              Profile             @relation("EventOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   lastEditedBy       Profile?            @relation("EventLastEditor", fields: [lastEditedById], references: [id], onDelete: SetNull)
   whatsappInstance   WhatsappInstance?   @relation(fields: [whatsappInstanceId], references: [id], onDelete: SetNull)
+  folder             Folder?             @relation(fields: [folderId], references: [id], onDelete: SetNull)
   collaborators      EventCollaborator[]
   forms              Form[]
   registrations      Registration[]
@@ -147,20 +152,60 @@ model Event {
 
   @@index([ownerId])
   @@index([whatsappInstanceId])
+  @@index([folderId])
   @@map("events")
   @@schema("SED")
 }
 
-model WhatsappInstance {
+/// Pasta de organização dos eventos no painel. Aninhável (`parentId`) e ordenável
+/// (`order`, dentro do irmão). Deletar a pasta não deleta evento: a FK dos
+/// eventos é SetNull, e as subpastas são promovidas ao pai pelo repositório.
+model Folder {
   id        String   @id @default(uuid())
-  name      String   @unique
-  nickname  String
-  token     String?  @map("token")
+  ownerId   String   @map("owner_id")
+  name      String
+  parentId  String?  @map("parent_id")
+  order     Int      @default(0)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  owner     Profile  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  parent    Folder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Folder[] @relation("FolderTree")
   events    Event[]
 
+  @@index([ownerId])
+  @@index([parentId])
+  @@map("folders")
+  @@schema("SED")
+}
+
+model WhatsappInstance {
+  id            String                     @id @default(uuid())
+  name          String                     @unique
+  nickname      String
+  token         String?                    @map("token")
+  createdAt     DateTime                   @default(now()) @map("created_at")
+  updatedAt     DateTime                   @updatedAt @map("updated_at")
+  events        Event[]
+  allowedProfiles ProfileWhatsappInstance[]
+
   @@map("whatsapp_instances")
+  @@schema("SED")
+}
+
+/// Lista de instâncias que um perfil PODE usar (N por perfil, ninguém é dono de
+/// instância). Fixa: populada e ajustada só por SQL direto, sem rota de escrita.
+/// Perfil sem nenhuma linha não dispara WhatsApp.
+model ProfileWhatsappInstance {
+  profileId  String           @map("profile_id")
+  instanceId String           @map("instance_id")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  profile    Profile          @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  instance   WhatsappInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, instanceId])
+  @@index([instanceId])
+  @@map("profile_whatsapp_instances")
   @@schema("SED")
 }
 
@@ -222,6 +267,7 @@ model Registration {
   email              String
   phone              String
   imageAuthorization Boolean            @default(false) @map("image_authorization")
+  attended           Boolean            @default(false)
   createdAt          DateTime           @default(now()) @map("created_at")
   updatedAt          DateTime           @updatedAt @map("updated_at")
   event              Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)

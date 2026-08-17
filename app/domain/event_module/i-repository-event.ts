@@ -34,6 +34,8 @@ export interface UpdateEventData {
   recurrenceFreq?: string | null;
   recurrenceInterval?: number | null;
   recurrenceUntil?: Date | null;
+  /** `null` move o evento para a raiz (fora de qualquer pasta). */
+  folderId?: string | null;
 }
 
 export interface EventOwnership {
@@ -129,10 +131,19 @@ export interface EventRepositoryPort {
   findById(id: string): Promise<EventEntity | null>;
   findBySlug(slug: string): Promise<EventEntity | null>;
   findAllByOwner(ownerId: string): Promise<EventEntity[]>;
+  /**
+   * `folderId` distingue três casos, como o filtro de templates:
+   *   undefined → todos os eventos acessíveis
+   *   null      → só os que estão fora de qualquer pasta (raiz)
+   *   string    → só os daquela pasta
+   */
   findAllByOwnerPaginated(
     ownerId: string,
     pagination: { skip: number; take: number },
+    folderId?: string | null,
   ): Promise<{ data: EventEntity[]; total: number }>;
+  /** Reescreve `order` na ordem dos ids, dentro do escopo (dono + pasta). */
+  reorder(ownerId: string, folderId: string | null, ids: string[]): Promise<void>;
   create(data: CreateEventData): Promise<EventEntity>;
   update(id: string, data: UpdateEventData): Promise<EventEntity>;
   updateStatus(id: string, status: EventStatus, editorId?: string): Promise<EventEntity>;

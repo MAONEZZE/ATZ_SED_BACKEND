@@ -33,4 +33,20 @@ export class PrismaWhatsappInstanceRepository
     });
     return row ? this.toEntity(row) : null;
   }
+
+  async listForProfile(profileId: string): Promise<WhatsappInstanceEntity[]> {
+    const rows = await this.prisma.whatsappInstance.findMany({
+      where: { allowedProfiles: { some: { profileId } } },
+      select: INSTANCE_SELECT,
+      orderBy: { nickname: 'asc' },
+    });
+    return rows.map((row) => this.toEntity(row));
+  }
+
+  async isAllowedForProfile(instanceId: string, profileId: string): Promise<boolean> {
+    const count = await this.prisma.profileWhatsappInstance.count({
+      where: { instanceId, profileId },
+    });
+    return count > 0;
+  }
 }

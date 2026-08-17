@@ -1,8 +1,9 @@
 import { MessageTemplateService } from '@application/message_template_module/message-template.service';
 
-function make() {
+function make(eventAccessible = true) {
   const repo = {
     findAllForOwnerPaginated: jest.fn().mockResolvedValue({ data: [], total: 0 }),
+    eventAccessible: jest.fn().mockResolvedValue(eventAccessible),
   };
   const svc = new MessageTemplateService(repo as any);
   return { svc, repo };
@@ -54,5 +55,30 @@ describe('MessageTemplateService.list channel filter', () => {
       { eventId: 'evt-1', channel: 'email' },
       { skip: 0, take: 20 },
     );
+  });
+
+  // O escopo de evento passa a incluir templates de outro dono (do colaborador),
+  // então o acesso ao evento precisa ser verificado antes de listar.
+  it('checks event access before listing an event scope', async () => {
+    const { svc, repo } = make();
+
+    await svc.list('user-1', 'evt-1', 1, 20);
+
+    expect(repo.eventAccessible).toHaveBeenCalledWith('evt-1', 'user-1');
+  });
+
+  it('rejects an event the user cannot reach', async () => {
+    const { svc, repo } = make(false);
+
+    await expect(svc.list('user-1', 'evt-1', 1, 20)).rejects.toThrow('Event not found');
+    expect(repo.findAllForOwnerPaginated).not.toHaveBeenCalled();
+  });
+
+  it('does not check event access for the global scope', async () => {
+    const { svc, repo } = make();
+
+    await svc.list('user-1', 'null', 1, 20);
+
+    expect(repo.eventAccessible).not.toHaveBeenCalled();
   });
 });

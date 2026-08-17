@@ -29,7 +29,7 @@ function rule(overrides: {
 function make() {
   const repo = {
     templateById: jest.fn().mockResolvedValue({ id: 'tpl-1' }),
-    findActiveByEventAndTrigger: jest.fn().mockResolvedValue(null),
+    findActiveByEventTriggerAndTemplate: jest.fn().mockResolvedValue(null),
     findByEvent: jest.fn(),
     create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 'rule-1', ...data })),
     update: jest.fn().mockImplementation((id, data) => Promise.resolve({ id, ...data })),
@@ -85,7 +85,9 @@ describe('AutomationService — recurring trigger', () => {
     expect(rule).toMatchObject({ id: 'rule-1' });
   });
 
-  it('does not check for active duplicates when creating a recurring rule', async () => {
+  // A duplicata barrada passou a ser (gatilho + template), inclusive no
+  // recurring: duas regras com o mesmo template colidiriam no dedupKey.
+  it('checks the narrow duplicate when creating a recurring rule', async () => {
     const { svc, repo } = make();
     await svc.create('evt-1', {
       templateId: 'tpl-1',
@@ -93,25 +95,39 @@ describe('AutomationService — recurring trigger', () => {
       cron: '0 9 * * 1',
       timezone: 'America/Sao_Paulo',
     });
-    expect(repo.findActiveByEventAndTrigger).not.toHaveBeenCalled();
-  });
-
-  it('still checks for active duplicates on non-recurring triggers', async () => {
-    const { svc, repo } = make();
-    await svc.create('evt-1', { templateId: 'tpl-1', trigger: 'on_registration' });
-    expect(repo.findActiveByEventAndTrigger).toHaveBeenCalledWith(
+    expect(repo.findActiveByEventTriggerAndTemplate).toHaveBeenCalledWith(
       'evt-1',
-      'on_registration',
+      'recurring',
+      'tpl-1',
       undefined,
     );
   });
 
-  it('rejects an active duplicate for a non-recurring trigger', async () => {
+  it('checks the duplicate by trigger AND template on immediate triggers', async () => {
     const { svc, repo } = make();
-    repo.findActiveByEventAndTrigger.mockResolvedValue({ id: 'existing' });
+    await svc.create('evt-1', { templateId: 'tpl-1', trigger: 'on_approval' });
+    expect(repo.findActiveByEventTriggerAndTemplate).toHaveBeenCalledWith(
+      'evt-1',
+      'on_approval',
+      'tpl-1',
+      undefined,
+    );
+  });
+
+  it('rejects the same template twice on the same trigger', async () => {
+    const { svc, repo } = make();
+    repo.findActiveByEventTriggerAndTemplate.mockResolvedValue({ id: 'existing' });
     await expect(
-      svc.create('evt-1', { templateId: 'tpl-1', trigger: 'on_registration' }),
+      svc.create('evt-1', { templateId: 'tpl-1', trigger: 'on_approval' }),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  // O caso de uso que motivou a mudança: aprovar dispara e-mail E WhatsApp.
+  it('allows a second rule on the same trigger with another template', async () => {
+    const { svc, repo } = make();
+    await svc.create('evt-1', { templateId: 'tpl-email', trigger: 'on_approval' });
+    await svc.create('evt-1', { templateId: 'tpl-whatsapp', trigger: 'on_approval' });
+    expect(repo.create).toHaveBeenCalledTimes(2);
   });
 
   it('does not register a scheduler for an inactive recurring rule', async () => {

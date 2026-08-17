@@ -29,6 +29,7 @@ export class PrismaRegistrationRepository
     createdAt: Date;
     updatedAt: Date;
     imageAuthorization: boolean;
+    attended: boolean;
   }): RegistrationEntity {
     return new RegistrationEntity(
       row.id,
@@ -41,6 +42,7 @@ export class PrismaRegistrationRepository
       row.createdAt,
       row.updatedAt,
       row.imageAuthorization,
+      row.attended,
     );
   }
 
@@ -53,11 +55,13 @@ export class PrismaRegistrationRepository
     eventId: string,
     status?: FunnelStatus,
     search?: string,
+    attended?: boolean,
   ): Promise<RegistrationEntity[]> {
     const rows = await this.prisma.registration.findMany({
       where: {
         eventId,
         ...(status ? { status } : {}),
+        ...(attended !== undefined ? { attended } : {}),
         ...this.containsSearch(['name', 'email', 'phone'], search),
       },
       orderBy: { createdAt: 'desc' },
@@ -70,10 +74,12 @@ export class PrismaRegistrationRepository
     pagination: { skip: number; take: number },
     status?: FunnelStatus,
     search?: string,
+    attended?: boolean,
   ): Promise<{ data: RegistrationEntity[]; total: number }> {
     const where = {
       eventId,
       ...(status ? { status } : {}),
+      ...(attended !== undefined ? { attended } : {}),
       ...this.containsSearch(['name', 'email', 'phone'], search),
     };
     const [rows, total] = await Promise.all([
@@ -97,6 +103,23 @@ export class PrismaRegistrationRepository
       },
     });
     return this.map(row);
+  }
+
+  // O eventId entra no where junto do id: sem ele um id conhecido apagaria
+  // inscrito de outro evento.
+  async deleteMany(ids: string[], eventId: string): Promise<number> {
+    const { count } = await this.prisma.registration.deleteMany({
+      where: { id: { in: ids }, eventId },
+    });
+    return count;
+  }
+
+  async setAttendance(ids: string[], eventId: string, attended: boolean): Promise<number> {
+    const { count } = await this.prisma.registration.updateMany({
+      where: { id: { in: ids }, eventId },
+      data: { attended },
+    });
+    return count;
   }
 
   async updateStatus(id: string, status: FunnelStatus): Promise<RegistrationEntity> {

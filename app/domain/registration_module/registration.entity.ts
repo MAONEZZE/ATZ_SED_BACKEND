@@ -16,6 +16,8 @@ export class RegistrationEntity extends EntityBase {
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
     public readonly imageAuthorization: boolean = false,
+    /** Presença no evento. `false` = não compareceu ou ainda não foi conferido. */
+    public readonly attended: boolean = false,
   ) {
     super(id);
   }

@@ -9,6 +9,14 @@ import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
 } from '@domain/event_module/i-repository-event';
+import {
+  FOLDER_REPOSITORY_PORT,
+  FolderRepositoryPort,
+} from '@domain/folder_module/i-repository-folder';
+import {
+  WHATSAPP_INSTANCE_REPOSITORY_PORT,
+  WhatsappInstanceRepositoryPort,
+} from '@domain/whatsapp_instance_module/i-repository-whatsapp-instance';
 import { STORAGE_PORT, StoragePort } from '@domain/shared/i-storage';
 import { EventEntity, EventStatus } from '@domain/event_module/event.entity';
 import { EventValidator } from '@domain/event_module/event.validator';
@@ -30,6 +38,8 @@ export interface CreateEventInput {
 }
 
 export interface UpdateEventInput {
+  /** `null` tira o evento da pasta (volta para a raiz do painel). */
+  folderId?: string | null;
   title?: string;
   location?: string;
   capacity?: number;
@@ -49,6 +59,9 @@ export interface UpdateEventInput {
 export class EventService {
   constructor(
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
+    @Inject(FOLDER_REPOSITORY_PORT) private readonly folders: FolderRepositoryPort,
+    @Inject(WHATSAPP_INSTANCE_REPOSITORY_PORT)
+    private readonly whatsappInstances: WhatsappInstanceRepositoryPort,
     @Inject(STORAGE_PORT) private readonly storage: StoragePort,
     private readonly config: ConfigService,
   ) {}
@@ -66,11 +79,17 @@ export class EventService {
     ownerId: string,
     page: number,
     limit: number,
+    folderId?: string | null,
   ): Promise<{ data: EventEntity[]; total: number }> {
-    return this.eventRepo.findAllByOwnerPaginated(ownerId, {
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    return this.eventRepo.findAllByOwnerPaginated(
+      ownerId,
+      { skip: (page - 1) * limit, take: limit },
+      folderId,
+    );
+  }
+
+  reorder(ownerId: string, folderId: string | null, ids: string[]): Promise<void> {
+    return this.eventRepo.reorder(ownerId, folderId, ids);
   }
 
   async findById(id: string): Promise<EventEntity> {
@@ -91,6 +110,25 @@ export class EventService {
       throw new ForbiddenException('Cancelled or ended events cannot be edited');
     }
     this.assertValidPeriod(input.eventDate ?? event.eventDate, input.endDate ?? event.endDate);
+    // Pasta é organização pessoal: só aceita pasta de quem está editando, senão
+    // um id conhecido moveria o evento para dentro da pasta de outra conta.
+    if (input.folderId && editorId) {
+      const folder = await this.folders.findByIdForOwner(input.folderId, editorId);
+      if (!folder) throw new NotFoundException('Folder not found');
+    }
+    // Vincular instância ao evento é o outro caminho para disparar por ela:
+    // vale a mesma lista fixa do usuário.
+    if (input.whatsappInstanceId && editorId) {
+      const allowed = await this.whatsappInstances.isAllowedForProfile(
+        input.whatsappInstanceId,
+        editorId,
+      );
+      if (!allowed) {
+        throw new ForbiddenException(
+          'Esta instância WhatsApp não está liberada para o seu usuário',
+        );
+      }
+    }
     return this.eventRepo.update(id, editorId ? { ...input, lastEditedById: editorId } : input);
   }
 
