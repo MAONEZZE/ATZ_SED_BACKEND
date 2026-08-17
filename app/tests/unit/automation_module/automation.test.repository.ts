@@ -175,25 +175,58 @@ describe('PrismaAutomationRepository.update', () => {
 });
 
 describe('PrismaAutomationRepository.findActiveByEventTriggerAndTemplate', () => {
-  // A duplicata barrada é (evento + gatilho + template) ativa. O templateId no
-  // where é o que libera e-mail + WhatsApp no mesmo gatilho.
-  it('filters by event, trigger, template and active', async () => {
+  // A duplicata barrada é (evento + gatilho + template + formulário) ativa. O
+  // templateId no where é o que libera e-mail + WhatsApp no mesmo gatilho; o
+  // formId é o que libera o mesmo template em formulários diferentes.
+  it('filters by event, trigger, template, form and active', async () => {
     const findFirst = jest.fn().mockResolvedValue(RULE_ROW);
     const { repo } = await makeRepo({ findFirst });
 
-    const found = await repo.findActiveByEventTriggerAndTemplate('evt-1', 'on_approval', 'tpl-1');
+    const found = await repo.findActiveByEventTriggerAndTemplate(
+      'evt-1',
+      'on_approval',
+      'tpl-1',
+      null,
+    );
 
     expect(findFirst).toHaveBeenCalledWith({
-      where: { eventId: 'evt-1', trigger: 'on_approval', templateId: 'tpl-1', active: true },
+      where: {
+        eventId: 'evt-1',
+        trigger: 'on_approval',
+        templateId: 'tpl-1',
+        formId: null,
+        active: true,
+      },
     });
     expect(found).toBeInstanceOf(AutomationRuleEntity);
+  });
+
+  it('scopes the lookup to the form when the rule has one', async () => {
+    const findFirst = jest.fn().mockResolvedValue(null);
+    const { repo } = await makeRepo({ findFirst });
+
+    await repo.findActiveByEventTriggerAndTemplate(
+      'evt-1',
+      'on_form_submitted',
+      'tpl-1',
+      'form-2',
+    );
+
+    const [{ where }] = findFirst.mock.calls[0] as [{ where: Record<string, unknown> }];
+    expect(where.formId).toBe('form-2');
   });
 
   it('excludes the rule being edited', async () => {
     const findFirst = jest.fn().mockResolvedValue(null);
     const { repo } = await makeRepo({ findFirst });
 
-    await repo.findActiveByEventTriggerAndTemplate('evt-1', 'on_approval', 'tpl-1', 'rule-1');
+    await repo.findActiveByEventTriggerAndTemplate(
+      'evt-1',
+      'on_approval',
+      'tpl-1',
+      null,
+      'rule-1',
+    );
 
     const [{ where }] = findFirst.mock.calls[0] as [{ where: Record<string, unknown> }];
     expect(where.id).toEqual({ not: 'rule-1' });

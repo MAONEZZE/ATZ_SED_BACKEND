@@ -37,6 +37,10 @@ export class AutomationRuleEntity extends EntityBase {
     public readonly cron: string | null,
     public readonly timezone: string | null,
     public readonly active: boolean,
+    /** Pasta que organiza a regra. Sempre uma pasta do mesmo evento. */
+    public readonly folderId: string | null,
+    /** Posição manual dentro da pasta (ou da raiz). */
+    public readonly order: number,
     public readonly createdAt: Date,
   ) {
     super(id);
@@ -49,6 +53,15 @@ export class AutomationRuleEntity extends EntityBase {
   /** `on_form_submitted` é escopado por formulário, então exige `formId`. */
   static requiresForm(trigger: string): boolean {
     return trigger === 'on_form_submitted';
+  }
+
+  /**
+   * Gatilhos que guardam `formId`. Em `on_form_submitted` ele é obrigatório; em
+   * `on_registration` é escopo opcional — com formulário, a regra só vale para
+   * quem se inscreveu por ele; sem, vale para qualquer formulário.
+   */
+  static acceptsForm(trigger: string): boolean {
+    return trigger === 'on_form_submitted' || trigger === 'on_registration';
   }
 
   static isRecurring(trigger: string): boolean {

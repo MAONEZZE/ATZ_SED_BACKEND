@@ -75,9 +75,9 @@ describe('AutomationEngine — múltiplas regras no mesmo gatilho', () => {
     expect(whatsCall.recipient).toBe('+5511999998888');
   });
 
-  // Com registrationId o dedupKey é montado no OutboxService como
-  // `registrationId:templateId:trigger` — templates distintos, chaves distintas.
-  it('leaves the dedupKey to the outbox and keeps the templateId distinct per rule', async () => {
+  // O dedupKey é `registrationId:templateId:trigger` (+ formulário, quando a
+  // regra tem um) — templates distintos, chaves distintas.
+  it('builds one dedupKey per rule from registration, template and trigger', async () => {
     const { engine, outbox } = makeEngine([
       rule('rule-email', 'tpl-email', 'email'),
       rule('rule-whats', 'tpl-whats', 'whatsapp'),
@@ -87,7 +87,11 @@ describe('AutomationEngine — múltiplas regras no mesmo gatilho', () => {
 
     const templateIds = outbox.enqueue.mock.calls.map(([data]) => data.templateId);
     expect(templateIds).toEqual(['tpl-email', 'tpl-whats']);
-    expect(outbox.enqueue.mock.calls.every(([data]) => data.dedupKey === undefined)).toBe(true);
+    const dedupKeys = outbox.enqueue.mock.calls.map(([data]) => data.dedupKey);
+    expect(dedupKeys).toEqual([
+      'reg-1:tpl-email:on_approval',
+      'reg-1:tpl-whats:on_approval',
+    ]);
   });
 
   // Sem Registration (pós-evento/NPS) o engine monta a chave, e ela também

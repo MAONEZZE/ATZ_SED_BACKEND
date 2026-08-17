@@ -141,7 +141,7 @@ export class RegistrationService {
 
     this.eventEmitter.emit(
       'registration.status_changed',
-      new RegistrationStatusChanged(reg.id, event.id, 'pending', 'pending', event.ownerId),
+      new RegistrationStatusChanged(reg.id, event.id, 'pending', 'pending', event.ownerId, form.id),
     );
     return reg;
   }

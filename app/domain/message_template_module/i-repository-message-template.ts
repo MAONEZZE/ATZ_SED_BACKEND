@@ -12,6 +12,7 @@ export interface CreateMessageTemplateData {
   layoutConfig?: Record<string, unknown> | null;
   styleKey?: string | null;
   eventId?: string | null;
+  folderId?: string | null;
 }
 
 /** Chave ausente deixa a coluna intacta. `eventId: null` desvincula do evento. */
@@ -23,6 +24,7 @@ export interface UpdateMessageTemplateData {
   layoutConfig?: Record<string, unknown> | null;
   styleKey?: string | null;
   eventId?: string | null;
+  folderId?: string | null;
 }
 
 /**
@@ -31,9 +33,13 @@ export interface UpdateMessageTemplateData {
  *   null      → só os globais do dono
  *   string    → os daquele evento (de qualquer dono, o acesso ao evento é
  *               verificado antes) mais os globais do dono
+ *
+ * `folderId` segue os mesmos três casos: undefined = qualquer pasta, null = só
+ * os que estão fora de pasta, string = os daquela pasta.
  */
 export interface MessageTemplateFilter {
   eventId?: string | null;
+  folderId?: string | null;
   channel?: MessageChannel;
 }
 
@@ -56,6 +62,12 @@ export interface MessageTemplateRepositoryPort {
   ): Promise<{ data: MessageTemplateEntity[]; total: number }>;
 
   update(id: string, data: UpdateMessageTemplateData): Promise<MessageTemplateEntity>;
+
+  /**
+   * Reescreve `order` na ordem dos ids, numa transação, dentro da pasta dada
+   * (`null` = fora de pasta). Ignora id que o usuário não alcança.
+   */
+  reorder(userId: string, folderId: string | null, ids: string[]): Promise<void>;
 
   delete(id: string): Promise<void>;
 

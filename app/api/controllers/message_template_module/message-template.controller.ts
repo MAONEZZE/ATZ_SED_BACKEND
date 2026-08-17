@@ -27,6 +27,7 @@ import {
   UpdateGlobalTemplateDto,
 } from '@api/dto/message_template_module/global-template.dto';
 import { ListTemplatesQueryDto } from '@api/dto/message_template_module/list-templates-query.dto';
+import { ReorderTemplatesDto } from '@api/dto/message_template_module/reorder-templates.dto';
 import { Paginated } from '@api/dto/shared/pagination';
 
 @ApiTags('Messaging (global)')
@@ -55,6 +56,12 @@ export class MessageTemplateController {
     description: "Filtra por evento vinculado. 'null' retorna só os templates globais.",
   })
   @ApiQuery({
+    name: 'folderId',
+    required: false,
+    type: String,
+    description: "Filtra por pasta. 'null' retorna só os templates fora de pasta.",
+  })
+  @ApiQuery({
     name: 'channel',
     required: false,
     enum: ['whatsapp', 'email'],
@@ -73,8 +80,22 @@ export class MessageTemplateController {
       page,
       limit,
       query.channel,
+      query.folderId,
     );
     return { data, total, page, limit };
+  }
+
+  // Antes do PATCH templates/:id — declarada depois, 'reorder' cairia no :id.
+  @Patch('templates/reorder')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Reordenar templates dentro de uma pasta (drag & drop)' })
+  @ApiResponse({ status: 204, description: 'Ordem reescrita' })
+  @ApiResponse({ status: 404, description: 'Pasta não encontrada' })
+  reorderTemplates(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ReorderTemplatesDto,
+  ) {
+    return this.templates.reorder(user.id, dto.folderId ?? null, dto.ids);
   }
 
   @Get('templates/:id')

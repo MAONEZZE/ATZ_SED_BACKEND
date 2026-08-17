@@ -15,6 +15,7 @@ export interface CreateAutomationRuleData {
   cron?: string | null;
   timezone?: string | null;
   active?: boolean;
+  folderId?: string | null;
 }
 
 /** Chave ausente deixa a coluna intacta. */
@@ -26,6 +27,7 @@ export interface UpdateAutomationRuleData {
   cron?: string | null;
   timezone?: string | null;
   active?: boolean;
+  folderId?: string | null;
 }
 
 /** Resumo do template exibido junto da regra nas telas de listagem. */
@@ -58,11 +60,17 @@ export interface RecurringSchedule {
 }
 
 export interface AutomationRepositoryPort {
+  /**
+   * `folderId` tem três casos: `undefined` = todas as regras do evento, `null` =
+   * só as que estão fora de pasta, string = só as daquela pasta.
+   */
   findAllByEventPaginated(
     eventId: string,
     pagination: { skip: number; take: number },
+    folderId?: string | null,
   ): Promise<{ data: AutomationRuleWithTemplate[]; total: number }>;
 
+  /** Lista cross-evento: ordena por data, porque `order` manual só faz sentido dentro do evento. */
   findAllForUserPaginated(
     userId: string,
     pagination: { skip: number; take: number },
@@ -84,10 +92,12 @@ export interface AutomationRepositoryPort {
    * sairia. Gatilho repetido com templates **diferentes** é liberado — é o caso
    * de mandar a mesma etapa por e-mail e por WhatsApp.
    */
+  /** `formId` faz parte da chave: o mesmo template pode servir a dois formulários. */
   findActiveByEventTriggerAndTemplate(
     eventId: string,
     trigger: string,
     templateId: string,
+    formId: string | null,
     excludeId?: string,
   ): Promise<AutomationRuleEntity | null>;
 
@@ -97,6 +107,12 @@ export interface AutomationRepositoryPort {
   create(data: CreateAutomationRuleData): Promise<AutomationRuleWithTemplate>;
   update(id: string, data: UpdateAutomationRuleData): Promise<AutomationRuleWithTemplate>;
   delete(id: string): Promise<void>;
+
+  /**
+   * Reescreve `order` na ordem dos ids, numa transação, dentro da pasta dada
+   * (`null` = fora de pasta). O evento entra no `where` como guarda.
+   */
+  reorder(eventId: string, folderId: string | null, ids: string[]): Promise<void>;
 
   /**
    * Regras ativas de um evento+gatilho. `ruleIds` filtra pelo conjunto exato

@@ -116,11 +116,19 @@ export class EventService {
       throw new ForbiddenException('Cancelled or ended events cannot be edited');
     }
     this.assertValidPeriod(input.eventDate ?? event.eventDate, input.endDate ?? event.endDate);
-    // Pasta é organização pessoal: só aceita pasta de quem está editando, senão
-    // um id conhecido moveria o evento para dentro da pasta de outra conta.
+    // Pasta de evento é organização pessoal do painel: nem pasta de outra conta,
+    // nem pasta de template/automação, nem pasta que mora dentro de um evento.
+    // Sem isso um id conhecido moveria o evento para a pasta errada.
     if (input.folderId && editorId) {
-      const folder = await this.folders.findByIdForOwner(input.folderId, editorId);
-      if (!folder) throw new NotFoundException('Folder not found');
+      const folder = await this.folders.findById(input.folderId);
+      if (
+        !folder ||
+        folder.ownerId !== editorId ||
+        folder.resourceType !== 'event' ||
+        folder.eventId !== null
+      ) {
+        throw new NotFoundException('Folder not found');
+      }
     }
     // Vincular instância ao evento é o outro caminho para disparar por ela:
     // vale a mesma lista fixa do usuário.

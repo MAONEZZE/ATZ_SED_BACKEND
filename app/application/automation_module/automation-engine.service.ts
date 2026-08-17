@@ -43,7 +43,12 @@ export class AutomationEngine {
     if (!trigger) return;
 
     try {
-      await this.fireAutomations(ev.registrationId, ev.eventId, trigger);
+      // Regra com formulário só vale para quem entrou por ele; regra sem
+      // formulário vale para qualquer origem.
+      const rules = await this.automations.findActiveTriggerRules(ev.eventId, trigger);
+      const ruleIds = rules.filter((r) => !r.formId || r.formId === ev.formId).map((r) => r.id);
+      if (!ruleIds.length) return;
+      await this.fireAutomations(ev.registrationId, ev.eventId, trigger, ruleIds);
     } catch (err) {
       this.logger.error(
         { err, registrationId: ev.registrationId, trigger },
@@ -163,9 +168,12 @@ export class AutomationEngine {
       // marcador {{invite}} (ICS_MARKER) — ele regenera a partir do evento (com endDate).
       // Não geramos ics aqui para não duplicar a lógica.
       const recipient = rule.template.channel === 'email' ? contact.email : contact.phone;
+      // O formulário entra na chave: o mesmo template em dois formulários são
+      // dois envios, não um repetido.
+      const scope = rule.formId ? `:${rule.formId}` : '';
       const dedupKey = contact.registrationId
-        ? undefined
-        : `${eventId}:${(contact.email || contact.phone).toLowerCase()}:${rule.templateId}:${trigger}`;
+        ? `${contact.registrationId}:${rule.templateId}:${trigger}${scope}`
+        : `${eventId}:${(contact.email || contact.phone).toLowerCase()}:${rule.templateId}:${trigger}${scope}`;
 
       await this.outbox.enqueue(
         {

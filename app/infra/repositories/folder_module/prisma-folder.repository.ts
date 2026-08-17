@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-repository.base';
 import { FolderEntity } from '@domain/folder_module/folder.entity';
+import { FolderResourceType } from '@domain/folder_module/folder-resource-type';
 import {
   CreateFolderData,
   FolderRepositoryPort,
+  FolderScope,
   UpdateFolderData,
 } from '@domain/folder_module/i-repository-folder';
 
@@ -15,6 +17,8 @@ type FolderRow = {
   order: number;
   createdAt: Date;
   updatedAt: Date;
+  resourceType: FolderResourceType;
+  eventId: string | null;
 };
 
 @Injectable()
@@ -28,32 +32,50 @@ export class PrismaFolderRepository extends PrismaRepositoryBase implements Fold
       row.order,
       row.createdAt,
       row.updatedAt,
+      row.resourceType,
+      row.eventId,
     );
   }
 
-  async listByOwner(ownerId: string): Promise<FolderEntity[]> {
+  /**
+   * Único lugar que traduz escopo em `where`, e a peça que faz o
+   * compartilhamento funcionar: pasta do painel filtra pelo dono, pasta de
+   * evento filtra pelo evento e ignora quem criou.
+   */
+  private scopeWhere(scope: FolderScope) {
+    return {
+      resourceType: scope.resourceType,
+      ...(scope.eventId !== null
+        ? { eventId: scope.eventId }
+        : { ownerId: scope.ownerId, eventId: null }),
+    };
+  }
+
+  async listByScope(scope: FolderScope): Promise<FolderEntity[]> {
     const rows = await this.prisma.folder.findMany({
-      where: { ownerId },
+      where: this.scopeWhere(scope),
       orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
     });
     return rows.map((row) => this.toEntity(row));
   }
 
-  async findByIdForOwner(id: string, ownerId: string): Promise<FolderEntity | null> {
-    const row = await this.prisma.folder.findFirst({ where: { id, ownerId } });
+  async findById(id: string): Promise<FolderEntity | null> {
+    const row = await this.prisma.folder.findUnique({ where: { id } });
     return row ? this.toEntity(row) : null;
   }
 
   async create(data: CreateFolderData): Promise<FolderEntity> {
     const parentId = data.parentId ?? null;
     const last = await this.prisma.folder.findFirst({
-      where: { ownerId: data.ownerId, parentId },
+      where: { ...this.scopeWhere(data), parentId },
       orderBy: { order: 'desc' },
       select: { order: true },
     });
     const row = await this.prisma.folder.create({
       data: {
         ownerId: data.ownerId,
+        resourceType: data.resourceType,
+        eventId: data.eventId,
         name: data.name,
         parentId,
         order: last ? last.order + 1 : 0,
@@ -74,7 +96,8 @@ export class PrismaFolderRepository extends PrismaRepositoryBase implements Fold
   }
 
   // As subpastas sobem para o pai da pasta removida (a FK sozinha as jogaria na
-  // raiz). Os eventos são desassociados pelo ON DELETE SET NULL da FK.
+  // raiz). Os registros que estavam na pasta (eventos, templates, regras) são
+  // desassociados pelo ON DELETE SET NULL das FKs folder_id.
   async delete(id: string): Promise<void> {
     const folder = await this.prisma.folder.findUnique({
       where: { id },
@@ -89,10 +112,11 @@ export class PrismaFolderRepository extends PrismaRepositoryBase implements Fold
     ]);
   }
 
-  async reorder(ownerId: string, ids: string[]): Promise<void> {
+  async reorder(scope: FolderScope, ids: string[]): Promise<void> {
+    const where = this.scopeWhere(scope);
     await this.prisma.$transaction(
       ids.map((id, index) =>
-        this.prisma.folder.updateMany({ where: { id, ownerId }, data: { order: index } }),
+        this.prisma.folder.updateMany({ where: { id, ...where }, data: { order: index } }),
       ),
     );
   }

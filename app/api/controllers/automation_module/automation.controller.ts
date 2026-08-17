@@ -23,9 +23,11 @@ import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { AutomationService } from '@application/automation_module/automation.service';
 import {
   CreateAutomationDto,
+  ListAutomationsQueryDto,
+  ReorderAutomationsDto,
   UpdateAutomationDto,
 } from '@api/dto/automation_module/automation.dto';
-import { PaginationQueryDto, Paginated } from '@api/dto/shared/pagination';
+import { Paginated } from '@api/dto/shared/pagination';
 
 @ApiTags('Automations')
 @ApiBearerAuth()
@@ -39,15 +41,35 @@ export class AutomationController {
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({
+    name: 'folderId',
+    required: false,
+    type: String,
+    description: "Filtra por pasta. 'null' retorna só as regras fora de pasta.",
+  })
   @ApiResponse({ status: 200, description: 'Lista paginada de automações' })
   async findAll(
     @Param('eventId') eventId: string,
-    @Query() pagination: PaginationQueryDto,
+    @Query() query: ListAutomationsQueryDto,
   ): Promise<Paginated<object>> {
-    const page = pagination.page ?? 1;
-    const limit = pagination.limit ?? 20;
-    const { data, total } = await this.automations.listPaginated(eventId, page, limit);
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    // A query string carrega a literal 'null' para pedir só as regras fora de
+    // pasta; ausente é "sem filtro".
+    const folderId = query.folderId === 'null' ? null : query.folderId;
+    const { data, total } = await this.automations.listPaginated(eventId, page, limit, folderId);
     return { data, total, page, limit };
+  }
+
+  // Antes do PATCH /:id — declarada depois, 'reorder' cairia no :id.
+  @Patch('reorder')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Reordenar automações dentro de uma pasta (drag & drop)' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiResponse({ status: 204, description: 'Ordem reescrita' })
+  @ApiResponse({ status: 404, description: 'Pasta não encontrada' })
+  reorder(@Param('eventId') eventId: string, @Body() dto: ReorderAutomationsDto) {
+    return this.automations.reorder(eventId, dto.folderId ?? null, dto.ids);
   }
 
   @Get(':id')

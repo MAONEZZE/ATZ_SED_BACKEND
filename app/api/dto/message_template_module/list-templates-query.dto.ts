@@ -11,6 +11,14 @@ export class ListTemplatesQueryDto extends PaginationQueryDto {
   @IsString()
   eventId?: string;
 
+  @ApiPropertyOptional({
+    type: String,
+    description: "Filtra por pasta. 'null' retorna só os templates fora de pasta.",
+  })
+  @IsOptional()
+  @IsString()
+  folderId?: string;
+
   @ApiPropertyOptional({ enum: ['whatsapp', 'email'], description: 'Filtra por canal.' })
   @IsOptional()
   @IsEnum(['whatsapp', 'email'])

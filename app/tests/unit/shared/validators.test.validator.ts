@@ -141,7 +141,7 @@ describe('FormFieldValidator', () => {
 
 describe('ValidatorBase.isValid', () => {
   it('mirrors an empty error list', () => {
-    expect(new AutomationValidator().isValid({ trigger: 'on_nps' })).toBe(true);
+    expect(new AutomationValidator().isValid({ trigger: 'on_approval' })).toBe(true);
     expect(new AutomationValidator().isValid({ trigger: 'recurring' })).toBe(false);
   });
 });

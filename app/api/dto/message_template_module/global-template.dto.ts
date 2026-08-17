@@ -51,6 +51,15 @@ export class CreateGlobalTemplateDto {
   @IsOptional()
   @IsUUID()
   eventId?: string;
+
+  @ApiPropertyOptional({
+    example: 'uuid-da-pasta',
+    description:
+      'Pasta que organiza o template. Tem que ser pasta de `message_template` com o mesmo escopo de evento.',
+  })
+  @IsOptional()
+  @IsUUID()
+  folderId?: string;
 }
 
 export class UpdateGlobalTemplateDto {
@@ -95,4 +104,15 @@ export class UpdateGlobalTemplateDto {
   @ValidateIf((o) => o.eventId !== null)
   @IsUUID()
   eventId?: string | null;
+
+  @ApiPropertyOptional({
+    example: 'uuid-da-pasta',
+    description:
+      'Move o template de pasta. `null` tira da pasta. Trocar de evento sem informar pasta também tira da pasta.',
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateIf((o) => o.folderId !== null)
+  @IsUUID()
+  folderId?: string | null;
 }

@@ -5,8 +5,9 @@ function make(eventAccessible = true) {
     findAllForOwnerPaginated: jest.fn().mockResolvedValue({ data: [], total: 0 }),
     eventAccessible: jest.fn().mockResolvedValue(eventAccessible),
   };
-  const svc = new MessageTemplateService(repo as any);
-  return { svc, repo };
+  const folders = { findById: jest.fn().mockResolvedValue(null) };
+  const svc = new MessageTemplateService(repo as any, folders as any);
+  return { svc, repo, folders };
 }
 
 describe('MessageTemplateService.list channel filter', () => {

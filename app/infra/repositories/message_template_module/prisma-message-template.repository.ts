@@ -20,6 +20,8 @@ type MessageTemplateRow = {
   layoutConfig: Prisma.JsonValue;
   styleKey: string | null;
   eventId: string | null;
+  folderId: string | null;
+  order: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -42,6 +44,8 @@ export class PrismaMessageTemplateRepository
         : null,
       row.styleKey,
       row.eventId,
+      row.folderId,
+      row.order,
       row.createdAt,
       row.updatedAt,
     );
@@ -52,12 +56,30 @@ export class PrismaMessageTemplateRepository
     return config != null ? (config as Prisma.InputJsonValue) : Prisma.JsonNull;
   }
 
+  /**
+   * Quem alcança o template: o dono dele, ou quem é dono/colaborador do evento
+   * ao qual ele está vinculado.
+   */
+  private accessibleWhere(userId: string): Prisma.MessageTemplateWhereInput {
+    return {
+      OR: [
+        { ownerId: userId },
+        {
+          event: {
+            OR: [{ ownerId: userId }, { collaborators: { some: { profileId: userId } } }],
+          },
+        },
+      ],
+    };
+  }
+
   /** Traduz o filtro semântico da porta para o `where` do Prisma. */
   private toWhere(
     ownerId: string,
     filter: MessageTemplateFilter,
   ): Prisma.MessageTemplateWhereInput {
     const channel = filter.channel && { channel: filter.channel };
+    const folder = filter.folderId !== undefined && { folderId: filter.folderId };
 
     // Escopo de evento: os templates do evento (de qualquer dono, já que o
     // acesso ao evento foi verificado no service) mais os globais do usuário.
@@ -65,6 +87,7 @@ export class PrismaMessageTemplateRepository
       return {
         OR: [{ eventId: filter.eventId }, { ownerId, eventId: null }],
         ...channel,
+        ...folder,
       };
     }
 
@@ -72,6 +95,7 @@ export class PrismaMessageTemplateRepository
       ownerId,
       ...(filter.eventId === null && { eventId: null }),
       ...channel,
+      ...folder,
     };
   }
 
@@ -86,6 +110,7 @@ export class PrismaMessageTemplateRepository
         layoutConfig: this.toJson(data.layoutConfig),
         styleKey: data.styleKey ?? null,
         eventId: data.eventId ?? null,
+        folderId: data.folderId ?? null,
       },
     });
     return this.toEntity(row);
@@ -93,17 +118,7 @@ export class PrismaMessageTemplateRepository
 
   async findByIdForUser(id: string, userId: string): Promise<MessageTemplateEntity | null> {
     const row = await this.prisma.messageTemplate.findFirst({
-      where: {
-        id,
-        OR: [
-          { ownerId: userId },
-          {
-            event: {
-              OR: [{ ownerId: userId }, { collaborators: { some: { profileId: userId } } }],
-            },
-          },
-        ],
-      },
+      where: { id, ...this.accessibleWhere(userId) },
     });
     return row ? this.toEntity(row) : null;
   }
@@ -122,7 +137,10 @@ export class PrismaMessageTemplateRepository
     const [rows, total] = await Promise.all([
       this.prisma.messageTemplate.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        // `order` vem primeiro por causa do drag & drop dentro da pasta; como
+        // toda linha nasce com 0, a ordem de antes (createdAt desc) se mantém
+        // até alguém reordenar de verdade.
+        orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
         skip: pagination.skip,
         take: pagination.take,
       }),
@@ -140,9 +158,24 @@ export class PrismaMessageTemplateRepository
       ...(data.layoutConfig !== undefined && { layoutConfig: this.toJson(data.layoutConfig) }),
       ...(data.styleKey !== undefined && { styleKey: data.styleKey }),
       ...(data.eventId !== undefined && { eventId: data.eventId }),
+      ...(data.folderId !== undefined && { folderId: data.folderId }),
     };
     const row = await this.prisma.messageTemplate.update({ where: { id }, data: payload });
     return this.toEntity(row);
+  }
+
+  // A pasta entra no `where` como guarda: id que está em outra pasta não é
+  // atualizado, em vez de ser reordenado no escopo errado.
+  async reorder(userId: string, folderId: string | null, ids: string[]): Promise<void> {
+    const scope = { folderId, ...this.accessibleWhere(userId) };
+    await this.prisma.$transaction(
+      ids.map((id, index) =>
+        this.prisma.messageTemplate.updateMany({
+          where: { id, ...scope },
+          data: { order: index },
+        }),
+      ),
+    );
   }
 
   async delete(id: string): Promise<void> {

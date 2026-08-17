@@ -32,6 +32,8 @@ type AutomationRuleRow = {
   cron: string | null;
   timezone: string | null;
   active: boolean;
+  folderId: string | null;
+  order: number;
   createdAt: Date;
 };
 
@@ -45,6 +47,8 @@ type MessageTemplateRow = {
   layoutConfig: Prisma.JsonValue;
   styleKey: string | null;
   eventId: string | null;
+  folderId: string | null;
+  order: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -65,6 +69,8 @@ export class PrismaAutomationRepository
       row.cron,
       row.timezone,
       row.active,
+      row.folderId,
+      row.order,
       row.createdAt,
     );
   }
@@ -82,6 +88,8 @@ export class PrismaAutomationRepository
         : null,
       row.styleKey,
       row.eventId,
+      row.folderId,
+      row.order,
       row.createdAt,
       row.updatedAt,
     );
@@ -105,13 +113,16 @@ export class PrismaAutomationRepository
   async findAllByEventPaginated(
     eventId: string,
     pagination: { skip: number; take: number },
+    folderId?: string | null,
   ): Promise<{ data: AutomationRuleWithTemplate[]; total: number }> {
-    const where = { eventId };
+    const where = { eventId, ...(folderId !== undefined && { folderId }) };
     const [rows, total] = await Promise.all([
       this.prisma.automationRule.findMany({
         where,
         include: TEMPLATE_SUMMARY,
-        orderBy: { createdAt: 'asc' },
+        // `order` primeiro por causa do drag & drop; como toda linha nasce com 0,
+        // a ordem de antes (createdAt asc) se mantém até alguém reordenar.
+        orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
         skip: pagination.skip,
         take: pagination.take,
       }),
@@ -178,6 +189,7 @@ export class PrismaAutomationRepository
     eventId: string,
     trigger: string,
     templateId: string,
+    formId: string | null,
     excludeId?: string,
   ): Promise<AutomationRuleEntity | null> {
     const row = await this.prisma.automationRule.findFirst({
@@ -185,6 +197,7 @@ export class PrismaAutomationRepository
         eventId,
         trigger: trigger as Prisma.AutomationRuleUncheckedCreateInput['trigger'],
         templateId,
+        formId,
         active: true,
         ...(excludeId && { id: { not: excludeId } }),
       },
@@ -210,9 +223,12 @@ export class PrismaAutomationRepository
         eventId: data.eventId,
         templateId: data.templateId,
         trigger: data.trigger,
+        // O service já normaliza: null quando o gatilho não aceita formulário.
+        formId: data.formId ?? null,
         delayMinutes: data.delayMinutes ?? null,
         cron: data.cron ?? null,
         timezone: data.timezone ?? null,
+        folderId: data.folderId ?? null,
         ...(data.active !== undefined && { active: data.active }),
       },
       include: TEMPLATE_SUMMARY,
@@ -224,10 +240,12 @@ export class PrismaAutomationRepository
     const payload: Prisma.AutomationRuleUncheckedUpdateInput = {
       ...(data.templateId !== undefined && { templateId: data.templateId }),
       ...(data.trigger !== undefined && { trigger: data.trigger }),
+      ...(data.formId !== undefined && { formId: data.formId }),
       ...(data.delayMinutes !== undefined && { delayMinutes: data.delayMinutes }),
       ...(data.cron !== undefined && { cron: data.cron }),
       ...(data.timezone !== undefined && { timezone: data.timezone }),
       ...(data.active !== undefined && { active: data.active }),
+      ...(data.folderId !== undefined && { folderId: data.folderId }),
     };
     const row = await this.prisma.automationRule.update({
       where: { id },
@@ -239,6 +257,19 @@ export class PrismaAutomationRepository
 
   async delete(id: string): Promise<void> {
     await this.prisma.automationRule.delete({ where: { id } });
+  }
+
+  // Evento e pasta no `where` como guarda: id de outro evento ou de outra pasta
+  // não é reordenado no escopo errado, só é ignorado.
+  async reorder(eventId: string, folderId: string | null, ids: string[]): Promise<void> {
+    await this.prisma.$transaction(
+      ids.map((id, index) =>
+        this.prisma.automationRule.updateMany({
+          where: { id, eventId, folderId },
+          data: { order: index },
+        }),
+      ),
+    );
   }
 
   /**

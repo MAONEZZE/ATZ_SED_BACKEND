@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsIn,
   IsOptional,
   IsString,
   IsUUID,
@@ -8,6 +9,28 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  FOLDER_RESOURCE_TYPES,
+  FolderResourceType,
+} from '@domain/folder_module/folder-resource-type';
+
+/**
+ * `resourceType` ausente cai em `event`, que é o que as chamadas antigas
+ * (quando só existia pasta de evento) esperam. Em `/events/:eventId/folders` o
+ * tipo `event` é inválido — pasta de evento mora no painel — e a resposta é 400.
+ */
+const RESOURCE_TYPE_DOC = {
+  enum: FOLDER_RESOURCE_TYPES,
+  example: 'event',
+  description: 'Que tipo de registro a pasta organiza. Ausente = `event`.',
+};
+
+export class ListFoldersQueryDto {
+  @ApiPropertyOptional(RESOURCE_TYPE_DOC)
+  @IsOptional()
+  @IsIn(FOLDER_RESOURCE_TYPES)
+  resourceType?: FolderResourceType;
+}
 
 export class CreateFolderDto {
   @ApiProperty({ example: 'Eventos 2026' })
@@ -23,6 +46,11 @@ export class CreateFolderDto {
   @IsOptional()
   @IsUUID()
   parentId?: string;
+
+  @ApiPropertyOptional(RESOURCE_TYPE_DOC)
+  @IsOptional()
+  @IsIn(FOLDER_RESOURCE_TYPES)
+  resourceType?: FolderResourceType;
 }
 
 export class UpdateFolderDto {
@@ -52,4 +80,9 @@ export class ReorderFoldersDto {
   @IsArray()
   @IsUUID('all', { each: true })
   ids!: string[];
+
+  @ApiPropertyOptional(RESOURCE_TYPE_DOC)
+  @IsOptional()
+  @IsIn(FOLDER_RESOURCE_TYPES)
+  resourceType?: FolderResourceType;
 }
