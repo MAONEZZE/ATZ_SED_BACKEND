@@ -1,0 +1,55 @@
+-- ⚠️ NÃO APLICADA DE PROPÓSITO. Aqui HÁ perda de dado — leia a auditoria antes.
+--
+-- Segunda metade da antiga PENDENTE_20260817190000, que foi dividida em duas em
+-- 2026-08-17. A parte sem risco (post_event_responses, forms.kind,
+-- FormFieldKind) virou 20260817220000_drop_legacy_form_kinds e já está aplicada.
+-- Sobrou só este drop, que depende de decisão humana.
+--
+-- Vive em `pending-migrations/`, FORA de `migrations/`, de propósito: o prefixo
+-- `PENDENTE_` que se usava antes NÃO esconde a pasta do Prisma — ela aparecia no
+-- `migrate status` como pendente e um `migrate deploy` a aplicaria sem perguntar.
+--
+-- Para aplicar:
+--   1. faça o dump (ver abaixo) — é a única rede
+--   2. mova a pasta para app/infra/prisma/migrations/
+--   3. npx prisma db execute --schema app/infra/prisma/schema.prisma --file <arquivo>
+--   4. npx prisma migrate resolve --schema app/infra/prisma/schema.prisma \
+--        --applied 20260817230000_drop_user_subscriptions
+--
+-- ============================================================================
+-- CORREÇÃO DA AUDITORIA ORIGINAL (conferida no banco em 2026-08-17)
+-- ============================================================================
+-- A versão anterior deste arquivo afirmava que "o único dado exclusivo era
+-- pipedrive_status, que mudou de casa para registrations.pipedrive_status".
+-- ISSO NÃO ACONTECEU. Estado real medido:
+--
+--   registrations.pipedrive_status .. NULL nas 352 linhas. A coluna foi criada
+--                                     e NUNCA backfillada.
+--   user_subscriptions .............. 122 linhas, com pipedrive_status
+--                                     preenchido em todas: 112 'sent',
+--                                     10 'skipped'.
+--
+-- E o backfill é inviável: as colunas de identidade estão quase todas nulas —
+-- das 122 linhas, só 5 têm phone, 3 têm email e 10 têm name. A identidade real
+-- mora dentro do JSON `registration_answers`. Tentativas de casar com
+-- registrations pelo mesmo event_id acertam 5 linhas por telefone (dígitos ou
+-- últimos 8) e 3 por email. Não existe chave confiável.
+--
+-- O que se perde ao dropar: o rastro de quem já foi empurrado para o Pipedrive.
+-- O que NÃO se perde: nada dispara reenvio a partir disso. `updatePipedriveStatus`
+-- só é chamado na criação de inscrito novo (registration.service, no caminho
+-- `if (!existing)`), e não existe cron nem retry lendo o campo — status nulo
+-- nunca provoca um segundo envio. Ou seja: sem risco de duplicar contato no CRM,
+-- a perda é de trilha de auditoria.
+--
+-- O que sustenta que as PESSOAS não se perdem: as contagens por evento batem
+-- com as de registrations (98 x 100, 8 x 8, 6 x 19, 6 x 69, 2 x 11, 1 x 1,
+-- 1 x 1) e post_event_answers/nps_answers estão zeradas em 100% das linhas —
+-- registration_answers era duplicação de registrations.answers.
+--
+-- IRREVERSÍVEL sem backup. Faça o dump antes:
+--   pg_dump "$DIRECT_URL" -t '"SED".user_subscriptions' > user_subscriptions.sql
+-- (ou exporte para JSON, se preferir algo legível fora do Postgres)
+-- ============================================================================
+
+DROP TABLE IF EXISTS "SED"."user_subscriptions";

@@ -10,6 +10,7 @@ const event = {
   title: 'Tech Day',
   status: 'published',
   capacity: null as number | null,
+  eventDate: new Date('2026-09-10T18:30:00Z'),
   sendToPipedrive: false,
 };
 
@@ -67,6 +68,9 @@ function make(overrides?: {
       .fn()
       .mockResolvedValue([{ label: 'Nota', type: 'text', required: false, isFixed: false }]),
   };
+  // Pass-through por padrão; os testes de imagem trocam o retorno para provar
+  // que é o valor convertido que chega em inscrito, FormResponse e Pipedrive.
+  const answerImages = { materialize: jest.fn().mockImplementation((a) => Promise.resolve(a)) };
   const service = new RegistrationService(
     regRepo as any,
     eventsService as any,
@@ -75,8 +79,9 @@ function make(overrides?: {
     forms as any,
     formResponses as any,
     formFields as any,
+    answerImages as any,
   );
-  return { service, regRepo, emitter, pipedrive, forms, formResponses };
+  return { service, regRepo, emitter, pipedrive, forms, formResponses, answerImages };
 }
 
 // O telefone é a identidade: casa com o inscrito do evento; sem match, cria.
@@ -246,6 +251,24 @@ describe('RegistrationService.submitForm — Pipedrive', () => {
 
     expect(regRepo.setPipedriveStatus).toHaveBeenCalledWith('reg-new', 'pending');
     expect(pipedrive.send).toHaveBeenCalled();
+  });
+
+  // A data do evento vai no payload em ISO — o n8n a usa no negócio do Pipedrive.
+  it('sends the event date in the payload', async () => {
+    const { service, pipedrive } = make({ existing: null, sendToPipedrive: true });
+
+    await service.submitForm('tech-day', 'inscricao', '11912345678', { nome: 'Maria' });
+
+    expect(pipedrive.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: {
+          id: 'evt-1',
+          slug: 'tech-day',
+          title: 'Tech Day',
+          eventDate: '2026-09-10T18:30:00.000Z',
+        },
+      }),
+    );
   });
 
   // Quem já era inscrito não é reenviado ao CRM a cada formulário respondido.

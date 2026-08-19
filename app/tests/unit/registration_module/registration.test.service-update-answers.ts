@@ -26,6 +26,9 @@ function makeService(regOverrides: Partial<{ id: string; eventId: string }> = {}
     findAllByEventPaginated: jest.fn(),
   };
   const eventsService = { findBySlug: jest.fn(), findById: jest.fn() };
+  // Pass-through: a conversão de imagem tem testes próprios; aqui só interessa
+  // que o resultado dela é o que segue para o repositório.
+  const answerImages = { materialize: jest.fn().mockImplementation((a) => Promise.resolve(a)) };
   const service = new RegistrationService(
     regRepo as any,
     eventsService as any,
@@ -34,8 +37,9 @@ function makeService(regOverrides: Partial<{ id: string; eventId: string }> = {}
     { findOne: jest.fn(), primary: jest.fn(), findPublic: jest.fn() } as any,
     { upsert: jest.fn() } as any,
     { listValidationFields: jest.fn().mockResolvedValue([]) } as any,
+    answerImages as any,
   );
-  return { service, regRepo };
+  return { service, regRepo, answerImages };
 }
 
 const allFields: FormFieldLike[] = [

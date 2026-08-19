@@ -1,7 +1,8 @@
 export const CRM_PORT = Symbol('CRM_PORT');
 
 export interface CrmPayload {
-  event: { id: string; slug: string; title: string };
+  /** `eventDate` em ISO 8601 (UTC); ausente quando o evento nao tem data definida. */
+  event: { id: string; slug: string; title: string; eventDate?: string };
   form: 'registration';
   contact: { email: string; phone: string; linkedin?: string; instagram?: string };
   answers: Record<string, unknown>;

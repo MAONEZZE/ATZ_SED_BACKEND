@@ -11,6 +11,7 @@ describe('validateEnv', () => {
     SUPABASE_STORAGE_BUCKET: 'ATZ_SED',
     SUPABASE_STORAGE_BUCKET_COVERS: 'event-covers',
     SUPABASE_STORAGE_BUCKET_PROFILE_PHOTOS: 'profile-photo',
+    SUPABASE_STORAGE_BUCKET_UPLOADS: 'registration-uploads',
     WHATSAPP_API_URL: 'https://free.whatsapp.com',
     WHATSAPP_WEBHOOK_SECRET: 'webhook-secret',
     APP_PUBLIC_URL: 'https://api.example.com',

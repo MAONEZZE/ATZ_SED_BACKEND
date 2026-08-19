@@ -29,7 +29,8 @@ export class SetAttendanceDto {
 export class CheckInDto {
   @ApiProperty({
     example: '11999998888',
-    description: 'Telefone do inscrito. Normalizado antes de casar com a inscrição.',
+    description:
+      'Telefone do inscrito, com ou sem máscara/`55`/nono dígito. É a única entrada: o evento é resolvido pela data mais próxima de hoje.',
   })
   @IsString()
   phone!: string;

@@ -6,6 +6,7 @@ import {
   RegistrationRepositoryPort,
   CreateRegistrationData,
   UpdateAnswersData,
+  RegistrationWithEventDate,
 } from '@domain/registration_module/i-repository-registration';
 import {
   RegistrationEntity,
@@ -163,6 +164,33 @@ export class PrismaRegistrationRepository
       return match ? this.map(match) : null;
     }
     return null;
+  }
+
+  /**
+   * SQL cru porque o filtro precisa normalizar a coluna `phone` no banco: ela
+   * tem número com máscara, com e sem `55`, com e sem nono dígito, e o Prisma
+   * não expressa `regexp_replace`. Sem isso o `contains` erraria qualquer
+   * telefone formatado. O casamento definitivo é em memória (`phoneMatchKey`);
+   * aqui só se corta a tabela pelos 8 dígitos finais.
+   *
+   * A expressão `right(regexp_replace(...), 8)` é literalmente a do índice
+   * `registrations_phone_digits_suffix_idx` (migration 20260819...): igualdade,
+   * e não `LIKE '%...'`, justamente porque curinga à esquerda não usa índice.
+   * Se mexer nesta expressão, mexa no índice também — senão volta a ser scan.
+   */
+  async findByPhoneWithEventDate(phoneSuffix: string): Promise<RegistrationWithEventDate[]> {
+    return this.prisma.$queryRaw<RegistrationWithEventDate[]>`
+      SELECT r.id            AS "id",
+             r.phone         AS "phone",
+             r.event_id      AS "eventId",
+             e.title         AS "eventTitle",
+             e.slug          AS "eventSlug",
+             e.event_date    AS "eventDate"
+        FROM "SED".registrations r
+        JOIN "SED".events e ON e.id = r.event_id
+       WHERE e.event_date IS NOT NULL
+         AND right(regexp_replace(r.phone, '[^0-9]', '', 'g'), 8) = ${phoneSuffix}
+    `;
   }
 
   async setPipedriveStatus(id: string, status: PipedriveStatus): Promise<void> {

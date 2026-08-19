@@ -97,9 +97,10 @@ export class FolderService {
     await this.repo.delete(id);
   }
 
-  async reorder(scope: FolderScope, ids: string[]): Promise<void> {
+  /** `parentId` é o nível cujos irmãos estão sendo reordenados (`null` = raiz). */
+  async reorder(scope: FolderScope, parentId: string | null, ids: string[]): Promise<void> {
     this.assertScopeValid(scope);
-    await this.repo.reorder(scope, ids);
+    await this.repo.reorder(scope, parentId, ids);
   }
 
   /**

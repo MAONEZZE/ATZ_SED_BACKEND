@@ -60,7 +60,7 @@ describe('FolderService scope validity', () => {
   it.each(cases)('rejects reordering an %s', async (_label, scope) => {
     const { service, repo } = makeService();
 
-    await expect(service.reorder(scope, ['a'])).rejects.toThrow(BadRequestException);
+    await expect(service.reorder(scope, null, ['a'])).rejects.toThrow(BadRequestException);
     expect(repo.reorder).not.toHaveBeenCalled();
   });
 

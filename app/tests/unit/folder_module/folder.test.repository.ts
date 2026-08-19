@@ -198,33 +198,141 @@ describe('PrismaFolderRepository.delete', () => {
 });
 
 describe('PrismaFolderRepository.reorder', () => {
-  it('writes the list index as order, scoped to the owner, in one transaction', async () => {
+  it('writes the list index as order, scoped to the owner and the root level, in one transaction', async () => {
     const updateMany = jest.fn().mockImplementation((args) => args);
     const transaction = jest.fn().mockResolvedValue([]);
     const { repo } = await makeRepo({ updateMany }, transaction);
 
-    await repo.reorder(PANEL, ['b', 'a']);
+    await repo.reorder(PANEL, null, ['b', 'a']);
 
     expect(updateMany).toHaveBeenNthCalledWith(1, {
-      where: { id: 'b', resourceType: 'event', ownerId: 'user-1', eventId: null },
+      where: { id: 'b', resourceType: 'event', ownerId: 'user-1', eventId: null, parentId: null },
       data: { order: 0 },
     });
     expect(updateMany).toHaveBeenNthCalledWith(2, {
-      where: { id: 'a', resourceType: 'event', ownerId: 'user-1', eventId: null },
+      where: { id: 'a', resourceType: 'event', ownerId: 'user-1', eventId: null, parentId: null },
       data: { order: 1 },
     });
     expect(transaction).toHaveBeenCalledTimes(1);
+  });
+
+  // `order` só significa algo entre irmãos: sem o parentId no where, uma lista
+  // que misturasse níveis gravaria índices sem sentido, calada.
+  it('scopes the reorder to the sibling level', async () => {
+    const updateMany = jest.fn().mockImplementation((args) => args);
+    const { repo } = await makeRepo({ updateMany }, jest.fn().mockResolvedValue([]));
+
+    await repo.reorder(PANEL, 'fld-parent', ['b']);
+
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'b',
+        resourceType: 'event',
+        ownerId: 'user-1',
+        eventId: null,
+        parentId: 'fld-parent',
+      },
+      data: { order: 0 },
+    });
   });
 
   it('scopes an event reorder to the event, not to the creator', async () => {
     const updateMany = jest.fn().mockImplementation((args) => args);
     const { repo } = await makeRepo({ updateMany }, jest.fn().mockResolvedValue([]));
 
-    await repo.reorder(IN_EVENT, ['b']);
+    await repo.reorder(IN_EVENT, null, ['b']);
 
     expect(updateMany).toHaveBeenCalledWith({
-      where: { id: 'b', resourceType: 'automation_rule', eventId: 'ev-1' },
+      where: { id: 'b', resourceType: 'automation_rule', eventId: 'ev-1', parentId: null },
       data: { order: 0 },
+    });
+  });
+});
+
+// Levar o `order` antigo para o destino colidiria com quem já está lá, e o
+// empate cairia no desempate por createdAt: a pasta arrastada apareceria em
+// lugar arbitrário.
+describe('PrismaFolderRepository.update repositioning', () => {
+  const CURRENT = {
+    ownerId: 'user-1',
+    resourceType: 'event' as const,
+    eventId: null,
+    parentId: null,
+  };
+
+  it('puts the folder at the end of its new siblings when the parent changes', async () => {
+    const update = jest.fn().mockResolvedValue({ ...ROW, parentId: 'novo-pai', order: 4 });
+    const findUnique = jest.fn().mockResolvedValue(CURRENT);
+    const findFirst = jest.fn().mockResolvedValue({ order: 3 });
+    const { repo } = await makeRepo({ update, findUnique, findFirst });
+
+    await repo.update('fld-1', { parentId: 'novo-pai' });
+
+    expect(findFirst).toHaveBeenCalledWith({
+      where: {
+        resourceType: 'event',
+        ownerId: 'user-1',
+        eventId: null,
+        parentId: 'novo-pai',
+      },
+      orderBy: { order: 'desc' },
+      select: { order: true },
+    });
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'fld-1' },
+      data: { parentId: 'novo-pai', order: 4 },
+    });
+  });
+
+  it('starts at order 0 when the destination level is empty', async () => {
+    const update = jest.fn().mockResolvedValue(ROW);
+    const { repo } = await makeRepo({
+      update,
+      findUnique: jest.fn().mockResolvedValue({ ...CURRENT, parentId: 'antigo' }),
+      findFirst: jest.fn().mockResolvedValue(null),
+    });
+
+    await repo.update('fld-1', { parentId: null });
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'fld-1' },
+      data: { parentId: null, order: 0 },
+    });
+  });
+
+  it('does not touch the order when only the name changes', async () => {
+    const update = jest.fn().mockResolvedValue(ROW);
+    const findUnique = jest.fn();
+    const findFirst = jest.fn();
+    const { repo } = await makeRepo({ update, findUnique, findFirst });
+
+    await repo.update('fld-1', { name: 'Renomeada' });
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'fld-1' },
+      data: { name: 'Renomeada' },
+    });
+    expect(findUnique).not.toHaveBeenCalled();
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+
+  // Reenviar o mesmo pai é no-op de posição: arrastar e soltar no mesmo lugar
+  // não pode jogar a pasta para o fim da lista.
+  it('does not reposition when the parent is unchanged', async () => {
+    const update = jest.fn().mockResolvedValue(ROW);
+    const findFirst = jest.fn();
+    const { repo } = await makeRepo({
+      update,
+      findUnique: jest.fn().mockResolvedValue({ ...CURRENT, parentId: 'mesmo-pai' }),
+      findFirst,
+    });
+
+    await repo.update('fld-1', { parentId: 'mesmo-pai', name: 'x' });
+
+    expect(findFirst).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'fld-1' },
+      data: { name: 'x', parentId: 'mesmo-pai' },
     });
   });
 });

@@ -158,6 +158,24 @@ describe('FolderService.update guards', () => {
   });
 });
 
+describe('FolderService.reorder', () => {
+  it('passes the sibling level through to the repository', async () => {
+    const { service, repo } = makeService();
+
+    await service.reorder(PANEL, 'fld-parent', ['b', 'a']);
+
+    expect(repo.reorder).toHaveBeenCalledWith(PANEL, 'fld-parent', ['b', 'a']);
+  });
+
+  it('treats an absent level as the root', async () => {
+    const { service, repo } = makeService();
+
+    await service.reorder(PANEL, null, ['b']);
+
+    expect(repo.reorder).toHaveBeenCalledWith(PANEL, null, ['b']);
+  });
+});
+
 describe('FolderService.delete', () => {
   it('checks ownership before deleting', async () => {
     const { service, repo } = makeService([]);

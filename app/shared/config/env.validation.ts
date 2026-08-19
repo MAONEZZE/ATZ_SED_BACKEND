@@ -11,6 +11,8 @@ const envSchema = z.object({
   SUPABASE_STORAGE_BUCKET: z.string().min(1),
   SUPABASE_STORAGE_BUCKET_COVERS: z.string().min(1),
   SUPABASE_STORAGE_BUCKET_PROFILE_PHOTOS: z.string().min(1),
+  /** Pasta das imagens enviadas como resposta de formulário (campo `type: image`). */
+  SUPABASE_STORAGE_BUCKET_UPLOADS: z.string().min(1),
   WHATSAPP_API_URL: z.string().url(),
   WHATSAPP_WEBHOOK_SECRET: z.string().min(1),
   APP_PUBLIC_URL: z.string().url(),

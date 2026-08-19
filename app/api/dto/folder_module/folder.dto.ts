@@ -73,9 +73,21 @@ export class UpdateFolderDto {
 }
 
 export class ReorderFoldersDto {
+  @ApiPropertyOptional({
+    example: 'uuid-da-pasta-pai',
+    description:
+      'Nível sendo reordenado. Ausente ou `null` reordena as pastas da raiz. Id de outro nível é ignorado.',
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateIf((o: ReorderFoldersDto) => o.parentId !== null)
+  @IsUUID()
+  parentId?: string | null;
+
   @ApiProperty({
     example: ['uuid-pasta-2', 'uuid-pasta-1'],
-    description: 'Ids na ordem desejada. `order` é reescrito como o índice na lista.',
+    description:
+      'Ids **irmãos** na ordem desejada. `order` é reescrito como o índice na lista.',
   })
   @IsArray()
   @IsUUID('all', { each: true })

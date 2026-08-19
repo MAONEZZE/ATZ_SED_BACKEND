@@ -16,6 +16,7 @@ function make(existingByContact: Record<string, unknown> | null = null) {
     { findOne: jest.fn(), primary: jest.fn(), findPublic: jest.fn() } as any,
     { upsert: jest.fn() } as any,
     { listValidationFields: jest.fn().mockResolvedValue([]) } as any,
+    { materialize: jest.fn().mockImplementation((a) => Promise.resolve(a)) } as any,
   );
   return { svc, regRepo, emitter, pipedrive };
 }

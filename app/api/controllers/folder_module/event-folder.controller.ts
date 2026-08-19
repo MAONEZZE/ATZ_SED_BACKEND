@@ -82,7 +82,11 @@ export class EventFolderController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: ReorderFoldersDto,
   ) {
-    return this.folders.reorder(this.scope(user.id, eventId, dto.resourceType), dto.ids);
+    return this.folders.reorder(
+      this.scope(user.id, eventId, dto.resourceType),
+      dto.parentId ?? null,
+      dto.ids,
+    );
   }
 
   @Patch(':id')

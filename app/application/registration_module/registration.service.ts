@@ -3,6 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   REGISTRATION_REPOSITORY_PORT,
   RegistrationRepositoryPort,
+  RegistrationWithEventDate,
 } from '@domain/registration_module/i-repository-registration';
 import { RegistrationEntity, FunnelStatus } from '@domain/registration_module/registration.entity';
 import { RegistrationStatusChanged } from '@domain/registration_module/registration-status-changed.event';
@@ -26,10 +27,48 @@ import {
   buildAnswerLookup,
   AnswerFieldMeta,
 } from '@domain/shared/answer-validation';
-import { normalizePhone } from '@handlers/phone';
+import { normalizePhone, phoneMatchKey, phoneMatchSuffix } from '@handlers/phone';
+import { APP_TIMEZONE } from '@handlers/timezone';
+import { DateTime } from 'luxon';
+import { AnswerImageService } from '@application/registration_module/answer-images.service';
 
 /** Teto de ids por requisição em lote (delete e presença). */
 const MAX_BATCH = 500;
+
+/**
+ * Retorno do check-in público. O evento vai junto porque a requisição não o
+ * informa: a tela precisa mostrar em qual evento a presença foi marcada.
+ */
+export interface CheckInResult {
+  registration: RegistrationEntity;
+  event: { id: string; title: string; slug: string; eventDate: Date };
+}
+
+/**
+ * Vence o evento cuja data cai no dia mais próximo de hoje **no fuso de São
+ * Paulo** — comparar por dia, e não por instante, é o que faz um evento hoje às
+ * 20h ganhar de um de ontem às 9h já às 8h da manhã. Empate entre dois eventos
+ * do mesmo dia (ou à mesma distância) cai no instante mais próximo de agora.
+ */
+function pickClosestToToday(candidates: RegistrationWithEventDate[]): RegistrationWithEventDate {
+  const now = DateTime.now().setZone(APP_TIMEZONE);
+  const today = now.startOf('day');
+
+  const distance = (c: RegistrationWithEventDate) => {
+    const date = DateTime.fromJSDate(c.eventDate).setZone(APP_TIMEZONE);
+    return {
+      days: Math.abs(date.startOf('day').diff(today, 'days').days),
+      millis: Math.abs(date.diff(now).toMillis()),
+    };
+  };
+
+  return candidates.reduce((best, current) => {
+    const a = distance(current);
+    const b = distance(best);
+    if (a.days !== b.days) return a.days < b.days ? current : best;
+    return a.millis < b.millis ? current : best;
+  });
+}
 
 @Injectable()
 export class RegistrationService {
@@ -46,6 +85,7 @@ export class RegistrationService {
     private readonly formResponses: FormResponseRepositoryPort,
     @Inject(FORM_FIELD_REPOSITORY_PORT)
     private readonly formFields: FormFieldRepositoryPort,
+    private readonly answerImages: AnswerImageService,
   ) {}
 
   /**
@@ -77,19 +117,33 @@ export class RegistrationService {
     const fields = await this.formFields.listValidationFields(form.id);
     validateAnswers(fields, answers);
 
+    // Uma conversão só, antes de qualquer gravação: o mesmo objeto alimenta o
+    // inscrito, a FormResponse e o payload do Pipedrive. Converter depois de um
+    // deles deixaria base64 vazando pelos outros.
+    const storedAnswers = await this.answerImages.materialize(answers, {
+      eventId: event.id,
+      formId: form.id,
+    });
+
     const normalized = normalizePhone(phone) ?? phone.replace(/\D/g, '');
     if (!normalized) throw new BadRequestException('Telefone é obrigatório');
 
     const existing = await this.regRepo.findByEventAndContact(event.id, { phone: normalized });
     const registration = existing
       ? existing
-      : await this.createFromForm(event, form, normalized, answers, options?.imageAuthorization);
+      : await this.createFromForm(
+          event,
+          form,
+          normalized,
+          storedAnswers,
+          options?.imageAuthorization,
+        );
 
     await this.formResponses.upsert({
       formId: form.id,
       eventId: event.id,
       registrationId: registration.id,
-      answers,
+      answers: storedAnswers,
     });
 
     this.eventEmitter.emit(
@@ -102,7 +156,7 @@ export class RegistrationService {
     );
 
     if (!existing) {
-      await this.sendToPipedrive(event, registration, answers, options?.sendToPipedrive);
+      await this.sendToPipedrive(event, registration, storedAnswers, options?.sendToPipedrive);
     }
 
     return { registration, created: !existing };
@@ -164,7 +218,12 @@ export class RegistrationService {
     await this.regRepo.setPipedriveStatus(reg.id, 'pending');
     void this.pipedrive
       .send({
-        event: { id: event.id, slug: event.slug, title: event.title },
+        event: {
+          id: event.id,
+          slug: event.slug,
+          title: event.title,
+          eventDate: event.eventDate?.toISOString(),
+        },
         form: 'registration',
         contact: { email: reg.email, phone: reg.phone },
         answers,
@@ -269,23 +328,38 @@ export class RegistrationService {
   }
 
   /**
-   * Check-in público: QR único do evento → a pessoa informa o telefone. Casa
-   * com o inscrito pelo telefone normalizado; quem não está inscrito não entra
-   * na lista por aqui (404).
+   * Check-in público sem evento no caminho: a pessoa informa só o telefone e o
+   * backend descobre o evento. A regra é a data — entre as inscrições daquele
+   * telefone, vence a do evento com a data **mais próxima de hoje** no fuso de
+   * São Paulo. É o comportamento de porta de evento: quem chega e digita o
+   * telefone está no evento que está acontecendo agora.
+   *
+   * Quem não tem inscrição nenhuma não entra por aqui (404).
    */
-  async checkIn(slug: string, phone: string): Promise<RegistrationEntity> {
-    const event = await this.eventsService.findBySlug(slug);
-    if (event.status !== 'published' && event.status !== 'ended') {
-      throw new BadRequestException('Event is not accepting check-ins');
+  async checkIn(phone: string): Promise<CheckInResult> {
+    const key = phoneMatchKey(phone);
+    if (!key) throw new BadRequestException('Telefone é obrigatório');
+
+    const candidates = await this.regRepo.findByPhoneWithEventDate(phoneMatchSuffix(key));
+    // O SQL corta pelos 8 dígitos finais; o DDD é conferido aqui, senão um
+    // telefone de outro DDD com o mesmo final marcaria presença pela pessoa errada.
+    const matches = candidates.filter((c) => phoneMatchKey(c.phone) === key);
+    if (matches.length === 0) {
+      throw new NotFoundException('Registration not found for this phone');
     }
-    const normalized = normalizePhone(phone) ?? phone.replace(/\D/g, '');
-    if (!normalized) throw new BadRequestException('Telefone é obrigatório');
 
-    const reg = await this.regRepo.findByEventAndContact(event.id, { phone: normalized });
-    if (!reg) throw new NotFoundException('Registration not found for this phone');
+    const chosen = pickClosestToToday(matches);
+    await this.regRepo.setAttendance([chosen.id], chosen.eventId, true);
 
-    await this.regRepo.setAttendance([reg.id], event.id, true);
-    return this.findById(reg.id, event.id);
+    return {
+      registration: await this.findById(chosen.id, chosen.eventId),
+      event: {
+        id: chosen.eventId,
+        title: chosen.eventTitle,
+        slug: chosen.eventSlug,
+        eventDate: chosen.eventDate,
+      },
+    };
   }
 
   private assertBatch(ids: string[]): void {
@@ -346,7 +420,11 @@ export class RegistrationService {
       }
     }
 
-    const mergedAnswers = { ...reg.answers, ...answers };
+    // Mesma conversão da submissão pública: sem isso a edição pelo painel
+    // reintroduz base64 no JSON. Idempotente, então as respostas antigas que já
+    // são URL passam reto.
+    const storedAnswers = await this.answerImages.materialize(answers, { eventId });
+    const mergedAnswers = { ...reg.answers, ...storedAnswers };
 
     const updateData: {
       answers: Record<string, unknown>;

@@ -27,7 +27,13 @@ export interface CreateFolderData {
   parentId?: string | null;
 }
 
-/** Chave ausente deixa a coluna intacta. `parentId: null` move para a raiz. */
+/**
+ * Chave ausente deixa a coluna intacta. `parentId: null` move para a raiz.
+ *
+ * Mudar de pai **reposiciona** a pasta no fim dos irmãos do destino: manter o
+ * `order` antigo colidiria com quem já está lá, e o empate cairia no desempate
+ * por `createdAt` — a pasta arrastada apareceria em lugar arbitrário.
+ */
 export interface UpdateFolderData {
   name?: string;
   parentId?: string | null;
@@ -56,6 +62,13 @@ export interface FolderRepositoryPort {
    */
   delete(id: string): Promise<void>;
 
-  /** Reescreve `order` na ordem dos ids, numa transação. Ignora id fora do escopo. */
-  reorder(scope: FolderScope, ids: string[]): Promise<void>;
+  /**
+   * Reescreve `order` na ordem dos ids, numa transação. Ignora id fora do
+   * escopo.
+   *
+   * `parentId` faz parte do escopo (`null` = raiz) porque `order` só tem
+   * significado **entre irmãos**: sem ele, uma lista que misturasse níveis
+   * gravaria índices sem sentido, calada.
+   */
+  reorder(scope: FolderScope, parentId: string | null, ids: string[]): Promise<void>;
 }

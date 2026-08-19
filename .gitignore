@@ -33,3 +33,4 @@ docs/
 # isolated dev workspaces
 .worktrees/
 Plano/
+scripts/

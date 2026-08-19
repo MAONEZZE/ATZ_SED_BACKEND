@@ -57,7 +57,11 @@ export class FolderController {
   @ApiOperation({ summary: 'Reordenar pastas irmãs (drag & drop): order = índice na lista de ids' })
   @ApiResponse({ status: 204, description: 'Ordem reescrita' })
   reorder(@CurrentUser() user: AuthenticatedUser, @Body() dto: ReorderFoldersDto) {
-    return this.folders.reorder(this.scope(user.id, dto.resourceType), dto.ids);
+    return this.folders.reorder(
+      this.scope(user.id, dto.resourceType),
+      dto.parentId ?? null,
+      dto.ids,
+    );
   }
 
   @Patch(':id')
