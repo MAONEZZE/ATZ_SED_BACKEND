@@ -15,7 +15,7 @@ function existingRule() {
     'evt-1',
     'tpl-1',
     'on_registration',
-    null,
+    [],
     null,
     null,
     null,

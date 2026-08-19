@@ -1,5 +1,6 @@
 import { Injectable, Inject, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Prisma } from '@prisma/client';
 import {
   REGISTRATION_REPOSITORY_PORT,
   RegistrationRepositoryPort,
@@ -191,6 +192,7 @@ export class RegistrationService {
       email: this.extractByFieldType(answers, fields, 'email', ['email']),
       phone,
       imageAuthorization: imageAuthorization === true,
+      originFormId: form.id,
     });
 
     this.eventEmitter.emit(
@@ -237,12 +239,16 @@ export class RegistrationService {
 
   async importMany(
     eventId: string,
+    formId: string,
     items: Array<{ nome: string; telefone?: string; email?: string }>,
-  ): Promise<{ created: number; skipped: number }> {
-    let created = 0;
-    let skipped = 0;
+  ): Promise<{ created: number; skipped: number; rejected: Array<{ linha: number; motivo: string }> }> {
+    await this.formsService.findOne(formId, eventId); // 404 se o formulário não é do evento
 
-    for (const item of items) {
+    let created = 0;
+    const rejected: Array<{ linha: number; motivo: string }> = [];
+
+    for (const [index, item] of items.entries()) {
+      const linha = index + 1;
       const name = item.nome.trim();
       const phone = item.telefone
         ? (normalizePhone(item.telefone) ?? item.telefone.replace(/\D/g, ''))
@@ -250,7 +256,7 @@ export class RegistrationService {
       const email = item.email?.trim().toLowerCase() ?? '';
 
       if (!phone && !email) {
-        skipped++;
+        rejected.push({ linha, motivo: 'sem telefone nem email' });
         continue;
       }
 
@@ -259,7 +265,7 @@ export class RegistrationService {
         phone: phone || undefined,
       });
       if (existing) {
-        skipped++;
+        rejected.push({ linha, motivo: 'já inscrito neste evento' });
         continue;
       }
 
@@ -267,18 +273,27 @@ export class RegistrationService {
       if (phone) answers.telefone = phone;
       if (email) answers.email = email;
 
-      await this.regRepo.create({
-        eventId,
-        answers,
-        name,
-        email,
-        phone,
-        imageAuthorization: false,
-      });
-      created++;
+      try {
+        await this.regRepo.create({
+          eventId,
+          answers,
+          name,
+          email,
+          phone,
+          imageAuthorization: false,
+          originFormId: formId,
+        });
+        created++;
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          rejected.push({ linha, motivo: 'telefone já usado neste evento' });
+          continue;
+        }
+        throw err;
+      }
     }
 
-    return { created, skipped };
+    return { created, skipped: rejected.length, rejected };
   }
 
   async findAll(
@@ -394,7 +409,14 @@ export class RegistrationService {
     const event = await this.eventsService.findById(reg.eventId);
     this.eventEmitter.emit(
       'registration.status_changed',
-      new RegistrationStatusChanged(id, reg.eventId, previousStatus, newStatus, event.ownerId),
+      new RegistrationStatusChanged(
+        id,
+        reg.eventId,
+        previousStatus,
+        newStatus,
+        event.ownerId,
+        reg.originFormId,
+      ),
     );
 
     return updated;

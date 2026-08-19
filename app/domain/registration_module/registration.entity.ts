@@ -22,6 +22,8 @@ export class RegistrationEntity extends EntityBase {
     /** Presença no evento. `false` = não compareceu ou ainda não foi conferido. */
     public readonly attended: boolean = false,
     public readonly pipedriveStatus: PipedriveStatus | null = null,
+    /** Formulário que criou a inscrição. Imutável; null = origem desconhecida (import/painel/anterior à coluna). */
+    public readonly originFormId: string | null = null,
   ) {
     super(id);
   }

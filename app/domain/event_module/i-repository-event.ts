@@ -67,7 +67,16 @@ export interface EventDuplicationAutomationRule {
   templateId: string;
   trigger: string;
   delayMinutes: number | null;
+  cron: string | null;
+  timezone: string | null;
   active: boolean;
+  order: number;
+  /**
+   * Slugs dos formulários que escopam a regra (vazio = todos). Slug, não id:
+   * `createWithFields` preserva o slug do formulário original, então
+   * `(novoEventId, slug)` resolve o id no evento duplicado.
+   */
+  formSlugs: string[];
 }
 
 export interface EventDuplicationSource {

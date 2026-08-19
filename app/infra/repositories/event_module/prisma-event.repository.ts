@@ -208,7 +208,10 @@ export class PrismaEventRepository implements EventRepositoryPort {
   async findDuplicationSource(id: string): Promise<EventDuplicationSource | null> {
     const row = await this.prisma.event.findUnique({
       where: { id },
-      include: { forms: { include: { fields: true } }, automationRules: true },
+      include: {
+        forms: { include: { fields: true } },
+        automationRules: { include: { forms: { include: { form: { select: { slug: true } } } } } },
+      },
     });
     if (!row) return null;
     return {
@@ -240,7 +243,11 @@ export class PrismaEventRepository implements EventRepositoryPort {
         templateId: a.templateId,
         trigger: a.trigger,
         delayMinutes: a.delayMinutes,
+        cron: a.cron,
+        timezone: a.timezone,
         active: a.active,
+        order: a.order,
+        formSlugs: a.forms.map((f) => f.form.slug),
       })),
     };
   }

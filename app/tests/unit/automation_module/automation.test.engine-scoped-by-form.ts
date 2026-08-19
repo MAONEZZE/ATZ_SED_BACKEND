@@ -21,12 +21,12 @@ const eventContext = {
   whatsappToken: 'tok-evt',
 };
 
-function rule(id: string, formId: string | null) {
+function rule(id: string, formIds: string[]) {
   return {
     id,
     templateId: `tpl-${id}`,
     trigger: 'on_registration',
-    formId,
+    formIds,
     template: { id: `tpl-${id}`, channel: 'email', subject: 'Bem-vindo', body: 'Oi {{nome}}' },
   };
 }
@@ -65,7 +65,7 @@ function created(formId: string | null) {
 // evento inteiro ("qualquer origem").
 describe('AutomationEngine — on_registration escopado por formulário', () => {
   it('fires the rule of the form that created the registration', async () => {
-    const { engine, outbox } = makeEngine([rule('rule-a', 'form-a')]);
+    const { engine, outbox } = makeEngine([rule('rule-a', ['form-a'])]);
 
     await engine.handleStatusChanged(created('form-a'));
 
@@ -74,7 +74,7 @@ describe('AutomationEngine — on_registration escopado por formulário', () => 
   });
 
   it('skips the rule of another form', async () => {
-    const { engine, outbox } = makeEngine([rule('rule-a', 'form-a')]);
+    const { engine, outbox } = makeEngine([rule('rule-a', ['form-a'])]);
 
     await engine.handleStatusChanged(created('form-b'));
 
@@ -82,7 +82,7 @@ describe('AutomationEngine — on_registration escopado por formulário', () => 
   });
 
   it('fires a rule without form for any origin', async () => {
-    const { engine, outbox } = makeEngine([rule('rule-any', null)]);
+    const { engine, outbox } = makeEngine([rule('rule-any', [])]);
 
     await engine.handleStatusChanged(created('form-b'));
 
@@ -92,7 +92,7 @@ describe('AutomationEngine — on_registration escopado por formulário', () => 
   // Inscrito criado por outro caminho (import, painel) não tem formulário: só as
   // regras abertas valem.
   it('fires only the open rules when there is no form', async () => {
-    const { engine, outbox } = makeEngine([rule('rule-a', 'form-a'), rule('rule-any', null)]);
+    const { engine, outbox } = makeEngine([rule('rule-a', ['form-a']), rule('rule-any', [])]);
 
     await engine.handleStatusChanged(created(null));
 
@@ -100,15 +100,14 @@ describe('AutomationEngine — on_registration escopado por formulário', () => 
     expect(outbox.enqueue.mock.calls[0][0].templateId).toBe('tpl-rule-any');
   });
 
-  // Sem o formulário na chave, duas regras de formulários diferentes com o mesmo
-  // template colidiriam no outbox e a segunda mensagem morreria calada.
-  it('puts the form in the dedupKey', async () => {
-    const { engine, outbox } = makeEngine([rule('rule-a', 'form-a')]);
+  // Com N formulários por regra, o mesmo template em dois formulários é UMA
+  // regra com dois formIds — não colide mais no outbox, então formId saiu do
+  // dedupKey (revertido de 70040bd).
+  it('does not put the form in the dedupKey', async () => {
+    const { engine, outbox } = makeEngine([rule('rule-a', ['form-a'])]);
 
     await engine.handleStatusChanged(created('form-a'));
 
-    expect(outbox.enqueue.mock.calls[0][0].dedupKey).toBe(
-      'reg-1:tpl-rule-a:on_registration:form-a',
-    );
+    expect(outbox.enqueue.mock.calls[0][0].dedupKey).toBe('reg-1:tpl-rule-a:on_registration');
   });
 });

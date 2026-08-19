@@ -68,19 +68,25 @@ export class CreateAutomationDto {
   trigger!: string;
 
   @ApiPropertyOptional({
-    example: 'uuid-do-formulario',
+    type: [String],
+    example: ['uuid-do-formulario-1', 'uuid-do-formulario-2'],
     description:
-      'Obrigatório em trigger="on_form_submitted". Opcional em "on_registration": com formulário, a regra só vale para quem se inscreveu por ele; sem, vale para qualquer formulário. Ignorado nos outros gatilhos.',
+      'Obrigatório (não-vazio) em trigger="on_form_submitted". Opcional em "on_registration": com formulários, a regra só vale para quem se inscreveu por um deles; ausente/vazio vale para qualquer formulário (inclusive os criados depois). Ignorado nos outros gatilhos.',
   })
   @IsOptional()
-  @IsUUID()
-  formId?: string;
+  @IsArray()
+  @IsUUID('all', { each: true })
+  formIds?: string[];
 
-  @ApiPropertyOptional({ example: 0, description: 'Minutos de delay após o trigger' })
+  @ApiPropertyOptional({
+    example: 0,
+    description:
+      'Minutos de delay após o trigger. Só 0/ausente (disparo imediato) é aceito hoje — não há worker agendado para delay > 0.',
+  })
   @IsOptional()
   @IsInt()
   @Min(0)
-  @Max(2147483647)
+  @Max(0)
   delayMinutes?: number;
 
   @ApiPropertyOptional({

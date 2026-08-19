@@ -103,8 +103,8 @@ export class RegistrationController {
   importMany(
     @Param('eventId') eventId: string,
     @Body() dto: ImportRegistrationsDto,
-  ): Promise<{ created: number; skipped: number }> {
-    return this.registrations.importMany(eventId, dto.registrations);
+  ): Promise<{ created: number; skipped: number; rejected: Array<{ linha: number; motivo: string }> }> {
+    return this.registrations.importMany(eventId, dto.formId, dto.registrations);
   }
 
   @Delete()

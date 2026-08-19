@@ -8,8 +8,8 @@ export const AUTOMATION_REPOSITORY_PORT = Symbol('AUTOMATION_REPOSITORY_PORT');
 export interface CreateAutomationRuleData {
   eventId: string;
   templateId: string;
-  /** Obrigatório no gatilho on_form_submitted; ignorado nos outros. */
-  formId?: string | null;
+  /** Obrigatório (não-vazio) no gatilho on_form_submitted; ignorado nos outros. */
+  formIds?: string[];
   trigger: AutomationTrigger;
   delayMinutes?: number | null;
   cron?: string | null;
@@ -18,10 +18,10 @@ export interface CreateAutomationRuleData {
   folderId?: string | null;
 }
 
-/** Chave ausente deixa a coluna intacta. */
+/** Chave ausente deixa a coluna/relação intacta; `formIds` presente substitui a junção inteira. */
 export interface UpdateAutomationRuleData {
   templateId?: string;
-  formId?: string | null;
+  formIds?: string[];
   trigger?: AutomationTrigger;
   delayMinutes?: number | null;
   cron?: string | null;
@@ -90,14 +90,14 @@ export interface AutomationRepositoryPort {
    * ativa duas vezes no mesmo evento. O `dedupKey` do outbox carrega
    * `templateId`, então as duas linhas colidiriam no @unique e a segunda nunca
    * sairia. Gatilho repetido com templates **diferentes** é liberado — é o caso
-   * de mandar a mesma etapa por e-mail e por WhatsApp.
+   * de mandar a mesma etapa por e-mail e por WhatsApp. `formIds` não entra na
+   * chave: o mesmo template em formulários diferentes é UMA regra com dois
+   * formIds, não duas regras.
    */
-  /** `formId` faz parte da chave: o mesmo template pode servir a dois formulários. */
   findActiveByEventTriggerAndTemplate(
     eventId: string,
     trigger: string,
     templateId: string,
-    formId: string | null,
     excludeId?: string,
   ): Promise<AutomationRuleEntity | null>;
 
@@ -124,8 +124,12 @@ export interface AutomationRepositoryPort {
     ruleIds?: string[],
   ): Promise<AutomationRuleWithFullTemplate[]>;
 
+  /**
+   * `formIds` já vem resolvido pelo application layer (slug -> id do formulário
+   * recém-criado no evento novo); o repositório só grava.
+   */
   createManyForDuplication(
     eventId: string,
-    rules: EventDuplicationAutomationRule[],
+    rules: Array<Omit<EventDuplicationAutomationRule, 'formSlugs'> & { formIds: string[] }>,
   ): Promise<{ count: number }>;
 }

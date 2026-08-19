@@ -9,6 +9,8 @@ export interface CreateRegistrationData {
   email: string;
   phone: string;
   imageAuthorization?: boolean;
+  /** Formulário que criou a inscrição. Ausente/null = origem desconhecida (import sem form, painel). */
+  originFormId?: string | null;
 }
 
 export interface UpdateAnswersData {

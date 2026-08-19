@@ -32,6 +32,7 @@ export class PrismaRegistrationRepository
     imageAuthorization: boolean;
     attended: boolean;
     pipedriveStatus: string | null;
+    originFormId: string | null;
   }): RegistrationEntity {
     return new RegistrationEntity(
       row.id,
@@ -46,6 +47,7 @@ export class PrismaRegistrationRepository
       row.imageAuthorization,
       row.attended,
       row.pipedriveStatus as PipedriveStatus | null,
+      row.originFormId,
     );
   }
 

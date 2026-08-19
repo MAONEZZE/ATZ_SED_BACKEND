@@ -7,7 +7,6 @@ const RULE_ROW = {
   eventId: 'evt-1',
   templateId: 'tpl-1',
   trigger: 'on_form_submitted',
-  formId: 'form-1',
   delayMinutes: null,
   cron: null,
   timezone: null,
@@ -16,6 +15,7 @@ const RULE_ROW = {
   order: 0,
   createdAt: new Date('2026-08-17'),
   template: { id: 'tpl-1', name: 'Boas-vindas', channel: 'whatsapp' },
+  forms: [{ formId: 'form-1' }],
 };
 
 async function makeRepo(automationRule: Record<string, jest.Mock> = {}) {
@@ -26,11 +26,10 @@ async function makeRepo(automationRule: Record<string, jest.Mock> = {}) {
   return { repo: moduleRef.get(PrismaAutomationRepository) };
 }
 
-// O `formId` era lido (row -> entity) e usado na chave de duplicata, mas nunca
-// gravado: a coluna ficava NULL e o escopo por formulário de `on_form_submitted`
-// não funcionava. Estes testes travam a persistência.
-describe('PrismaAutomationRepository.create formId', () => {
-  it('persists the formId', async () => {
+// Junção automation_rule_forms (N formulários por regra): create/update gravam
+// via nested write na relação `forms`, e a entidade lê de volta um array.
+describe('PrismaAutomationRepository create/update — formIds via join table', () => {
+  it('nests a create per formId when creating with forms', async () => {
     const create = jest.fn().mockResolvedValue(RULE_ROW);
     const { repo } = await makeRepo({ create });
 
@@ -38,64 +37,97 @@ describe('PrismaAutomationRepository.create formId', () => {
       eventId: 'evt-1',
       templateId: 'tpl-1',
       trigger: 'on_form_submitted',
-      formId: 'form-1',
+      formIds: ['form-1', 'form-2'],
     });
 
-    expect(create.mock.calls[0][0].data).toEqual(
-      expect.objectContaining({ formId: 'form-1' }),
-    );
+    expect(create.mock.calls[0][0].data.forms).toEqual({
+      create: [{ formId: 'form-1' }, { formId: 'form-2' }],
+    });
   });
 
-  it('writes null when no form is given', async () => {
-    const create = jest.fn().mockResolvedValue({ ...RULE_ROW, formId: null });
+  it('omits the forms relation entirely when no form is given', async () => {
+    const create = jest.fn().mockResolvedValue({ ...RULE_ROW, forms: [] });
     const { repo } = await makeRepo({ create });
 
     await repo.create({ eventId: 'evt-1', templateId: 'tpl-1', trigger: 'on_approval' });
 
-    expect(create.mock.calls[0][0].data).toEqual(expect.objectContaining({ formId: null }));
+    expect(create.mock.calls[0][0].data).not.toHaveProperty('forms');
   });
 
-  it('maps the persisted formId back onto the entity', async () => {
+  it('maps the persisted forms back onto the entity as formIds', async () => {
     const { repo } = await makeRepo({ create: jest.fn().mockResolvedValue(RULE_ROW) });
 
     const rule = await repo.create({
       eventId: 'evt-1',
       templateId: 'tpl-1',
       trigger: 'on_form_submitted',
-      formId: 'form-1',
+      formIds: ['form-1'],
     });
 
-    expect(rule.formId).toBe('form-1');
+    expect(rule.formIds).toEqual(['form-1']);
   });
-});
 
-describe('PrismaAutomationRepository.update formId', () => {
-  it('persists a new formId', async () => {
-    const update = jest.fn().mockResolvedValue({ ...RULE_ROW, formId: 'form-2' });
+  it('replaces the whole join (delete + recreate) when updating formIds', async () => {
+    const update = jest.fn().mockResolvedValue({ ...RULE_ROW, forms: [{ formId: 'form-2' }] });
     const { repo } = await makeRepo({ update });
 
-    await repo.update('rule-1', { formId: 'form-2' });
+    await repo.update('rule-1', { formIds: ['form-2'] });
 
-    expect(update.mock.calls[0][0].data).toEqual(
-      expect.objectContaining({ formId: 'form-2' }),
-    );
+    expect(update.mock.calls[0][0].data.forms).toEqual({
+      deleteMany: {},
+      create: [{ formId: 'form-2' }],
+    });
   });
 
-  it('clears the formId with an explicit null', async () => {
-    const update = jest.fn().mockResolvedValue({ ...RULE_ROW, formId: null });
+  it('clears the join with an explicit empty array (deleteMany, no create)', async () => {
+    const update = jest.fn().mockResolvedValue({ ...RULE_ROW, forms: [] });
     const { repo } = await makeRepo({ update });
 
-    await repo.update('rule-1', { formId: null });
+    await repo.update('rule-1', { formIds: [] });
 
-    expect(update.mock.calls[0][0].data).toEqual(expect.objectContaining({ formId: null }));
+    expect(update.mock.calls[0][0].data.forms).toEqual({ deleteMany: {}, create: [] });
   });
 
-  it('leaves the column alone when formId is absent', async () => {
+  it('leaves the join alone when formIds is absent', async () => {
     const update = jest.fn().mockResolvedValue(RULE_ROW);
     const { repo } = await makeRepo({ update });
 
     await repo.update('rule-1', { active: false });
 
-    expect(update.mock.calls[0][0].data).not.toHaveProperty('formId');
+    expect(update.mock.calls[0][0].data).not.toHaveProperty('forms');
+  });
+});
+
+describe('PrismaAutomationRepository.createManyForDuplication', () => {
+  // createMany não aceita nested writes; cada regra precisa do próprio create
+  // pra gravar a junção de formIds junto — por isso um create por regra, numa
+  // transação, em vez de um único createMany.
+  it('creates one rule per item, nesting the resolved formIds, inside a transaction', async () => {
+    const create = jest.fn((args: unknown) => args);
+    const $transaction = jest.fn((ops: unknown[]) => Promise.resolve(ops));
+    const { repo } = await makeRepo({ create });
+    (repo as unknown as { prisma: { $transaction: unknown } }).prisma.$transaction = $transaction;
+
+    await repo.createManyForDuplication('evt-new', [
+      {
+        templateId: 'tpl-1',
+        trigger: 'on_form_submitted',
+        delayMinutes: null,
+        cron: null,
+        timezone: null,
+        active: true,
+        order: 0,
+        formIds: ['form-new-1'],
+      },
+    ]);
+
+    expect($transaction).toHaveBeenCalledTimes(1);
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        eventId: 'evt-new',
+        templateId: 'tpl-1',
+        forms: { create: [{ formId: 'form-new-1' }] },
+      }),
+    });
   });
 });

@@ -31,8 +31,12 @@ export class AutomationRuleEntity extends EntityBase {
     public readonly eventId: string,
     public readonly templateId: string,
     public readonly trigger: AutomationTrigger,
-    /** Só no gatilho `on_form_submitted`: qual formulário dispara a regra. */
-    public readonly formId: string | null,
+    /**
+     * Formulários que disparam a regra. Vazio = todos os formulários do evento,
+     * dinamicamente (formulário criado depois já dispara). Só relevante quando
+     * `acceptsForm(trigger)`; obrigatório e não-vazio em `on_form_submitted`.
+     */
+    public readonly formIds: string[],
     public readonly delayMinutes: number | null,
     public readonly cron: string | null,
     public readonly timezone: string | null,
@@ -50,18 +54,24 @@ export class AutomationRuleEntity extends EntityBase {
     return AutomationRuleEntity.isRecurring(this.trigger);
   }
 
-  /** `on_form_submitted` é escopado por formulário, então exige `formId`. */
+  /** `on_form_submitted` é escopado por formulário, então exige `formIds` não-vazio. */
   static requiresForm(trigger: string): boolean {
     return trigger === 'on_form_submitted';
   }
 
   /**
-   * Gatilhos que guardam `formId`. Em `on_form_submitted` ele é obrigatório; em
-   * `on_registration` é escopo opcional — com formulário, a regra só vale para
-   * quem se inscreveu por ele; sem, vale para qualquer formulário.
+   * Gatilhos que guardam `formIds`. Em `on_form_submitted` é obrigatório; em
+   * `on_registration` é escopo opcional — com formulários, a regra só vale para
+   * quem se inscreveu por um deles; sem (lista vazia), vale para qualquer
+   * formulário.
    */
   static acceptsForm(trigger: string): boolean {
     return trigger === 'on_form_submitted' || trigger === 'on_registration';
+  }
+
+  /** Lista vazia = todos; caso contrário só quem entrou por um dos formulários. */
+  static matchesForm(formIds: string[], formId: string | null): boolean {
+    return formIds.length === 0 || (formId !== null && formIds.includes(formId));
   }
 
   static isRecurring(trigger: string): boolean {

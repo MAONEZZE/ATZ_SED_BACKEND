@@ -1,20 +1,14 @@
--- ⚠️ NÃO APLICADA DE PROPÓSITO. Aqui HÁ perda de dado — leia a auditoria antes.
+-- ✅ JÁ APLICADA (2026-08-17), depois do dump. `user_subscriptions` não existe
+-- mais no banco (verificado). As 122 linhas estão preservadas fora do repo em
+-- ~/Documents/SED/backups/user_subscriptions_<timestamp>.{json,sql} (PII +
+-- imagens base64, ~105 MB por arquivo).
+--
+-- Nasceu em `pending-migrations/` (decisão humana pendente) e foi movida pra cá
+-- só depois de aplicada — ver app/infra/prisma/pending-migrations/README.md.
 --
 -- Segunda metade da antiga PENDENTE_20260817190000, que foi dividida em duas em
 -- 2026-08-17. A parte sem risco (post_event_responses, forms.kind,
--- FormFieldKind) virou 20260817220000_drop_legacy_form_kinds e já está aplicada.
--- Sobrou só este drop, que depende de decisão humana.
---
--- Vive em `pending-migrations/`, FORA de `migrations/`, de propósito: o prefixo
--- `PENDENTE_` que se usava antes NÃO esconde a pasta do Prisma — ela aparecia no
--- `migrate status` como pendente e um `migrate deploy` a aplicaria sem perguntar.
---
--- Para aplicar:
---   1. faça o dump (ver abaixo) — é a única rede
---   2. mova a pasta para app/infra/prisma/migrations/
---   3. npx prisma db execute --schema app/infra/prisma/schema.prisma --file <arquivo>
---   4. npx prisma migrate resolve --schema app/infra/prisma/schema.prisma \
---        --applied 20260817230000_drop_user_subscriptions
+-- FormFieldKind) virou 20260817220000_drop_legacy_form_kinds.
 --
 -- ============================================================================
 -- CORREÇÃO DA AUDITORIA ORIGINAL (conferida no banco em 2026-08-17)

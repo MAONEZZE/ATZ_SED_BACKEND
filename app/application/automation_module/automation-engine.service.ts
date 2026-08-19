@@ -16,6 +16,7 @@ import { OutboxService } from '@application/outbox_module/outbox.service';
 import { TemplateRenderer } from '@application/shared/template-renderer.service';
 import { RegistrationStatusChanged } from '@domain/registration_module/registration-status-changed.event';
 import { FormSubmitted } from '@domain/registration_module/form-submitted.event';
+import { AutomationRuleEntity } from '@domain/automation_module/automation-rule.entity';
 
 const TRIGGER_MAP: Partial<Record<string, string>> = {
   pending: 'on_registration',
@@ -43,10 +44,12 @@ export class AutomationEngine {
     if (!trigger) return;
 
     try {
-      // Regra com formulário só vale para quem entrou por ele; regra sem
-      // formulário vale para qualquer origem.
+      // Regra com formulários só vale para quem entrou por um deles; regra sem
+      // (lista vazia) vale para qualquer origem.
       const rules = await this.automations.findActiveTriggerRules(ev.eventId, trigger);
-      const ruleIds = rules.filter((r) => !r.formId || r.formId === ev.formId).map((r) => r.id);
+      const ruleIds = rules
+        .filter((r) => AutomationRuleEntity.matchesForm(r.formIds, ev.formId))
+        .map((r) => r.id);
       if (!ruleIds.length) return;
       await this.fireAutomations(ev.registrationId, ev.eventId, trigger, ruleIds);
     } catch (err) {
@@ -79,7 +82,9 @@ export class AutomationEngine {
     contact: { name: string; email: string; phone: string },
   ): Promise<void> {
     const rules = await this.automations.findActiveTriggerRules(eventId, 'on_form_submitted');
-    const ruleIds = rules.filter((r) => r.formId === formId).map((r) => r.id);
+    const ruleIds = rules
+      .filter((r) => AutomationRuleEntity.matchesForm(r.formIds, formId))
+      .map((r) => r.id);
     if (!ruleIds.length) return;
     await this.dispatchTrigger(eventId, 'on_form_submitted', contact, ruleIds);
   }
@@ -89,6 +94,7 @@ export class AutomationEngine {
     eventId: string,
     trigger: string,
     ruleIds?: string[],
+    occurrenceKey?: string,
   ): Promise<void> {
     const registration = await this.registrations.findById(registrationId);
     if (!registration) {
@@ -106,6 +112,7 @@ export class AutomationEngine {
         phone: registration.phone,
       },
       ruleIds,
+      occurrenceKey,
     );
   }
 
@@ -127,6 +134,7 @@ export class AutomationEngine {
     trigger: string,
     contact: { registrationId?: string; name: string; email: string; phone: string },
     ruleIds?: string[],
+    occurrenceKey?: string,
   ): Promise<void> {
     const rules = await this.automations.findActiveTriggerRules(eventId, trigger, ruleIds);
 
@@ -170,10 +178,16 @@ export class AutomationEngine {
       const recipient = rule.template.channel === 'email' ? contact.email : contact.phone;
       // O formulário entra na chave: o mesmo template em dois formulários são
       // dois envios, não um repetido.
-      const scope = rule.formId ? `:${rule.formId}` : '';
+      // `formIds` não entra na chave: com N formulários por regra, duas regras
+      // com o mesmo template não coexistem mais (trava única event+trigger+
+      // template) — o motivo de precisar do formulário na chave desapareceu.
+      // occurrenceKey vem do job.timestamp do scheduler (fixado na criação do
+      // job): retry da mesma ocorrência reusa o mesmo timestamp e cai no
+      // mesmo dedupKey; a ocorrência seguinte tem timestamp novo.
+      const occurrence = occurrenceKey ? `:${occurrenceKey}` : '';
       const dedupKey = contact.registrationId
-        ? `${contact.registrationId}:${rule.templateId}:${trigger}${scope}`
-        : `${eventId}:${(contact.email || contact.phone).toLowerCase()}:${rule.templateId}:${trigger}${scope}`;
+        ? `${contact.registrationId}:${rule.templateId}:${trigger}${occurrence}`
+        : `${eventId}:${(contact.email || contact.phone).toLowerCase()}:${rule.templateId}:${trigger}${occurrence}`;
 
       await this.outbox.enqueue(
         {

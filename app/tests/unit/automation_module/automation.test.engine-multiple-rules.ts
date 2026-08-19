@@ -117,11 +117,11 @@ describe('AutomationEngine — múltiplas regras no mesmo gatilho', () => {
 
 // on_form_submitted: as regras do evento são filtradas pelo formulário respondido.
 describe('AutomationEngine — gatilho por formulário', () => {
-  function formRule(id: string, templateId: string, formId: string | null) {
+  function formRule(id: string, templateId: string, formId: string) {
     return {
       id,
       templateId,
-      formId,
+      formIds: [formId],
       trigger: 'on_form_submitted',
       template: { id: templateId, channel: 'email', subject: 'Obrigado', body: 'Oi {{nome}}' },
     };

@@ -3,8 +3,10 @@ import {
   IsString,
   IsNotEmpty,
   IsOptional,
+  IsUUID,
   ValidateNested,
   ArrayMinSize,
+  ArrayMaxSize,
   registerDecorator,
   ValidationOptions,
   ValidationArguments,
@@ -36,12 +38,12 @@ export class ImportRegistrationItemDto {
   @ApiProperty({ example: 'Fulano da Silva' })
   @IsString()
   @IsNotEmpty()
+  @HasPhoneOrEmail()
   nome!: string;
 
   @ApiPropertyOptional({ example: '(11) 91234-5678' })
   @IsOptional()
   @IsString()
-  @HasPhoneOrEmail()
   telefone?: string;
 
   @ApiPropertyOptional({ example: 'fulano@example.com' })
@@ -51,9 +53,17 @@ export class ImportRegistrationItemDto {
 }
 
 export class ImportRegistrationsDto {
-  @ApiProperty({ type: [ImportRegistrationItemDto] })
+  @ApiProperty({
+    example: 'uuid-do-formulario',
+    description: 'Formulário de origem dos inscritos importados. Tem que ser do próprio evento.',
+  })
+  @IsUUID()
+  formId!: string;
+
+  @ApiProperty({ type: [ImportRegistrationItemDto], description: 'Máximo 500 por requisição.' })
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(500)
   @ValidateNested({ each: true })
   @Type(() => ImportRegistrationItemDto)
   registrations!: ImportRegistrationItemDto[];

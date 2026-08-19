@@ -24,7 +24,7 @@ import {
 export interface CreateAutomationInput {
   templateId: string;
   trigger: string;
-  formId?: string | null;
+  formIds?: string[];
   delayMinutes?: number | null;
   cron?: string | null;
   timezone?: string | null;
@@ -35,7 +35,7 @@ export interface CreateAutomationInput {
 export interface UpdateAutomationInput {
   templateId?: string;
   trigger?: string;
-  formId?: string | null;
+  formIds?: string[];
   delayMinutes?: number | null;
   cron?: string | null;
   timezone?: string | null;
@@ -88,20 +88,21 @@ export class AutomationService {
 
   async create(eventId: string, input: CreateAutomationInput) {
     await this.assertTemplateExists(input.templateId, eventId);
-    this.assertRuleValid(input.trigger, input.cron, input.timezone, input.formId);
-    if (input.formId) await this.assertFormBelongsToEvent(input.formId, eventId);
+    this.assertRuleValid(input.trigger, input.cron, input.timezone, input.formIds);
+    if (input.formIds?.length) await this.assertFormsBelongToEvent(input.formIds, eventId);
     if (input.folderId) await this.assertFolderBelongsToEvent(input.folderId, eventId);
-    const formId = AutomationRuleEntity.acceptsForm(input.trigger) ? (input.formId ?? null) : null;
+    const formIds = AutomationRuleEntity.acceptsForm(input.trigger) ? (input.formIds ?? []) : [];
     // Gatilho repetido é permitido (e-mail + WhatsApp na mesma etapa, por
-    // exemplo). Só a repetição do mesmo template no mesmo gatilho e formulário
-    // é barrada — o mesmo template em formulários diferentes é caso legítimo.
+    // exemplo). Só a repetição do mesmo template no mesmo gatilho é barrada —
+    // o mesmo template em formulários diferentes vira uma regra com dois
+    // formIds, não duas regras.
     if (input.active !== false) {
-      await this.assertNoActiveDuplicate(eventId, input.trigger, input.templateId, formId);
+      await this.assertNoActiveDuplicate(eventId, input.trigger, input.templateId);
     }
     const rule = await this.repo.create({
       eventId,
       templateId: input.templateId,
-      formId,
+      formIds,
       trigger: input.trigger as AutomationTrigger,
       // delayMinutes nulo = disparo imediato. O front pode mandar 0 com a mesma
       // intenção; normalizamos 0 -> null para a regra não cair no buraco entre o
@@ -127,25 +128,25 @@ export class AutomationService {
     const templateId = input.templateId ?? existing.templateId;
     const cron = input.cron !== undefined ? input.cron : existing.cron;
     const timezone = input.timezone !== undefined ? input.timezone : existing.timezone;
-    const mergedFormId = input.formId !== undefined ? input.formId : existing.formId;
-    this.assertRuleValid(trigger, cron, timezone, mergedFormId);
-    if (input.formId) await this.assertFormBelongsToEvent(input.formId, eventId);
-    const formId = AutomationRuleEntity.acceptsForm(trigger) ? (mergedFormId ?? null) : null;
+    const mergedFormIds = input.formIds !== undefined ? input.formIds : existing.formIds;
+    this.assertRuleValid(trigger, cron, timezone, mergedFormIds);
+    if (input.formIds?.length) await this.assertFormsBelongToEvent(input.formIds, eventId);
+    const formIds = AutomationRuleEntity.acceptsForm(trigger) ? mergedFormIds : [];
 
     // A regra vale sobre o resultado da mesclagem: trocar só o template também
-    // pode colidir com outra regra ativa do mesmo gatilho e formulário.
+    // pode colidir com outra regra ativa do mesmo gatilho.
     if (willBeActive && (input.trigger || input.templateId || input.active === true)) {
-      await this.assertNoActiveDuplicate(eventId, trigger, templateId, formId, id);
+      await this.assertNoActiveDuplicate(eventId, trigger, templateId, id);
     }
 
     const updated = await this.repo.update(id, {
       ...(input.templateId && { templateId: input.templateId }),
       ...(input.trigger && { trigger: input.trigger as AutomationTrigger }),
       // Comparar com o valor atual em vez de olhar só o corpo: trocar para um
-      // gatilho que não aceita formulário tem que limpar o `formId` antigo, e
-      // esse patch não menciona `formId`. Deixar a coluna suja bagunçaria a
-      // chave de duplicata (trigger + template + formId).
-      ...(formId !== existing.formId && { formId }),
+      // gatilho que não aceita formulário tem que limpar os `formIds` antigos, e
+      // esse patch não menciona `formIds`. Deixar a junção suja bagunçaria a
+      // trava de duplicata (agora só trigger + template, mas ainda incoerente).
+      ...(this.formIdsChanged(formIds, existing.formIds) && { formIds }),
       ...(input.delayMinutes !== undefined && { delayMinutes: input.delayMinutes || null }),
       ...(input.cron !== undefined && { cron: input.cron }),
       ...(input.timezone !== undefined && { timezone: input.timezone }),
@@ -154,6 +155,13 @@ export class AutomationService {
     });
     await this.syncRecurringScheduler(updated);
     return updated;
+  }
+
+  private formIdsChanged(a: string[], b: string[]): boolean {
+    if (a.length !== b.length) return true;
+    const sortedA = [...a].sort();
+    const sortedB = [...b].sort();
+    return sortedA.some((id, i) => id !== sortedB[i]);
   }
 
   async delete(eventId: string, id: string): Promise<void> {
@@ -169,16 +177,18 @@ export class AutomationService {
     trigger: string,
     cron?: string | null,
     timezone?: string | null,
-    formId?: string | null,
+    formIds?: string[],
   ): void {
-    const errors = new AutomationValidator().validate({ trigger, cron, timezone, formId });
+    const errors = new AutomationValidator().validate({ trigger, cron, timezone, formIds });
     if (errors.length > 0) throw new BadRequestException(errors[0]);
   }
 
-  /** O formulário do gatilho tem que ser do próprio evento. */
-  private async assertFormBelongsToEvent(formId: string, eventId: string): Promise<void> {
-    const form = await this.forms.findByIdAndEvent(formId, eventId);
-    if (!form) throw new NotFoundException('Form not found');
+  /** Cada formulário do gatilho tem que ser do próprio evento. */
+  private async assertFormsBelongToEvent(formIds: string[], eventId: string): Promise<void> {
+    for (const formId of formIds) {
+      const form = await this.forms.findByIdAndEvent(formId, eventId);
+      if (!form) throw new NotFoundException('Form not found');
+    }
   }
 
   /**
@@ -210,14 +220,12 @@ export class AutomationService {
     eventId: string,
     trigger: string,
     templateId: string,
-    formId: string | null,
     excludeId?: string,
   ): Promise<void> {
     const duplicate = await this.repo.findActiveByEventTriggerAndTemplate(
       eventId,
       trigger,
       templateId,
-      formId,
       excludeId,
     );
     if (duplicate) {

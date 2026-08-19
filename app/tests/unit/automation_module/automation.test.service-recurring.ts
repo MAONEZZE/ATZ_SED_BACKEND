@@ -18,7 +18,7 @@ function rule(overrides: {
     'evt-1',
     'tpl-1',
     overrides.trigger,
-    null,
+    [],
     null,
     overrides.cron ?? null,
     overrides.timezone ?? null,
@@ -90,9 +90,8 @@ describe('AutomationService — recurring trigger', () => {
     expect(rule).toMatchObject({ id: 'rule-1' });
   });
 
-  // A duplicata barrada passou a ser (gatilho + template + formulário), inclusive
-  // no recurring: duas regras iguais colidiriam no dedupKey. Gatilho que não
-  // guarda formulário procura com formId null.
+  // A duplicata barrada é (gatilho + template) ativo no evento, inclusive no
+  // recurring: duas regras iguais colidiriam no dedupKey.
   it('checks the narrow duplicate when creating a recurring rule', async () => {
     const { svc, repo } = make();
     await svc.create('evt-1', {
@@ -105,7 +104,6 @@ describe('AutomationService — recurring trigger', () => {
       'evt-1',
       'recurring',
       'tpl-1',
-      null,
       undefined,
     );
   });
@@ -117,7 +115,6 @@ describe('AutomationService — recurring trigger', () => {
       'evt-1',
       'on_approval',
       'tpl-1',
-      null,
       undefined,
     );
   });
@@ -257,7 +254,7 @@ describe('AutomationService — recurring trigger', () => {
 describe('AutomationService — gatilho on_form_submitted', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('rejects the rule without a formId', async () => {
+  it('rejects the rule without formIds', async () => {
     const { svc, repo } = make();
 
     await expect(
@@ -266,16 +263,16 @@ describe('AutomationService — gatilho on_form_submitted', () => {
     expect(repo.create).not.toHaveBeenCalled();
   });
 
-  it('stores the formId when given', async () => {
+  it('stores the formIds when given', async () => {
     const { svc, repo } = make();
 
     await svc.create('evt-1', {
       templateId: 'tpl-1',
       trigger: 'on_form_submitted',
-      formId: 'form-1',
+      formIds: ['form-1'],
     });
 
-    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ formId: 'form-1' }));
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ formIds: ['form-1'] }));
   });
 
   // O formulário do gatilho tem que ser do próprio evento.
@@ -284,55 +281,58 @@ describe('AutomationService — gatilho on_form_submitted', () => {
     forms.findByIdAndEvent.mockResolvedValue(null);
 
     await expect(
-      svc.create('evt-1', { templateId: 'tpl-1', trigger: 'on_form_submitted', formId: 'form-x' }),
+      svc.create('evt-1', {
+        templateId: 'tpl-1',
+        trigger: 'on_form_submitted',
+        formIds: ['form-x'],
+      }),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(repo.create).not.toHaveBeenCalled();
   });
 
-  // Nos outros gatilhos o formId não faz sentido e é descartado.
-  it('nulls the formId on a trigger that is not form-scoped', async () => {
+  // Nos outros gatilhos formIds não faz sentido e é descartado.
+  it('empties formIds on a trigger that is not form-scoped', async () => {
     const { svc, repo } = make();
 
     await svc.create('evt-1', {
       templateId: 'tpl-1',
       trigger: 'on_approval',
-      formId: 'form-1',
+      formIds: ['form-1'],
     });
 
-    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ formId: null }));
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ formIds: [] }));
   });
 
-  // O mesmo agradecimento em dois formulários é caso legítimo: a duplicata é
-  // procurada dentro do formulário, não no evento inteiro.
-  it('scopes the duplicate check to the form', async () => {
+  // O mesmo agradecimento em dois formulários é UMA regra com dois formIds —
+  // a duplicata não é mais procurada por formulário, só por trigger+template.
+  it('does not scope the duplicate check by form', async () => {
     const { svc, repo } = make();
 
     await svc.create('evt-1', {
       templateId: 'tpl-1',
       trigger: 'on_form_submitted',
-      formId: 'form-2',
+      formIds: ['form-2'],
     });
 
     expect(repo.findActiveByEventTriggerAndTemplate).toHaveBeenCalledWith(
       'evt-1',
       'on_form_submitted',
       'tpl-1',
-      'form-2',
       undefined,
     );
   });
 
   // on_registration aceita formulário como escopo opcional: "boas-vindas de quem
   // entrou por este formulário".
-  it('keeps the formId on on_registration', async () => {
+  it('keeps the formIds on on_registration', async () => {
     const { svc, repo } = make();
 
     await svc.create('evt-1', {
       templateId: 'tpl-1',
       trigger: 'on_registration',
-      formId: 'form-1',
+      formIds: ['form-1'],
     });
 
-    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ formId: 'form-1' }));
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ formIds: ['form-1'] }));
   });
 });

@@ -1,4 +1,15 @@
-import { IsArray, IsBoolean, IsOptional, IsString, IsUUID, IsUrl, MaxLength, MinLength } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsNotEmpty,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
+  IsUrl,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateFormDto {
@@ -71,6 +82,7 @@ export class ReorderFormsDto {
 export class SubmitFormResponseDto {
   @ApiProperty({ example: '11999998888', description: 'Identidade do respondente; casa com o inscrito do evento.' })
   @IsString()
+  @IsNotEmpty()
   phone!: string;
 
   @ApiProperty({
@@ -79,6 +91,7 @@ export class SubmitFormResponseDto {
     example: { nome: 'João Silva', email: 'joao@email.com', Nota: '9' },
     description: 'Respostas chaveadas pelo label do campo.',
   })
+  @IsObject()
   answers!: Record<string, unknown>;
 
   @ApiPropertyOptional({ description: 'Sobrepõe o padrão do evento no envio ao Pipedrive.' })

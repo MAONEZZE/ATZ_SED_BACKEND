@@ -77,12 +77,28 @@ export class EventLifecycleService {
       lastEditedById: ownerId,
     });
 
+    // `createWithFields` preserva o slug do formulário original, então
+    // (novoEventId, slug) resolve o formId novo para remapear os formIds da
+    // regra (a fonte só tem os slugs — o id antigo não existe no evento novo).
+    const newFormIdBySlug = new Map<string, string>();
     for (const form of source.forms) {
-      await this.forms.createWithFields(newEvent.id, form);
+      const created = await this.forms.createWithFields(newEvent.id, form);
+      newFormIdBySlug.set(created.slug, created.id);
     }
 
     if (source.automationRules.length > 0) {
-      await this.automations.createManyForDuplication(newEvent.id, source.automationRules);
+      await this.automations.createManyForDuplication(
+        newEvent.id,
+        source.automationRules.map(({ formSlugs, ...rule }) => ({
+          ...rule,
+          // Formulário do evento de origem que não existe mais aqui (raro: só se
+          // a criação de formulários acima falhar parcialmente) é descartado em
+          // vez de travar a duplicação inteira.
+          formIds: formSlugs
+            .map((slug) => newFormIdBySlug.get(slug))
+            .filter((id): id is string => id !== undefined),
+        })),
+      );
     }
 
     this.logger.log({ sourceId: eventId, newId: newEvent.id }, 'Event duplicated');
