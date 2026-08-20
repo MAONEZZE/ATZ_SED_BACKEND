@@ -80,6 +80,7 @@ enum AutomationTrigger {
   on_rejection
   recurring
   on_form_submitted
+  on_date
 
   @@schema("SED")
 }
@@ -389,6 +390,10 @@ model AutomationRule {
   delayMinutes Int?                 @map("delay_minutes")
   cron         String?
   timezone     String?
+  /// Instante do disparo único (trigger on_date), em UTC. `timezone` guarda o fuso em que foi marcado.
+  sendAt       DateTime?            @map("send_at")
+  /// Marcado no claim do sweeper: regra de data já disparada não dispara de novo.
+  firedAt      DateTime?            @map("fired_at")
   active       Boolean              @default(true)
   folderId     String?              @map("folder_id")
   order        Int                  @default(0)

@@ -4,6 +4,7 @@ import { TemplateRenderer } from '@application/shared/template-renderer.service'
 import { AutomationService } from '@application/automation_module/automation.service';
 import { RecurringSchedulerService } from '@application/automation_module/recurring-scheduler.service';
 import { RecurringAutomationsWorker } from '@application/workers/recurring-automations.worker';
+import { DateAutomationsService } from '@application/automation_module/date-automations.service';
 import { BullQueuesModule } from '@infra/queue/bull-queues.module';
 import { AutomationDbModule } from '@infra/repositories/automation_module/automation-db.module';
 import { OutboxModule } from '@shared/modules/outbox.module';
@@ -29,6 +30,7 @@ import { RegistrationDbModule } from '@infra/repositories/registration_module/re
     AutomationService,
     RecurringSchedulerService,
     RecurringAutomationsWorker,
+    DateAutomationsService,
   ],
   exports: [AutomationEngine, TemplateRenderer, AutomationService, RecurringSchedulerService],
 })

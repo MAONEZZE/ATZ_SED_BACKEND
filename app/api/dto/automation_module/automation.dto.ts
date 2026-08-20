@@ -11,6 +11,7 @@ import {
   ValidationOptions,
   ValidateIf,
   IsUUID,
+  IsISO8601,
 } from 'class-validator';
 import { OmitType, PartialType, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IANAZone } from 'luxon';
@@ -100,12 +101,22 @@ export class CreateAutomationDto {
 
   @ApiPropertyOptional({
     example: 'America/Sao_Paulo',
-    description: 'IANA timezone — obrigatório quando trigger="recurring"',
+    description:
+      'IANA timezone — obrigatório quando trigger="recurring"; opcional em "on_date" (default America/Sao_Paulo)',
   })
   @IsOptional()
   @IsString()
   @IsIanaTimezone()
   timezone?: string;
+
+  @ApiPropertyOptional({
+    example: '2026-02-12T09:00:00',
+    description:
+      'Instante do disparo único — obrigatório quando trigger="on_date". Lido no `timezone` da regra (default America/Sao_Paulo). Data no passado → 400.',
+  })
+  @IsOptional()
+  @IsISO8601()
+  sendAt?: string;
 
   @ApiPropertyOptional({ example: true })
   @IsOptional()

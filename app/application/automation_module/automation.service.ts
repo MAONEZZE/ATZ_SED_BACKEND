@@ -10,6 +10,8 @@ import {
   AutomationTrigger,
 } from '@domain/automation_module/automation-rule.entity';
 import { AutomationValidator } from '@domain/automation_module/automation.validator';
+import { DateTime } from 'luxon';
+import { APP_TIMEZONE } from '@handlers/timezone';
 import {
   AUTOMATION_REPOSITORY_PORT,
   AutomationRepositoryPort,
@@ -28,6 +30,8 @@ export interface CreateAutomationInput {
   delayMinutes?: number | null;
   cron?: string | null;
   timezone?: string | null;
+  /** ISO do disparo único de `on_date`, interpretado no `timezone` da regra. */
+  sendAt?: string | null;
   active?: boolean;
   folderId?: string | null;
 }
@@ -39,6 +43,7 @@ export interface UpdateAutomationInput {
   delayMinutes?: number | null;
   cron?: string | null;
   timezone?: string | null;
+  sendAt?: string | null;
   active?: boolean;
   folderId?: string | null;
 }
@@ -93,7 +98,8 @@ export class AutomationService {
 
   async create(eventId: string, input: CreateAutomationInput) {
     await this.assertTemplateExists(input.templateId, eventId);
-    this.assertRuleValid(input.trigger, input.cron, input.timezone, input.formIds);
+    const sendAt = this.resolveSendAt(input.trigger, input.sendAt, input.timezone);
+    this.assertRuleValid(input.trigger, input.cron, input.timezone, input.formIds, sendAt);
     if (input.formIds?.length) await this.assertFormsBelongToEvent(input.formIds, eventId);
     if (input.folderId) await this.assertFolderBelongsToEvent(input.folderId, eventId);
     const formIds = AutomationRuleEntity.acceptsForm(input.trigger) ? (input.formIds ?? []) : [];
@@ -114,7 +120,10 @@ export class AutomationService {
       // disparo imediato (engine) e o agendado (worker).
       delayMinutes: input.delayMinutes || null,
       cron: AutomationRuleEntity.isRecurring(input.trigger) ? (input.cron ?? null) : null,
-      timezone: AutomationRuleEntity.isRecurring(input.trigger) ? (input.timezone ?? null) : null,
+      // `on_date` também guarda fuso: é nele que o instante foi marcado, e a UI
+      // precisa dele para mostrar a data de volta como o usuário digitou.
+      timezone: this.resolveTimezone(input.trigger, input.timezone),
+      sendAt,
       active: input.active ?? true,
       folderId: input.folderId ?? null,
     });
@@ -134,7 +143,14 @@ export class AutomationService {
     const cron = input.cron !== undefined ? input.cron : existing.cron;
     const timezone = input.timezone !== undefined ? input.timezone : existing.timezone;
     const mergedFormIds = input.formIds !== undefined ? input.formIds : existing.formIds;
-    this.assertRuleValid(trigger, cron, timezone, mergedFormIds);
+    // Data nova recalculada no fuso mesclado; ausente no patch, vale a gravada.
+    const sendAt =
+      input.sendAt !== undefined
+        ? this.resolveSendAt(trigger, input.sendAt, timezone)
+        : AutomationRuleEntity.isDate(trigger)
+          ? existing.sendAt
+          : null;
+    this.assertRuleValid(trigger, cron, timezone, mergedFormIds, sendAt);
     if (input.formIds?.length) await this.assertFormsBelongToEvent(input.formIds, eventId);
     const formIds = AutomationRuleEntity.acceptsForm(trigger) ? mergedFormIds : [];
 
@@ -155,6 +171,9 @@ export class AutomationService {
       ...(input.delayMinutes !== undefined && { delayMinutes: input.delayMinutes || null }),
       ...(input.cron !== undefined && { cron: input.cron }),
       ...(input.timezone !== undefined && { timezone: input.timezone }),
+      // Remarcar a data (ou trocar de gatilho) reabre o disparo: sem limpar o
+      // `firedAt`, uma regra já disparada nunca dispararia na data nova.
+      ...(sendAt?.getTime() !== existing.sendAt?.getTime() && { sendAt, firedAt: null }),
       ...(input.active !== undefined && { active: input.active }),
       ...(input.folderId !== undefined && { folderId: input.folderId }),
     });
@@ -183,9 +202,43 @@ export class AutomationService {
     cron?: string | null,
     timezone?: string | null,
     formIds?: string[],
+    sendAt?: Date | null,
   ): void {
-    const errors = new AutomationValidator().validate({ trigger, cron, timezone, formIds });
+    const errors = new AutomationValidator().validate({
+      trigger,
+      cron,
+      timezone,
+      formIds,
+      sendAt,
+    });
     if (errors.length > 0) throw new BadRequestException(errors[0]);
+  }
+
+  /** Fuso em que a regra agendada foi marcada; só `recurring` e `on_date` guardam. */
+  private resolveTimezone(trigger: string, timezone?: string | null): string | null {
+    if (AutomationRuleEntity.isRecurring(trigger)) return timezone ?? null;
+    if (AutomationRuleEntity.isDate(trigger)) return timezone?.trim() || APP_TIMEZONE;
+    return null;
+  }
+
+  /**
+   * ISO local + fuso da regra → instante UTC. Sem fuso, assume o da aplicação
+   * (America/Sao_Paulo), que é onde o painel opera. Data no passado é 400: a
+   * regra nunca dispararia e o sweeper a mandaria na próxima varredura.
+   */
+  private resolveSendAt(
+    trigger: string,
+    sendAt?: string | null,
+    timezone?: string | null,
+  ): Date | null {
+    if (!AutomationRuleEntity.isDate(trigger) || !sendAt) return null;
+    const zone = timezone?.trim() || APP_TIMEZONE;
+    const parsed = DateTime.fromISO(sendAt, { zone });
+    if (!parsed.isValid) throw new BadRequestException('sendAt não é uma data ISO válida');
+    if (parsed.toMillis() <= DateTime.now().toMillis()) {
+      throw new BadRequestException('sendAt precisa ser no futuro');
+    }
+    return parsed.toUTC().toJSDate();
   }
 
   /** Cada formulário do gatilho tem que ser do próprio evento. */

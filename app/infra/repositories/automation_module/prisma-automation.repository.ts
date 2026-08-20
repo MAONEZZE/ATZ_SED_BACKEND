@@ -36,6 +36,8 @@ type AutomationRuleRow = {
   folderId: string | null;
   order: number;
   createdAt: Date;
+  sendAt: Date | null;
+  firedAt: Date | null;
   forms?: Array<{ formId: string }>;
 };
 
@@ -76,6 +78,8 @@ export class PrismaAutomationRepository
       row.folderId,
       row.order,
       row.createdAt,
+      row.sendAt,
+      row.firedAt,
     );
   }
 
@@ -235,6 +239,7 @@ export class PrismaAutomationRepository
         delayMinutes: data.delayMinutes ?? null,
         cron: data.cron ?? null,
         timezone: data.timezone ?? null,
+        sendAt: data.sendAt ?? null,
         folderId: data.folderId ?? null,
         ...(data.active !== undefined && { active: data.active }),
         // O service já normaliza: lista vazia quando o gatilho não aceita formulário.
@@ -252,6 +257,8 @@ export class PrismaAutomationRepository
       ...(data.delayMinutes !== undefined && { delayMinutes: data.delayMinutes }),
       ...(data.cron !== undefined && { cron: data.cron }),
       ...(data.timezone !== undefined && { timezone: data.timezone }),
+      ...(data.sendAt !== undefined && { sendAt: data.sendAt }),
+      ...(data.firedAt !== undefined && { firedAt: data.firedAt }),
       ...(data.active !== undefined && { active: data.active }),
       ...(data.folderId !== undefined && { folderId: data.folderId }),
     };
@@ -321,6 +328,20 @@ export class PrismaAutomationRepository
       ),
     );
     return true;
+  }
+
+  // Claim e leitura na mesma instrução: sem isso duas réplicas selecionariam a
+  // mesma regra vencida e a mensagem sairia duas vezes.
+  async claimDueDateRules(): Promise<Array<{ id: string; eventId: string; sendAt: Date }>> {
+    return this.prisma.$queryRaw<Array<{ id: string; eventId: string; sendAt: Date }>>`
+      UPDATE "SED"."automation_rules"
+         SET "fired_at" = now()
+       WHERE "trigger" = 'on_date'
+         AND "active"
+         AND "fired_at" IS NULL
+         AND "send_at" <= now()
+      RETURNING "id", "event_id" AS "eventId", "send_at" AS "sendAt"
+    `;
   }
 
   /**

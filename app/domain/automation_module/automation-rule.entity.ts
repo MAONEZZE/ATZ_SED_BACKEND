@@ -7,6 +7,7 @@ export const AUTOMATION_TRIGGERS = [
   'on_rejection',
   'recurring',
   'on_form_submitted',
+  'on_date',
 ] as const;
 
 export type AutomationTrigger = (typeof AUTOMATION_TRIGGERS)[number];
@@ -14,8 +15,9 @@ export type AutomationTrigger = (typeof AUTOMATION_TRIGGERS)[number];
 /**
  * Regra que dispara uma mensagem a partir de um acontecimento do evento.
  *
- * `recurring` é o gatilho fora da curva: em vez de reagir a um acontecimento,
- * roda por agenda, e por isso é o único que exige `cron` + `timezone`.
+ * `recurring` e `on_date` são os gatilhos fora da curva: em vez de reagir a um
+ * acontecimento, rodam por agenda. `recurring` repete por cron (exige `cron` +
+ * `timezone`); `on_date` dispara uma vez só, no instante de `sendAt`.
  *
  * Qualquer gatilho aceita mais de uma regra ativa no mesmo evento, desde que
  * usem templates diferentes (ex: aprovação mandando e-mail e WhatsApp). Repetir
@@ -46,6 +48,10 @@ export class AutomationRuleEntity extends EntityBase {
     /** Posição manual dentro da pasta (ou da raiz). */
     public readonly order: number,
     public readonly createdAt: Date,
+    /** Instante do disparo único de `on_date`, em UTC. */
+    public readonly sendAt: Date | null = null,
+    /** Preenchido no claim do sweeper: regra já disparada não dispara de novo. */
+    public readonly firedAt: Date | null = null,
   ) {
     super(id);
   }
@@ -78,12 +84,22 @@ export class AutomationRuleEntity extends EntityBase {
     return trigger === 'recurring';
   }
 
+  /** Disparo único numa data marcada na regra, igual para todos os inscritos. */
+  static isDate(trigger: string): boolean {
+    return trigger === 'on_date';
+  }
+
   /**
    * Envio imediato é o que não tem espera. Regras gravadas com 0 existem e
    * significam o mesmo que null — daí os dois contarem como imediato.
    */
   isImmediate(): boolean {
     return this.delayMinutes === null || this.delayMinutes === 0;
+  }
+
+  /** Um gatilho de data sem data nunca dispararia. */
+  static requiresSendAt(trigger: string, sendAt?: Date | null): boolean {
+    return AutomationRuleEntity.isDate(trigger) && !sendAt;
   }
 
   /** Um gatilho recorrente sem agenda nunca dispararia. */

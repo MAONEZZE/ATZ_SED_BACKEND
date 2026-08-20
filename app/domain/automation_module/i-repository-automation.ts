@@ -14,6 +14,8 @@ export interface CreateAutomationRuleData {
   delayMinutes?: number | null;
   cron?: string | null;
   timezone?: string | null;
+  /** Instante do disparo único de `on_date`, em UTC. */
+  sendAt?: Date | null;
   active?: boolean;
   folderId?: string | null;
 }
@@ -26,6 +28,9 @@ export interface UpdateAutomationRuleData {
   delayMinutes?: number | null;
   cron?: string | null;
   timezone?: string | null;
+  sendAt?: Date | null;
+  /** Trocar a data reabre o disparo: o service manda `null` para limpar. */
+  firedAt?: Date | null;
   active?: boolean;
   folderId?: string | null;
 }
@@ -77,6 +82,13 @@ export interface AutomationRepositoryPort {
   ): Promise<{ data: AutomationRuleWithEventAndTemplate[]; total: number }>;
 
   findAllRecurringActive(): Promise<RecurringSchedule[]>;
+
+  /**
+   * Marca como disparadas e devolve as regras `on_date` cuja data já venceu.
+   * O UPDATE condicional é o claim: duas réplicas do backend não pegam a mesma
+   * regra, então a mensagem não sai duas vezes.
+   */
+  claimDueDateRules(): Promise<Array<{ id: string; eventId: string; sendAt: Date }>>;
 
   findById(id: string): Promise<AutomationRuleEntity | null>;
 
