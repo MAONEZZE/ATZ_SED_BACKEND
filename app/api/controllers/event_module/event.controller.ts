@@ -30,6 +30,7 @@ import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { RequireEventRole } from '@api/config/decorators/require-event-role.decorator';
 import { CurrentUser } from '@api/config/decorators/current-user.decorator';
+import { CurrentEventRole } from '@api/config/decorators/current-event-role.decorator';
 import { AuthenticatedUser } from '@domain/shared/authenticated-user.entity';
 import { EventService } from '@application/event_module/event.service';
 import { EventLifecycleService } from '@application/event_module/event-lifecycle.service';
@@ -40,6 +41,7 @@ import {
   UpdateEventStatusDto,
 } from '@api/dto/event_module/update-event.dto';
 import { PaginationQueryDto, Paginated } from '@api/dto/shared/pagination';
+import { EventRole } from '@domain/collaborator_module/event-role.type';
 
 @ApiTags('Events')
 @ApiBearerAuth()
@@ -72,7 +74,12 @@ export class EventController {
     required: false,
     description: "Filtra por pasta. 'null' retorna só os eventos fora de pasta.",
   })
-  @ApiResponse({ status: 200, description: 'Lista paginada de eventos' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Lista paginada de eventos. Cada item traz `myRole` (admin | invited | read): papel do ' +
+      'usuário logado naquele evento, para o painel decidir o que renderizar por card.',
+  })
   async findAll(
     @CurrentUser() user: AuthenticatedUser,
     @Query() pagination: PaginationQueryDto,
@@ -108,10 +115,16 @@ export class EventController {
   @UseGuards(OwnershipGuard)
   @ApiOperation({ summary: 'Buscar evento por ID' })
   @ApiParam({ name: 'id', description: 'UUID do evento' })
-  @ApiResponse({ status: 200, description: 'Evento encontrado' })
+  @ApiResponse({
+    status: 200,
+    description: 'Evento encontrado, com `myRole` (admin | invited | read) do usuário logado',
+  })
   @ApiResponse({ status: 404, description: 'Evento não encontrado' })
-  findOne(@Param('id') id: string) {
-    return this.eventsService.findById(id);
+  // `myRole` é dica de UI: o papel já veio do banco no OwnershipGuard, e é ele
+  // que barra a ação de verdade — o valor devolvido aqui não autoriza nada.
+  async findOne(@Param('id') id: string, @CurrentEventRole() myRole: EventRole) {
+    const event = await this.eventsService.findById(id);
+    return Object.assign(event, { myRole });
   }
 
   @Patch(':id')

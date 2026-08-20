@@ -39,6 +39,14 @@ export interface UpdateEventData {
   folderId?: string | null;
 }
 
+/**
+ * Evento + papel do usuário que consultou a lista. O front decide com isto o que
+ * renderizar por card (ex.: 'Excluir' para admin, 'Sair' para invited/read) sem
+ * pedir os colaboradores de cada evento. É só dica de UI: a autorização segue
+ * sendo do OwnershipGuard, que resolve o papel no banco a cada request.
+ */
+export type EventWithMyRole = EventEntity & { myRole: EventRole };
+
 export interface EventOwnership {
   ownerId: string;
   isCollaborator: boolean;
@@ -155,7 +163,7 @@ export interface EventRepositoryPort {
     ownerId: string,
     pagination: { skip: number; take: number },
     folderId?: string | null,
-  ): Promise<{ data: EventEntity[]; total: number }>;
+  ): Promise<{ data: EventWithMyRole[]; total: number }>;
   /** Reescreve `order` na ordem dos ids, dentro do escopo (dono + pasta). */
   reorder(ownerId: string, folderId: string | null, ids: string[]): Promise<void>;
   create(data: CreateEventData): Promise<EventEntity>;

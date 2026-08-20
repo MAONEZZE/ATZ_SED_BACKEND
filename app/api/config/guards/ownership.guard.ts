@@ -51,6 +51,9 @@ export class OwnershipGuard implements CanActivate {
     if (!roleAtLeast(ownership.role, required)) {
       throw new ForbiddenException(`This action requires the '${required}' role on the event`);
     }
+    // O papel resolvido fica na request para o @CurrentEventRole devolvê-lo ao
+    // handler (ex.: `myRole` no GET do evento) sem uma segunda consulta.
+    request['eventRole'] = ownership.role;
     return true;
   }
 

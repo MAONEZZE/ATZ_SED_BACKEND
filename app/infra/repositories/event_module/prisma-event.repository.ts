@@ -11,6 +11,7 @@ import {
   CreatedDuplicateEvent,
   PublicEventSummary,
   EventAutomationContext,
+  EventWithMyRole,
 } from '@domain/event_module/i-repository-event';
 
 const PUBLIC_EVENT_SELECT = {
@@ -27,36 +28,39 @@ const PUBLIC_EVENT_SELECT = {
   status: true,
 } as const;
 import { EventEntity, EventStatus } from '@domain/event_module/event.entity';
+import { EventRole } from '@domain/collaborator_module/event-role.type';
+
+interface EventRow {
+  id: string;
+  ownerId: string;
+  title: string;
+  slug: string;
+  status: string;
+  coverUrl: string | null;
+  location: string | null;
+  capacity: number | null;
+  dressCode: string | null;
+  groupLink: string | null;
+  eventDate: Date | null;
+  endDate: Date | null;
+  sendToPipedrive: boolean;
+  whatsappInstanceId: string | null;
+  whatsappToken: string | null;
+  lastEditedById: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  recurrenceFreq: string | null;
+  recurrenceInterval: number | null;
+  recurrenceUntil: Date | null;
+  folderId: string | null;
+  order: number;
+}
 
 @Injectable()
 export class PrismaEventRepository implements EventRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
 
-  private map(row: {
-    id: string;
-    ownerId: string;
-    title: string;
-    slug: string;
-    status: string;
-    coverUrl: string | null;
-    location: string | null;
-    capacity: number | null;
-    dressCode: string | null;
-    groupLink: string | null;
-    eventDate: Date | null;
-    endDate: Date | null;
-    sendToPipedrive: boolean;
-    whatsappInstanceId: string | null;
-    whatsappToken: string | null;
-    lastEditedById: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-    recurrenceFreq: string | null;
-    recurrenceInterval: number | null;
-    recurrenceUntil: Date | null;
-    folderId: string | null;
-    order: number;
-  }): EventEntity {
+  private map(row: EventRow): EventEntity {
     return new EventEntity(
       row.id,
       row.ownerId,
@@ -112,7 +116,7 @@ export class PrismaEventRepository implements EventRepositoryPort {
     ownerId: string,
     pagination: { skip: number; take: number },
     folderId?: string | null,
-  ): Promise<{ data: EventEntity[]; total: number }> {
+  ): Promise<{ data: EventWithMyRole[]; total: number }> {
     const where = {
       ...this.accessibleWhere(ownerId),
       ...(folderId !== undefined && { folderId }),
@@ -120,6 +124,9 @@ export class PrismaEventRepository implements EventRepositoryPort {
     const [rows, total] = await Promise.all([
       this.prisma.event.findMany({
         where,
+        // O vínculo do próprio usuário vem no mesmo join que já filtra a lista:
+        // é o que dá o `myRole` de cada card sem uma consulta por evento.
+        include: { collaborators: { where: { profileId: ownerId }, select: { role: true } } },
         // `order` é a posição manual do drag & drop; createdAt desempata e
         // mantém o comportamento antigo para quem nunca reordenou (tudo em 0).
         orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
@@ -128,7 +135,17 @@ export class PrismaEventRepository implements EventRepositoryPort {
       }),
       this.prisma.event.count({ where }),
     ]);
-    return { data: rows.map((r) => this.map(r)), total };
+    return { data: rows.map((r) => this.withMyRole(r, ownerId)), total };
+  }
+
+  /** Mesma regra do findOwnershipById: dono é admin implícito. */
+  private withMyRole(
+    row: EventRow & { collaborators?: Array<{ role: EventRole }> },
+    userId: string,
+  ): EventWithMyRole {
+    const role: EventRole =
+      row.ownerId === userId ? 'admin' : (row.collaborators?.[0]?.role ?? 'read');
+    return Object.assign(this.map(row), { myRole: role });
   }
 
   async reorder(ownerId: string, folderId: string | null, ids: string[]): Promise<void> {

@@ -8,6 +8,7 @@ import {
 import {
   EVENT_REPOSITORY_PORT,
   EventRepositoryPort,
+  EventWithMyRole,
 } from '@domain/event_module/i-repository-event';
 import {
   COLLABORATOR_REPOSITORY_PORT,
@@ -86,7 +87,7 @@ export class EventService {
     page: number,
     limit: number,
     folderId?: string | null,
-  ): Promise<{ data: EventEntity[]; total: number }> {
+  ): Promise<{ data: EventWithMyRole[]; total: number }> {
     return this.eventRepo.findAllByOwnerPaginated(
       ownerId,
       { skip: (page - 1) * limit, take: limit },

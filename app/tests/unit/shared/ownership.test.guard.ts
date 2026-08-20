@@ -1,5 +1,10 @@
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
-import { ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  ExecutionContext,
+  ForbiddenException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthenticatedUser } from '@domain/shared/authenticated-user.entity';
 import { EventRepositoryPort } from '@domain/event_module/i-repository-event';
 
@@ -139,5 +144,20 @@ describe('OwnershipGuard — papel mínimo por rota', () => {
     await expect(
       guard.canActivate(makeCtx({ user, params: { id: 'e1' }, method: 'GET' })),
     ).rejects.toThrow(ForbiddenException);
+  });
+
+  // O papel resolvido fica na request para o @CurrentEventRole (myRole no GET do
+  // evento) não precisar de uma segunda consulta.
+  it('exposes the resolved role on the request', async () => {
+    const request: Record<string, unknown> = { user, params: { id: 'e1' }, method: 'GET' };
+    const ctx = {
+      switchToHttp: () => ({ getRequest: () => request }),
+      getHandler: () => () => undefined,
+      getClass: () => class {},
+    } as unknown as ExecutionContext;
+    const { guard } = makeGuard(ownershipWith('invited'));
+
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    expect(request['eventRole']).toBe('invited');
   });
 });
