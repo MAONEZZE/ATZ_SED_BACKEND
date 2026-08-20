@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-repository.base';
 import { ProfileEntity } from '@domain/profile_module/profile.entity';
+import { ProfileRole } from '@domain/profile_module/profile-role.type';
 import {
   CreateProfileData,
   ProfileRepositoryPort,
@@ -16,6 +17,7 @@ type ProfileRow = {
   photoUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
+  role: ProfileRole;
 };
 
 @Injectable()
@@ -29,6 +31,7 @@ export class PrismaProfileRepository extends PrismaRepositoryBase implements Pro
       row.photoUrl,
       row.createdAt,
       row.updatedAt,
+      row.role,
     );
   }
 

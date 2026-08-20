@@ -31,6 +31,16 @@ enum EventRole {
   @@schema("SED")
 }
 
+/// Papel do usuário na plataforma. `team` é gente da empresa e pode consultar
+/// o RAG com dados confidenciais; `user` é todo o resto (inclusive cliente
+/// externo). Default `user`: papel se concede na mão, nunca se presume.
+enum ProfileRole {
+  team
+  user
+
+  @@schema("SED")
+}
+
 /// Que tipo de registro uma pasta organiza. Uma pasta serve a UM tipo só — não
 /// existe pasta mista (evento e template na mesma).
 enum FolderResourceType {
@@ -111,6 +121,7 @@ model Profile {
   name                     String
   email                    String
   photoUrl                 String?                   @map("photo_url")
+  role                     ProfileRole               @default(user)
   createdAt                DateTime                  @default(now()) @map("created_at")
   updatedAt                DateTime                  @updatedAt @map("updated_at")
   events                   Event[]                   @relation("EventOwner")

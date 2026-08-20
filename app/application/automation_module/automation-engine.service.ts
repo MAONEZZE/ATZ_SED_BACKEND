@@ -116,19 +116,6 @@ export class AutomationEngine {
     );
   }
 
-  /**
-   * Fires automations for a contact that may not have a Registration row
-   * (post-event / NPS submissions). Cross-form triggers use this path.
-   */
-  async fireForContact(
-    eventId: string,
-    trigger: string,
-    contact: { name: string; email: string; phone: string },
-    ruleIds?: string[],
-  ): Promise<void> {
-    await this.dispatchTrigger(eventId, trigger, contact, ruleIds);
-  }
-
   private async dispatchTrigger(
     eventId: string,
     trigger: string,
@@ -144,6 +131,19 @@ export class AutomationEngine {
 
     if (!event) {
       this.logger.warn({ eventId }, 'Event not found for automation');
+      return;
+    }
+
+    // Rascunho ainda está sendo montado; cancelado já avisou o inscrito pelo
+    // aviso de cancelamento (que não passa por aqui — vai direto ao outbox).
+    // `ended` continua disparando: evento encerrado ainda aceita resposta pública
+    // de formulário e inscrição (public-event.service / registration.service), e
+    // barrar aqui deixaria a resposta aceita sem a mensagem de confirmação.
+    if (event.status === 'draft' || event.status === 'cancelled') {
+      this.logger.warn(
+        { eventId, trigger, status: event.status },
+        'Automation skipped: event is not in a sendable status',
+      );
       return;
     }
 

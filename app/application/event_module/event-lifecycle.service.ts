@@ -7,6 +7,8 @@ import {
 import { EventEntity } from '@domain/event_module/event.entity';
 import { OutboxService } from '@application/outbox_module/outbox.service';
 import { FORM_REPOSITORY_PORT, FormRepositoryPort } from '@domain/form_module/i-repository-form';
+import { AutomationRuleEntity } from '@domain/automation_module/automation-rule.entity';
+import { RecurringSchedulerService } from '@application/automation_module/recurring-scheduler.service';
 import {
   AUTOMATION_REPOSITORY_PORT,
   AutomationRepositoryPort,
@@ -26,6 +28,7 @@ export class EventLifecycleService {
 
   constructor(
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
+    private readonly scheduler: RecurringSchedulerService,
     private readonly outbox: OutboxService,
     @Inject(FORM_REPOSITORY_PORT) private readonly forms: FormRepositoryPort,
     @Inject(AUTOMATION_REPOSITORY_PORT)
@@ -87,10 +90,14 @@ export class EventLifecycleService {
     }
 
     if (source.automationRules.length > 0) {
-      await this.automations.createManyForDuplication(
+      const createdRules = await this.automations.createManyForDuplication(
         newEvent.id,
         source.automationRules.map(({ formSlugs, ...rule }) => ({
           ...rule,
+          // A data de uma regra `on_date` é do evento de origem e pode já ter
+          // passado: copiar ativa faria a duplicação disparar tudo na varredura
+          // seguinte. Nasce inativa, e reativar exige data nova (400 se passada).
+          active: AutomationRuleEntity.isDate(rule.trigger) ? false : rule.active,
           // Formulário do evento de origem que não existe mais aqui (raro: só se
           // a criação de formulários acima falhar parcialmente) é descartado em
           // vez de travar a duplicação inteira.
@@ -99,6 +106,15 @@ export class EventLifecycleService {
             .filter((id): id is string => id !== undefined),
         })),
       );
+
+      // Regra `recurring` sem job scheduler no BullMQ fica ativa e muda: ela só
+      // voltaria a disparar no próximo boot, quando o `syncAll` do
+      // RecurringAutomationsWorker reconcilia. Registrar aqui fecha essa janela.
+      for (const rule of createdRules) {
+        if (rule.trigger === 'recurring' && rule.active && rule.cron && rule.timezone) {
+          await this.scheduler.upsert({ id: rule.id, cron: rule.cron, timezone: rule.timezone });
+        }
+      }
     }
 
     this.logger.log({ sourceId: eventId, newId: newEvent.id }, 'Event duplicated');

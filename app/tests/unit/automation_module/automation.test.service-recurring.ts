@@ -105,6 +105,7 @@ describe('AutomationService — recurring trigger', () => {
       'recurring',
       'tpl-1',
       undefined,
+      undefined,
     );
   });
 
@@ -115,6 +116,7 @@ describe('AutomationService — recurring trigger', () => {
       'evt-1',
       'on_approval',
       'tpl-1',
+      undefined,
       undefined,
     );
   });
@@ -318,6 +320,7 @@ describe('AutomationService — gatilho on_form_submitted', () => {
       'evt-1',
       'on_form_submitted',
       'tpl-1',
+      undefined,
       undefined,
     );
   });

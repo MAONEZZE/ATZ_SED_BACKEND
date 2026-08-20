@@ -83,12 +83,15 @@ export interface AutomationRepositoryPort {
 
   findAllRecurringActive(): Promise<RecurringSchedule[]>;
 
+  /** Regras `on_date` ativas cuja data já venceu e que ainda não foram marcadas. */
+  findDueDateRules(): Promise<Array<{ id: string; eventId: string; sendAt: Date }>>;
+
   /**
-   * Marca como disparadas e devolve as regras `on_date` cuja data já venceu.
-   * O UPDATE condicional é o claim: duas réplicas do backend não pegam a mesma
-   * regra, então a mensagem não sai duas vezes.
+   * Marca a regra como disparada. Chamado **depois** do envio: se o processo
+   * morrer no meio da varredura, a regra continua vencida e o tick seguinte
+   * retenta — o `dedupKey` do outbox impede mensagem repetida.
    */
-  claimDueDateRules(): Promise<Array<{ id: string; eventId: string; sendAt: Date }>>;
+  markDateRuleFired(id: string): Promise<void>;
 
   findById(id: string): Promise<AutomationRuleEntity | null>;
 
@@ -111,6 +114,12 @@ export interface AutomationRepositoryPort {
     trigger: string,
     templateId: string,
     excludeId?: string,
+    /**
+     * Só `on_date`: a data entra na chave, porque o mesmo template em datas
+     * diferentes são mensagens diferentes (o dedupKey do outbox carrega o
+     * `sendAt`). Ausente = chave sem data, como nos outros gatilhos.
+     */
+    sendAt?: Date | null,
   ): Promise<AutomationRuleEntity | null>;
 
   /** O template referenciado existe e é alcançável pelo evento (dele ou global)? */
@@ -145,8 +154,13 @@ export interface AutomationRepositoryPort {
    * `formIds` já vem resolvido pelo application layer (slug -> id do formulário
    * recém-criado no evento novo); o repositório só grava.
    */
+  /**
+   * Devolve as regras criadas (não só a contagem): a regra `recurring` copiada
+   * precisa do job scheduler registrado no BullMQ, e para isso o caller precisa
+   * do id novo.
+   */
   createManyForDuplication(
     eventId: string,
     rules: Array<Omit<EventDuplicationAutomationRule, 'formSlugs'> & { formIds: string[] }>,
-  ): Promise<{ count: number }>;
+  ): Promise<Array<{ id: string; trigger: string; cron: string | null; timezone: string | null; active: boolean }>>;
 }

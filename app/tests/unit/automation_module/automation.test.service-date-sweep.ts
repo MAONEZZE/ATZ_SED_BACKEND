@@ -3,7 +3,10 @@ import { DateAutomationsService } from '@application/automation_module/date-auto
 const SEND_AT = new Date('2027-02-12T12:00:00Z');
 
 function make(due: Array<{ id: string; eventId: string; sendAt: Date }>) {
-  const automations = { claimDueDateRules: jest.fn().mockResolvedValue(due) };
+  const automations = {
+    findDueDateRules: jest.fn().mockResolvedValue(due),
+    markDateRuleFired: jest.fn().mockResolvedValue(undefined),
+  };
   const eventRepo = {
     findWithApprovedRegistrationIds: jest
       .fn()
@@ -41,12 +44,35 @@ describe('DateAutomationsService.sweep', () => {
   });
 
   it('does nothing when no rule is due', async () => {
-    const { svc, eventRepo, engine } = make([]);
+    const { svc, eventRepo, engine, automations } = make([]);
 
     await svc.sweep();
 
     expect(eventRepo.findWithApprovedRegistrationIds).not.toHaveBeenCalled();
     expect(engine.fireAutomations).not.toHaveBeenCalled();
+    expect(automations.markDateRuleFired).not.toHaveBeenCalled();
+  });
+
+  // Marcar antes de enviar perderia os inscritos restantes para sempre se o
+  // processo morresse no meio: a regra sairia da varredura sem ter mandado.
+  it('marks the rule as fired only after dispatching it', async () => {
+    const { svc, automations, engine } = make([
+      { id: 'rule-1', eventId: 'evt-1', sendAt: SEND_AT },
+    ]);
+    const order: string[] = [];
+    engine.fireAutomations.mockImplementation(() => {
+      order.push('fire');
+      return Promise.resolve(undefined);
+    });
+    automations.markDateRuleFired.mockImplementation(() => {
+      order.push('mark');
+      return Promise.resolve(undefined);
+    });
+
+    await svc.sweep();
+
+    expect(order).toEqual(['fire', 'fire', 'mark']);
+    expect(automations.markDateRuleFired).toHaveBeenCalledWith('rule-1');
   });
 
   // A regra já foi marcada como disparada no claim: abortar o sweep por causa de
@@ -61,7 +87,7 @@ describe('DateAutomationsService.sweep', () => {
   });
 
   it('skips a rule whose event vanished and still processes the next one', async () => {
-    const { svc, eventRepo, engine } = make([
+    const { svc, eventRepo, engine, automations } = make([
       { id: 'rule-1', eventId: 'evt-morto', sendAt: SEND_AT },
       { id: 'rule-2', eventId: 'evt-1', sendAt: SEND_AT },
     ]);
@@ -77,5 +103,8 @@ describe('DateAutomationsService.sweep', () => {
       ['rule-2'],
       expect.any(String),
     );
+    // A regra órfã também é marcada: sem isso a varredura a revisitaria a cada
+    // 5 min para sempre.
+    expect(automations.markDateRuleFired).toHaveBeenCalledWith('rule-1');
   });
 });

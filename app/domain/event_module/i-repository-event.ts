@@ -77,6 +77,8 @@ export interface EventDuplicationAutomationRule {
   delayMinutes: number | null;
   cron: string | null;
   timezone: string | null;
+  /** Data do gatilho `on_date`. Copiada, mas a regra nasce inativa: a data é do evento antigo. */
+  sendAt: Date | null;
   active: boolean;
   order: number;
   /**
@@ -125,6 +127,8 @@ export interface EventAutomationContext {
   id: string;
   ownerId: string;
   title: string;
+  /** Rascunho e cancelado não disparam automação — checado no AutomationEngine. */
+  status: EventStatus;
   eventDate: Date | null;
   location: string | null;
   capacity: number | null;

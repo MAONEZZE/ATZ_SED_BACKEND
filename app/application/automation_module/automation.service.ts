@@ -100,6 +100,7 @@ export class AutomationService {
     await this.assertTemplateExists(input.templateId, eventId);
     const sendAt = this.resolveSendAt(input.trigger, input.sendAt, input.timezone);
     this.assertRuleValid(input.trigger, input.cron, input.timezone, input.formIds, sendAt);
+    this.assertSendAtFuture(input.trigger, sendAt, input.active ?? true, null);
     if (input.formIds?.length) await this.assertFormsBelongToEvent(input.formIds, eventId);
     if (input.folderId) await this.assertFolderBelongsToEvent(input.folderId, eventId);
     const formIds = AutomationRuleEntity.acceptsForm(input.trigger) ? (input.formIds ?? []) : [];
@@ -108,7 +109,7 @@ export class AutomationService {
     // o mesmo template em formulários diferentes vira uma regra com dois
     // formIds, não duas regras.
     if (input.active !== false) {
-      await this.assertNoActiveDuplicate(eventId, input.trigger, input.templateId);
+      await this.assertNoActiveDuplicate(eventId, input.trigger, input.templateId, sendAt);
     }
     const rule = await this.repo.create({
       eventId,
@@ -151,13 +152,22 @@ export class AutomationService {
           ? existing.sendAt
           : null;
     this.assertRuleValid(trigger, cron, timezone, mergedFormIds, sendAt);
+    // Remarcar a data reabre o disparo, então a regra volta a valer como nova:
+    // o `firedAt` gravado não a isenta da checagem de data futura.
+    const sendAtChanged = sendAt?.getTime() !== existing.sendAt?.getTime();
+    this.assertSendAtFuture(trigger, sendAt, willBeActive, sendAtChanged ? null : existing.firedAt);
     if (input.formIds?.length) await this.assertFormsBelongToEvent(input.formIds, eventId);
     const formIds = AutomationRuleEntity.acceptsForm(trigger) ? mergedFormIds : [];
 
     // A regra vale sobre o resultado da mesclagem: trocar só o template também
     // pode colidir com outra regra ativa do mesmo gatilho.
-    if (willBeActive && (input.trigger || input.templateId || input.active === true)) {
-      await this.assertNoActiveDuplicate(eventId, trigger, templateId, id);
+    // A data entra na condição: remarcar uma regra `on_date` para uma data já
+    // ocupada pelo mesmo template também é duplicata.
+    if (
+      willBeActive &&
+      (input.trigger || input.templateId || input.active === true || sendAtChanged)
+    ) {
+      await this.assertNoActiveDuplicate(eventId, trigger, templateId, sendAt, id);
     }
 
     const updated = await this.repo.update(id, {
@@ -173,7 +183,7 @@ export class AutomationService {
       ...(input.timezone !== undefined && { timezone: input.timezone }),
       // Remarcar a data (ou trocar de gatilho) reabre o disparo: sem limpar o
       // `firedAt`, uma regra já disparada nunca dispararia na data nova.
-      ...(sendAt?.getTime() !== existing.sendAt?.getTime() && { sendAt, firedAt: null }),
+      ...(sendAtChanged && { sendAt, firedAt: null }),
       ...(input.active !== undefined && { active: input.active }),
       ...(input.folderId !== undefined && { folderId: input.folderId }),
     });
@@ -235,10 +245,26 @@ export class AutomationService {
     const zone = timezone?.trim() || APP_TIMEZONE;
     const parsed = DateTime.fromISO(sendAt, { zone });
     if (!parsed.isValid) throw new BadRequestException('sendAt não é uma data ISO válida');
-    if (parsed.toMillis() <= DateTime.now().toMillis()) {
+    return parsed.toUTC().toJSDate();
+  }
+
+  /**
+   * Data no passado só passa em regra que **já disparou** (`firedAt`) ou que fica
+   * **inativa**. Sem isso, ativar uma regra `on_date` vencida — reativar uma
+   * antiga, ou ativar a que veio de uma duplicação de evento — faria a varredura
+   * seguinte mandar tudo "atrasado". Regra já disparada precisa continuar
+   * editável (mover de pasta, renomear), por isso o `firedAt` libera.
+   */
+  private assertSendAtFuture(
+    trigger: string,
+    sendAt: Date | null,
+    willBeActive: boolean,
+    firedAt: Date | null,
+  ): void {
+    if (!AutomationRuleEntity.isDate(trigger) || !sendAt || !willBeActive || firedAt) return;
+    if (sendAt.getTime() <= Date.now()) {
       throw new BadRequestException('sendAt precisa ser no futuro');
     }
-    return parsed.toUTC().toJSDate();
   }
 
   /** Cada formulário do gatilho tem que ser do próprio evento. */
@@ -274,21 +300,32 @@ export class AutomationService {
     if (!template) throw new NotFoundException('Template not found');
   }
 
+  /**
+   * Em `on_date` a chave da duplicata inclui a **data**: o mesmo template em
+   * datas diferentes são mensagens diferentes, e o `dedupKey` do outbox carrega o
+   * `sendAt`, então não há colisão. Nos outros gatilhos a chave segue sendo
+   * (evento, gatilho, template). Espelha os índices parciais do banco.
+   */
   private async assertNoActiveDuplicate(
     eventId: string,
     trigger: string,
     templateId: string,
+    sendAt?: Date | null,
     excludeId?: string,
   ): Promise<void> {
+    const scopedByDate = AutomationRuleEntity.isDate(trigger);
     const duplicate = await this.repo.findActiveByEventTriggerAndTemplate(
       eventId,
       trigger,
       templateId,
       excludeId,
+      scopedByDate ? (sendAt ?? null) : undefined,
     );
     if (duplicate) {
       throw new ConflictException(
-        `An active automation for trigger '${trigger}' with this template already exists on this event`,
+        scopedByDate
+          ? 'An active automation with this template already exists for this date on this event'
+          : `An active automation for trigger '${trigger}' with this template already exists on this event`,
       );
     }
   }

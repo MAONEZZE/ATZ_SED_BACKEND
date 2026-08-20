@@ -205,6 +205,7 @@ export class PrismaAutomationRepository
     trigger: string,
     templateId: string,
     excludeId?: string,
+    sendAt?: Date | null,
   ): Promise<AutomationRuleEntity | null> {
     const row = await this.prisma.automationRule.findFirst({
       where: {
@@ -212,6 +213,8 @@ export class PrismaAutomationRepository
         trigger: trigger as Prisma.AutomationRuleUncheckedCreateInput['trigger'],
         templateId,
         active: true,
+        // Espelha o índice parcial: no on_date a chave é (evento, template, data).
+        ...(sendAt !== undefined && { sendAt }),
         ...(excludeId && { id: { not: excludeId } }),
       },
     });
@@ -330,18 +333,23 @@ export class PrismaAutomationRepository
     return true;
   }
 
-  // Claim e leitura na mesma instrução: sem isso duas réplicas selecionariam a
-  // mesma regra vencida e a mensagem sairia duas vezes.
-  async claimDueDateRules(): Promise<Array<{ id: string; eventId: string; sendAt: Date }>> {
-    return this.prisma.$queryRaw<Array<{ id: string; eventId: string; sendAt: Date }>>`
-      UPDATE "SED"."automation_rules"
-         SET "fired_at" = now()
-       WHERE "trigger" = 'on_date'
-         AND "active"
-         AND "fired_at" IS NULL
-         AND "send_at" <= now()
-      RETURNING "id", "event_id" AS "eventId", "send_at" AS "sendAt"
-    `;
+  async findDueDateRules(): Promise<Array<{ id: string; eventId: string; sendAt: Date }>> {
+    const rows = await this.prisma.automationRule.findMany({
+      where: {
+        trigger: 'on_date',
+        active: true,
+        firedAt: null,
+        sendAt: { lte: new Date() },
+      },
+      select: { id: true, eventId: true, sendAt: true },
+      orderBy: { sendAt: 'asc' },
+    });
+    // `sendAt` é non-null pelo filtro; o select não sabe disso.
+    return rows.map((r) => ({ id: r.id, eventId: r.eventId, sendAt: r.sendAt as Date }));
+  }
+
+  async markDateRuleFired(id: string): Promise<void> {
+    await this.prisma.automationRule.update({ where: { id }, data: { firedAt: new Date() } });
   }
 
   /**
@@ -374,7 +382,9 @@ export class PrismaAutomationRepository
   async createManyForDuplication(
     eventId: string,
     rules: Array<Omit<EventDuplicationAutomationRule, 'formSlugs'> & { formIds: string[] }>,
-  ): Promise<{ count: number }> {
+  ): Promise<
+    Array<{ id: string; trigger: string; cron: string | null; timezone: string | null; active: boolean }>
+  > {
     const created = await this.prisma.$transaction(
       rules.map((a) =>
         this.prisma.automationRule.create({
@@ -385,6 +395,7 @@ export class PrismaAutomationRepository
             delayMinutes: a.delayMinutes ?? undefined,
             cron: a.cron ?? undefined,
             timezone: a.timezone ?? undefined,
+            sendAt: a.sendAt ?? undefined,
             order: a.order,
             active: a.active,
             ...(a.formIds.length && { forms: { create: a.formIds.map((formId) => ({ formId })) } }),
@@ -392,6 +403,12 @@ export class PrismaAutomationRepository
         }),
       ),
     );
-    return { count: created.length };
+    return created.map((r) => ({
+      id: r.id,
+      trigger: r.trigger,
+      cron: r.cron,
+      timezone: r.timezone,
+      active: r.active,
+    }));
   }
 }

@@ -12,6 +12,7 @@ const eventContext = {
   id: 'evt-1',
   ownerId: 'owner-1',
   title: 'Tech Day',
+  status: 'published',
   eventDate: new Date('2026-09-01T18:00:00Z'),
   location: 'SP',
   capacity: 100,
@@ -25,6 +26,7 @@ function rule(id: string, templateId: string, channel: 'email' | 'whatsapp') {
     id,
     templateId,
     trigger: 'on_approval',
+    formIds: [],
     template: { id: templateId, channel, subject: channel === 'email' ? 'Aprovado' : null, body: 'Oi {{nome}}' },
   };
 }
@@ -94,15 +96,15 @@ describe('AutomationEngine — múltiplas regras no mesmo gatilho', () => {
     ]);
   });
 
-  // Sem Registration (pós-evento/NPS) o engine monta a chave, e ela também
-  // separa as duas regras pelo templateId.
+  // Contato sem Registration (resposta de formulário de quem não é inscrito): o
+  // engine monta a chave, e ela também separa as duas regras pelo templateId.
   it('builds distinct dedupKeys per rule for a contact without registration', async () => {
     const { engine, outbox } = makeEngine([
       rule('rule-email', 'tpl-email', 'email'),
       rule('rule-whats', 'tpl-whats', 'whatsapp'),
     ]);
 
-    await engine.fireForContact('evt-1', 'on_approval', {
+    await engine.fireForForm('evt-1', 'form-1', {
       name: 'João',
       email: 'joao@test.com',
       phone: '+5511999998888',

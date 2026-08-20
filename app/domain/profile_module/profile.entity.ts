@@ -1,4 +1,5 @@
 import { EntityBase } from '@domain/shared/entity.base';
+import { ProfileRole } from './profile-role.type';
 
 /**
  * Perfil de um usuário da plataforma. `id` e `userId` são distintos: `userId`
@@ -15,12 +16,18 @@ export class ProfileEntity extends EntityBase {
     public readonly photoUrl: string | null,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
+    public readonly role: ProfileRole,
   ) {
     super(id);
   }
 
   hasPhoto(): boolean {
     return this.photoUrl !== null && this.photoUrl.length > 0;
+  }
+
+  /** Só `team` alcança o RAG com dados confidenciais. */
+  isTeam(): boolean {
+    return this.role === 'team';
   }
 
   /** Nome inicial de um perfil criado a partir da identidade de autenticação. */

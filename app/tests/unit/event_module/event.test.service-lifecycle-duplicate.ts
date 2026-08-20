@@ -9,18 +9,20 @@ function makeService(source: any, formsOverride?: Record<string, jest.Mock>) {
   } as any;
   const outbox = {} as any;
   const forms = formsOverride ?? { createWithFields: jest.fn().mockResolvedValue({}) };
-  const automations = { createManyForDuplication: jest.fn().mockResolvedValue({ count: 0 }) };
+  const automations = { createManyForDuplication: jest.fn().mockResolvedValue([]) };
+  const scheduler = { upsert: jest.fn().mockResolvedValue(undefined) };
   const registrations = {} as any;
   const templates = {} as any;
   const service = new EventLifecycleService(
     eventRepo,
+    scheduler as any,
     outbox,
     forms as any,
     automations as any,
     registrations,
     templates,
   );
-  return { service, eventRepo, forms, automations };
+  return { service, eventRepo, forms, automations, scheduler };
 }
 
 describe('EventLifecycleService.duplicate', () => {
@@ -138,6 +140,17 @@ describe('EventLifecycleService.duplicate — automation rules with formIds', ()
         order: 1,
         formSlugs: [],
       },
+      {
+        templateId: 'tpl-data',
+        trigger: 'on_date',
+        delayMinutes: null,
+        cron: null,
+        timezone: 'America/Sao_Paulo',
+        sendAt: new Date('2026-02-12T12:00:00Z'),
+        active: true,
+        order: 2,
+        formSlugs: [],
+      },
     ],
   };
 
@@ -156,6 +169,74 @@ describe('EventLifecycleService.duplicate — automation rules with formIds', ()
       expect.objectContaining({ templateId: 'tpl-1', formIds: ['form-new-1'] }),
     );
     expect(rules[0]).not.toHaveProperty('formSlugs');
+  });
+
+  // A regra copiada carrega a data do evento de origem, que pode já ter passado:
+  // ativa, a varredura seguinte dispararia tudo de uma vez.
+  it('copies an on_date rule deactivated, keeping its sendAt', async () => {
+    const { service, automations } = makeServiceWithNewForm();
+    await service.duplicate('evt-1', 'user-9');
+
+    const rules = automations.createManyForDuplication.mock.calls[0][1];
+    expect(rules[2]).toEqual(
+      expect.objectContaining({
+        templateId: 'tpl-data',
+        trigger: 'on_date',
+        sendAt: new Date('2026-02-12T12:00:00Z'),
+        active: false,
+      }),
+    );
+  });
+
+  it('keeps the other triggers active when duplicating', async () => {
+    const { service, automations } = makeServiceWithNewForm();
+    await service.duplicate('evt-1', 'user-9');
+
+    const rules = automations.createManyForDuplication.mock.calls[0][1];
+    expect(rules[0].active).toBe(true);
+    expect(rules[1].active).toBe(true);
+  });
+
+  // Regra copiada ativa sem scheduler no BullMQ não dispara até o próximo boot
+  // (quando o syncAll do worker reconcilia). Registrar na hora fecha a janela.
+  it('registers the BullMQ scheduler for a duplicated recurring rule', async () => {
+    const { service, automations, scheduler } = makeServiceWithNewForm();
+    automations.createManyForDuplication.mockResolvedValue([
+      { id: 'rule-new-1', trigger: 'on_form_submitted', cron: null, timezone: null, active: true },
+      {
+        id: 'rule-new-2',
+        trigger: 'recurring',
+        cron: '0 9 * * 1',
+        timezone: 'America/Sao_Paulo',
+        active: true,
+      },
+    ]);
+
+    await service.duplicate('evt-1', 'user-9');
+
+    expect(scheduler.upsert).toHaveBeenCalledTimes(1);
+    expect(scheduler.upsert).toHaveBeenCalledWith({
+      id: 'rule-new-2',
+      cron: '0 9 * * 1',
+      timezone: 'America/Sao_Paulo',
+    });
+  });
+
+  it('does not register a scheduler for a duplicated inactive recurring rule', async () => {
+    const { service, automations, scheduler } = makeServiceWithNewForm();
+    automations.createManyForDuplication.mockResolvedValue([
+      {
+        id: 'rule-new-2',
+        trigger: 'recurring',
+        cron: '0 9 * * 1',
+        timezone: 'America/Sao_Paulo',
+        active: false,
+      },
+    ]);
+
+    await service.duplicate('evt-1', 'user-9');
+
+    expect(scheduler.upsert).not.toHaveBeenCalled();
   });
 
   it('carries cron, timezone and order over for a recurring rule with no form scope', async () => {

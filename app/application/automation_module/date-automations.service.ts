@@ -15,9 +15,14 @@ import { AutomationEngine } from '@application/automation_module/automation-engi
  * os inscritos aprovados naquele momento.
  *
  * O agendamento mora no Postgres, não no Redis — um job BullMQ `delayed` de
- * meses seria perdido num flush. O claim (`fired_at`) é feito pelo repositório
- * no mesmo UPDATE que lê as regras vencidas, então duas réplicas do backend não
- * disparam a mesma regra.
+ * meses seria perdido num flush.
+ *
+ * A regra só é marcada como disparada **depois** do envio: se o processo morrer
+ * no meio da varredura, ela continua vencida e o tick seguinte retenta. Isso é
+ * seguro porque o caminho é idempotente — o `dedupKey` do outbox é @unique
+ * (`OutboxRepository.enqueue` devolve a linha existente no P2002) e o
+ * `MessageDispatchWorker` ignora linha já `sent`. O preço é que duas réplicas
+ * podem repetir o trabalho da mesma regra; nenhuma mensagem sai duas vezes.
  */
 @Injectable()
 export class DateAutomationsService {
@@ -32,16 +37,19 @@ export class DateAutomationsService {
 
   @Cron('*/5 * * * *')
   async sweep(): Promise<void> {
-    const due = await this.automations.claimDueDateRules();
+    const due = await this.automations.findDueDateRules();
     if (!due.length) return;
 
     for (const rule of due) {
       const event = await this.eventRepo.findWithApprovedRegistrationIds(rule.eventId);
       if (!event) {
+        // Evento apagado leva a regra em cascata, então isto é quase impossível;
+        // marcar evita revarrer a mesma linha a cada 5 min se acontecer.
         this.logger.warn(
           { ruleId: rule.id, eventId: rule.eventId },
           'Event not found for date automation',
         );
+        await this.automations.markDateRuleFired(rule.id);
         continue;
       }
 
@@ -60,6 +68,11 @@ export class DateAutomationsService {
           this.logger.error({ err, registrationId, ruleId: rule.id }, 'Date automation failed');
         }
       }
+
+      // Depois do loop: a data passou, a regra não volta. Vale também quando o
+      // engine barrou tudo (evento em rascunho ou cancelado) — a data não fica
+      // pendurada esperando uma publicação futura.
+      await this.automations.markDateRuleFired(rule.id);
     }
 
     this.logger.log(`Date automations fired: ${due.length} rule(s)`);
