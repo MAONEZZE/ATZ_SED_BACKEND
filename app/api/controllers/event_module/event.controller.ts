@@ -41,6 +41,7 @@ import {
   UpdateEventStatusDto,
 } from '@api/dto/event_module/update-event.dto';
 import { PaginationQueryDto, Paginated } from '@api/dto/shared/pagination';
+import { MoveItemDto } from '@api/dto/shared/move-item.dto';
 import { EventRole } from '@domain/collaborator_module/event-role.type';
 
 @ApiTags('Events')
@@ -109,6 +110,18 @@ export class EventController {
   @ApiResponse({ status: 204, description: 'Ordem reescrita' })
   reorder(@CurrentUser() user: AuthenticatedUser, @Body() dto: ReorderEventsDto) {
     return this.eventsService.reorder(user.id, dto.folderId ?? null, dto.ids);
+  }
+
+  // Arrasto item a item: o front manda só a âncora, não a lista da página.
+  @Patch(':id/move')
+  @UseGuards(OwnershipGuard)
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Mover o evento para antes de outro (drag & drop) dentro da pasta' })
+  @ApiParam({ name: 'id', description: 'UUID do evento arrastado' })
+  @ApiResponse({ status: 204, description: 'Ordem ajustada' })
+  @ApiResponse({ status: 404, description: 'Evento ou âncora fora do escopo' })
+  move(@Param('id') id: string, @Body() dto: MoveItemDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.eventsService.move(user.id, id, dto.beforeId);
   }
 
   @Get(':id')

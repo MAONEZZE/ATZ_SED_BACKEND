@@ -89,6 +89,11 @@ export class MessageTemplateService {
     await this.repo.reorder(userId, folderId, ids);
   }
 
+  async move(userId: string, id: string, beforeId?: string): Promise<void> {
+    const moved = await this.repo.move(userId, id, beforeId);
+    if (!moved) throw new NotFoundException('Template not found');
+  }
+
   async findOne(userId: string, id: string) {
     const template = await this.repo.findByIdForUser(id, userId);
     if (!template) throw new NotFoundException('Template not found');

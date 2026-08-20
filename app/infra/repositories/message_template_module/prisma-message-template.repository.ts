@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-repository.base';
 import { MessageChannel } from '@domain/shared/message-channel.type';
+import { resequence } from '@domain/shared/resequence';
+import { writesFor } from '@infra/repositories/shared/order-writes';
 import { MessageTemplateEntity } from '@domain/message_template_module/message-template.entity';
 import {
   CreateMessageTemplateData,
@@ -176,6 +178,34 @@ export class PrismaMessageTemplateRepository
         }),
       ),
     );
+  }
+
+  // Arrasto item a item: o front manda só a âncora, não a lista da página.
+  async move(userId: string, id: string, beforeId?: string): Promise<boolean> {
+    const item = await this.prisma.messageTemplate.findFirst({
+      where: { id, ...this.accessibleWhere(userId) },
+      select: { folderId: true },
+    });
+    if (!item) return false;
+
+    const rows = await this.prisma.messageTemplate.findMany({
+      where: { folderId: item.folderId, ...this.accessibleWhere(userId) },
+      orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
+      select: { id: true, order: true },
+    });
+    if (beforeId && !rows.some((r) => r.id === beforeId)) return false;
+
+    const sequence = resequence(
+      rows.map((r) => r.id),
+      id,
+      beforeId,
+    );
+    await this.prisma.$transaction(
+      writesFor(rows, sequence).map(({ id: rowId, order }) =>
+        this.prisma.messageTemplate.update({ where: { id: rowId }, data: { order } }),
+      ),
+    );
+    return true;
   }
 
   async delete(id: string): Promise<void> {

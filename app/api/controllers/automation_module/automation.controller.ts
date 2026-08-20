@@ -27,6 +27,7 @@ import {
   ReorderAutomationsDto,
   UpdateAutomationDto,
 } from '@api/dto/automation_module/automation.dto';
+import { MoveItemDto } from '@api/dto/shared/move-item.dto';
 import { Paginated } from '@api/dto/shared/pagination';
 
 @ApiTags('Automations')
@@ -70,6 +71,18 @@ export class AutomationController {
   @ApiResponse({ status: 404, description: 'Pasta não encontrada' })
   reorder(@Param('eventId') eventId: string, @Body() dto: ReorderAutomationsDto) {
     return this.automations.reorder(eventId, dto.folderId ?? null, dto.ids);
+  }
+
+  // Arrasto item a item: o front manda só a âncora, não a lista da página.
+  @Patch(':id/move')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Mover a automação para antes de outra (drag & drop) dentro da pasta' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiParam({ name: 'id', description: 'UUID da automação arrastada' })
+  @ApiResponse({ status: 204, description: 'Ordem ajustada' })
+  @ApiResponse({ status: 404, description: 'Automação ou âncora fora do escopo' })
+  move(@Param('eventId') eventId: string, @Param('id') id: string, @Body() dto: MoveItemDto) {
+    return this.automations.move(eventId, id, dto.beforeId);
   }
 
   @Get(':id')

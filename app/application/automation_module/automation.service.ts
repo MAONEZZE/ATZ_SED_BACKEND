@@ -75,6 +75,11 @@ export class AutomationService {
     await this.repo.reorder(eventId, folderId, ids);
   }
 
+  async move(eventId: string, id: string, beforeId?: string): Promise<void> {
+    const moved = await this.repo.move(eventId, id, beforeId);
+    if (!moved) throw new NotFoundException('Automation rule not found');
+  }
+
   /** All automations across the user's events (owner or collaborator), with event + template. */
   listForUser(userId: string, page: number, limit: number) {
     return this.repo.findAllForUserPaginated(userId, { skip: (page - 1) * limit, take: limit });

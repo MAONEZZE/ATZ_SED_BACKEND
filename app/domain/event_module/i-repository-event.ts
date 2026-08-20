@@ -166,6 +166,11 @@ export interface EventRepositoryPort {
   ): Promise<{ data: EventWithMyRole[]; total: number }>;
   /** Reescreve `order` na ordem dos ids, dentro do escopo (dono + pasta). */
   reorder(ownerId: string, folderId: string | null, ids: string[]): Promise<void>;
+  /**
+   * Move o evento para antes de `beforeId` (ausente = fim) na pasta em que ele
+   * já está. `false` = evento ou âncora fora do escopo acessível.
+   */
+  move(ownerId: string, id: string, beforeId?: string): Promise<boolean>;
   create(data: CreateEventData): Promise<EventEntity>;
   update(id: string, data: UpdateEventData): Promise<EventEntity>;
   updateStatus(id: string, status: EventStatus, editorId?: string): Promise<EventEntity>;

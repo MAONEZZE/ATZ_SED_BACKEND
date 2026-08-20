@@ -29,6 +29,8 @@ const PUBLIC_EVENT_SELECT = {
 } as const;
 import { EventEntity, EventStatus } from '@domain/event_module/event.entity';
 import { EventRole } from '@domain/collaborator_module/event-role.type';
+import { resequence } from '@domain/shared/resequence';
+import { writesFor } from '@infra/repositories/shared/order-writes';
 
 interface EventRow {
   id: string;
@@ -157,6 +159,36 @@ export class PrismaEventRepository implements EventRepositoryPort {
         }),
       ),
     );
+  }
+
+  // O front arrasta com a página que tem na mão e manda só dois ids; a
+  // sequência do escopo inteiro é lida aqui, e só as linhas cujo `order` mudou
+  // são escritas.
+  async move(ownerId: string, id: string, beforeId?: string): Promise<boolean> {
+    const item = await this.prisma.event.findFirst({
+      where: { id, ...this.accessibleWhere(ownerId) },
+      select: { folderId: true },
+    });
+    if (!item) return false;
+
+    const rows = await this.prisma.event.findMany({
+      where: { folderId: item.folderId, ...this.accessibleWhere(ownerId) },
+      orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
+      select: { id: true, order: true },
+    });
+    if (beforeId && !rows.some((r) => r.id === beforeId)) return false;
+
+    const sequence = resequence(
+      rows.map((r) => r.id),
+      id,
+      beforeId,
+    );
+    await this.prisma.$transaction(
+      writesFor(rows, sequence).map(({ id: rowId, order }) =>
+        this.prisma.event.update({ where: { id: rowId }, data: { order } }),
+      ),
+    );
+    return true;
   }
 
   async create(data: CreateEventData): Promise<EventEntity> {

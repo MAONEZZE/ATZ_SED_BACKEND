@@ -68,6 +68,11 @@ export interface MessageTemplateRepositoryPort {
    * (`null` = fora de pasta). Ignora id que o usuário não alcança.
    */
   reorder(userId: string, folderId: string | null, ids: string[]): Promise<void>;
+  /**
+   * Move o template para antes de `beforeId` (ausente = fim) na pasta em que ele
+   * já está. `false` = template ou âncora fora do escopo acessível.
+   */
+  move(userId: string, id: string, beforeId?: string): Promise<boolean>;
 
   delete(id: string): Promise<void>;
 

@@ -99,6 +99,11 @@ export class EventService {
     return this.eventRepo.reorder(ownerId, folderId, ids);
   }
 
+  async move(ownerId: string, id: string, beforeId?: string): Promise<void> {
+    const moved = await this.eventRepo.move(ownerId, id, beforeId);
+    if (!moved) throw new NotFoundException('Event not found');
+  }
+
   async findById(id: string): Promise<EventEntity> {
     const event = await this.eventRepo.findById(id);
     if (!event) throw new NotFoundException('Event not found');

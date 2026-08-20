@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-repository.base';
 import { MessageChannel } from '@domain/shared/message-channel.type';
+import { resequence } from '@domain/shared/resequence';
+import { writesFor } from '@infra/repositories/shared/order-writes';
 import { EventDuplicationAutomationRule } from '@domain/event_module/i-repository-event';
 import { MessageTemplateEntity } from '@domain/message_template_module/message-template.entity';
 import {
@@ -291,6 +293,34 @@ export class PrismaAutomationRepository
         }),
       ),
     );
+  }
+
+  // Arrasto item a item: o front manda só a âncora, não a lista da página.
+  async move(eventId: string, id: string, beforeId?: string): Promise<boolean> {
+    const item = await this.prisma.automationRule.findFirst({
+      where: { id, eventId },
+      select: { folderId: true },
+    });
+    if (!item) return false;
+
+    const rows = await this.prisma.automationRule.findMany({
+      where: { eventId, folderId: item.folderId },
+      orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+      select: { id: true, order: true },
+    });
+    if (beforeId && !rows.some((r) => r.id === beforeId)) return false;
+
+    const sequence = resequence(
+      rows.map((r) => r.id),
+      id,
+      beforeId,
+    );
+    await this.prisma.$transaction(
+      writesFor(rows, sequence).map(({ id: rowId, order }) =>
+        this.prisma.automationRule.update({ where: { id: rowId }, data: { order } }),
+      ),
+    );
+    return true;
   }
 
   /**

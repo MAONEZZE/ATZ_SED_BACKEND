@@ -113,6 +113,11 @@ export interface AutomationRepositoryPort {
    * (`null` = fora de pasta). O evento entra no `where` como guarda.
    */
   reorder(eventId: string, folderId: string | null, ids: string[]): Promise<void>;
+  /**
+   * Move a regra para antes de `beforeId` (ausente = fim) na pasta em que ela já
+   * está. `false` = regra ou âncora fora do evento/pasta.
+   */
+  move(eventId: string, id: string, beforeId?: string): Promise<boolean>;
 
   /**
    * Regras ativas de um evento+gatilho. `ruleIds` filtra pelo conjunto exato
