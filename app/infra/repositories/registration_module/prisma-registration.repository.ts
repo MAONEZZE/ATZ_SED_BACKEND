@@ -8,11 +8,7 @@ import {
   UpdateAnswersData,
   RegistrationWithEventDate,
 } from '@domain/registration_module/i-repository-registration';
-import {
-  RegistrationEntity,
-  FunnelStatus,
-  PipedriveStatus,
-} from '@domain/registration_module/registration.entity';
+import { RegistrationEntity, FunnelStatus } from '@domain/registration_module/registration.entity';
 
 @Injectable()
 export class PrismaRegistrationRepository
@@ -31,7 +27,6 @@ export class PrismaRegistrationRepository
     updatedAt: Date;
     imageAuthorization: boolean;
     attended: boolean;
-    pipedriveStatus: string | null;
     originFormId: string | null;
   }): RegistrationEntity {
     return new RegistrationEntity(
@@ -46,7 +41,6 @@ export class PrismaRegistrationRepository
       row.updatedAt,
       row.imageAuthorization,
       row.attended,
-      row.pipedriveStatus as PipedriveStatus | null,
       row.originFormId,
     );
   }
@@ -193,10 +187,6 @@ export class PrismaRegistrationRepository
        WHERE e.event_date IS NOT NULL
          AND right(regexp_replace(r.phone, '[^0-9]', '', 'g'), 8) = ${phoneSuffix}
     `;
-  }
-
-  async setPipedriveStatus(id: string, status: PipedriveStatus): Promise<void> {
-    await this.prisma.registration.update({ where: { id }, data: { pipedriveStatus: status } });
   }
 
   countByEvent(eventId: string): Promise<number> {

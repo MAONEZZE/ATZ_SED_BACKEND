@@ -7,6 +7,7 @@ import {
   FormResponseWithContext,
   UpsertFormResponseData,
 } from '@domain/form_response_module/i-repository-form-response';
+import { PipedriveStatus } from '@domain/registration_module/registration.entity';
 
 type ResponseRow = {
   id: string;
@@ -14,6 +15,7 @@ type ResponseRow = {
   eventId: string;
   registrationId: string;
   answers: Prisma.JsonValue;
+  pipedriveStatus: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -37,6 +39,7 @@ export class PrismaFormResponseRepository
       (row.answers ?? {}) as Record<string, unknown>,
       row.createdAt,
       row.updatedAt,
+      row.pipedriveStatus as PipedriveStatus | null,
     );
   }
 
@@ -102,5 +105,9 @@ export class PrismaFormResponseRepository
       this.prisma.formResponse.count({ where }),
     ]);
     return { data: rows.map((row) => this.toContext(row)), total };
+  }
+
+  async setPipedriveStatus(id: string, status: PipedriveStatus): Promise<void> {
+    await this.prisma.formResponse.update({ where: { id }, data: { pipedriveStatus: status } });
   }
 }

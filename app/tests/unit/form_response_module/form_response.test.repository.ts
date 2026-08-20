@@ -9,6 +9,7 @@ const ROW = {
   eventId: 'evt-1',
   registrationId: 'reg-1',
   answers: { Nota: '9' },
+  pipedriveStatus: null,
   createdAt: new Date('2026-08-17'),
   updatedAt: new Date('2026-08-17'),
   form: { name: 'NPS' },
@@ -109,5 +110,19 @@ describe('PrismaFormResponseRepository listagens', () => {
     expect(total).toBe(1);
     expect(data).toHaveLength(1);
     expect(count).toHaveBeenCalledWith({ where: { eventId: 'evt-1', formId: 'form-1' } });
+  });
+});
+
+describe('PrismaFormResponseRepository.setPipedriveStatus', () => {
+  it('updates the row by id', async () => {
+    const update = jest.fn().mockResolvedValue(ROW);
+    const { repo } = await makeRepo({ update });
+
+    await repo.setPipedriveStatus('resp-1', 'sent');
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'resp-1' },
+      data: { pipedriveStatus: 'sent' },
+    });
   });
 });

@@ -35,7 +35,6 @@ export interface CreateEventInput {
   groupLink?: string;
   eventDate?: Date;
   endDate?: Date;
-  sendToPipedrive?: boolean;
   recurrenceFreq?: string;
   recurrenceInterval?: number;
   recurrenceUntil?: Date;
@@ -52,7 +51,6 @@ export interface UpdateEventInput {
   groupLink?: string;
   eventDate?: Date;
   endDate?: Date;
-  sendToPipedrive?: boolean;
   whatsappInstanceId?: string;
   whatsappToken?: string;
   recurrenceFreq?: string;

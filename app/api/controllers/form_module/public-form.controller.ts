@@ -60,7 +60,7 @@ export class PublicFormController {
       formSlug,
       dto.phone,
       dto.answers,
-      { sendToPipedrive: dto.send_to_pipedrive, imageAuthorization: dto.image_authorization },
+      { imageAuthorization: dto.image_authorization },
     );
     return { registrationId: registration.id, created };
   }

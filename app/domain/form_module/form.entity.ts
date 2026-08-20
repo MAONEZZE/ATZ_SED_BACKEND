@@ -19,6 +19,7 @@ export class FormEntity extends EntityBase {
     public readonly postRegistrationMessage: string | null,
     public readonly linkPostSubscription: string | null,
     public readonly requireImageAuthorization: boolean,
+    public readonly sendToPipedrive: boolean,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
   ) {

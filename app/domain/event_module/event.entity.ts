@@ -28,7 +28,6 @@ export class EventEntity extends EntityBase {
     public readonly updatedAt?: Date,
     public endDate?: Date,
     public lastEditedById?: string,
-    public sendToPipedrive: boolean = false,
     public recurrenceFreq?: string,
     public recurrenceInterval?: number,
     public recurrenceUntil?: Date,

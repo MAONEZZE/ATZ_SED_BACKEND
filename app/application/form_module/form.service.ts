@@ -12,6 +12,7 @@ export interface CreateFormInput {
   postRegistrationMessage?: string;
   linkPostSubscription?: string;
   requireImageAuthorization?: boolean;
+  sendToPipedrive?: boolean;
 }
 
 @Injectable()

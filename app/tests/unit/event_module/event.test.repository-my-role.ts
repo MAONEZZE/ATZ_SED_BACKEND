@@ -15,7 +15,6 @@ function row(overrides: Record<string, unknown> = {}) {
     groupLink: null,
     eventDate: null,
     endDate: null,
-    sendToPipedrive: false,
     whatsappInstanceId: null,
     whatsappToken: null,
     lastEditedById: null,

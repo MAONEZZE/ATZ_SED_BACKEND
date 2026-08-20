@@ -5,7 +5,7 @@ import { FormEntity } from '@domain/form_module/form.entity';
 const DATE = new Date('2026-08-17T12:00:00Z');
 
 function form(id: string, name: string, slug: string, order = 0): FormEntity {
-  return new FormEntity(id, 'evt-1', name, slug, order, null, null, null, false, DATE, DATE);
+  return new FormEntity(id, 'evt-1', name, slug, order, null, null, null, false, false, DATE, DATE);
 }
 
 function make(forms: FormEntity[] = []) {

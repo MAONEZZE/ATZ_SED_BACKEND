@@ -1,4 +1,5 @@
 import { EntityBase } from '@domain/shared/entity.base';
+import { PipedriveStatus } from '@domain/registration_module/registration.entity';
 
 /**
  * Resposta de um inscrito a um formulário — a junção N formulários × N pessoas
@@ -16,6 +17,7 @@ export class FormResponseEntity extends EntityBase {
     public readonly answers: Record<string, unknown>,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
+    public readonly pipedriveStatus: PipedriveStatus | null = null,
   ) {
     super(id);
   }

@@ -76,7 +76,6 @@ export class EventLifecycleService {
       groupLink: source.groupLink,
       eventDate: source.eventDate,
       endDate: source.endDate,
-      sendToPipedrive: source.sendToPipedrive,
       lastEditedById: ownerId,
     });
 

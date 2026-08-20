@@ -24,7 +24,6 @@ const PUBLIC_EVENT_SELECT = {
   dressCode: true,
   eventDate: true,
   endDate: true,
-  sendToPipedrive: true,
   status: true,
 } as const;
 import { EventEntity, EventStatus } from '@domain/event_module/event.entity';
@@ -45,7 +44,6 @@ interface EventRow {
   groupLink: string | null;
   eventDate: Date | null;
   endDate: Date | null;
-  sendToPipedrive: boolean;
   whatsappInstanceId: string | null;
   whatsappToken: string | null;
   lastEditedById: string | null;
@@ -81,7 +79,6 @@ export class PrismaEventRepository implements EventRepositoryPort {
       row.updatedAt,
       row.endDate ?? undefined,
       row.lastEditedById ?? undefined,
-      row.sendToPipedrive,
       row.recurrenceFreq ?? undefined,
       row.recurrenceInterval ?? undefined,
       row.recurrenceUntil ?? undefined,
@@ -271,7 +268,6 @@ export class PrismaEventRepository implements EventRepositoryPort {
       groupLink: row.groupLink,
       eventDate: row.eventDate,
       endDate: row.endDate,
-      sendToPipedrive: row.sendToPipedrive,
       forms: row.forms.map((form) => ({
         name: form.name,
         slug: form.slug,
@@ -279,6 +275,7 @@ export class PrismaEventRepository implements EventRepositoryPort {
         description: form.description,
         postRegistrationMessage: form.postRegistrationMessage,
         linkPostSubscription: form.linkPostSubscription,
+        sendToPipedrive: form.sendToPipedrive,
         fields: form.fields.map((f) => ({
           label: f.label,
           type: f.type,

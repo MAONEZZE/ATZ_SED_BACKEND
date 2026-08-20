@@ -41,6 +41,14 @@ export class CreateFormDto {
   @IsOptional()
   @IsBoolean()
   requireImageAuthorization?: boolean;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Se true, respostas a este formulário enviam o payload ao webhook do Pipedrive.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  sendToPipedrive?: boolean;
 }
 
 export class UpdateFormDto {
@@ -70,6 +78,11 @@ export class UpdateFormDto {
   @IsOptional()
   @IsBoolean()
   requireImageAuthorization?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  sendToPipedrive?: boolean;
 }
 
 export class ReorderFormsDto {
@@ -93,11 +106,6 @@ export class SubmitFormResponseDto {
   })
   @IsObject()
   answers!: Record<string, unknown>;
-
-  @ApiPropertyOptional({ description: 'Sobrepõe o padrão do evento no envio ao Pipedrive.' })
-  @IsOptional()
-  @IsBoolean()
-  send_to_pipedrive?: boolean;
 
   @ApiPropertyOptional({ description: 'Consentimento de uso de imagem, quando o formulário exige.' })
   @IsOptional()

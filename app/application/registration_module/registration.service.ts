@@ -107,7 +107,7 @@ export class RegistrationService {
     formSlug: string,
     phone: string,
     answers: Record<string, unknown>,
-    options?: { sendToPipedrive?: boolean; imageAuthorization?: boolean },
+    options?: { imageAuthorization?: boolean },
   ): Promise<{ registration: RegistrationEntity; created: boolean }> {
     const event = await this.eventsService.findBySlug(eventSlug);
     if (event.status !== 'published' && event.status !== 'ended') {
@@ -140,7 +140,7 @@ export class RegistrationService {
           options?.imageAuthorization,
         );
 
-    await this.formResponses.upsert({
+    const response = await this.formResponses.upsert({
       formId: form.id,
       eventId: event.id,
       registrationId: registration.id,
@@ -156,9 +156,7 @@ export class RegistrationService {
       }),
     );
 
-    if (!existing) {
-      await this.sendToPipedrive(event, registration, storedAnswers, options?.sendToPipedrive);
-    }
+    await this.dispatchToPipedrive(event, form, registration, response, storedAnswers);
 
     return { registration, created: !existing };
   }
@@ -203,21 +201,27 @@ export class RegistrationService {
   }
 
   /**
-   * Fire-and-forget: não bloqueia a resposta pública no webhook. O resultado
-   * fica em `Registration.pipedriveStatus` (antes vivia em user_subscriptions).
+   * Fire-and-forget: não bloqueia a resposta pública no webhook. A decisão é do
+   * formulário (não mais do evento), e o resultado fica por resposta — assim um
+   * inscrito que já existia também dispara ao responder um formulário com a flag
+   * ligada, o que o antigo gate `!existing` bloqueava.
    */
-  private async sendToPipedrive(
+  private async dispatchToPipedrive(
     event: EventEntity,
+    form: { id: string; sendToPipedrive: boolean },
     reg: RegistrationEntity,
+    response: { id: string; pipedriveStatus: string | null },
     answers: Record<string, unknown>,
-    override?: boolean,
   ): Promise<void> {
-    const should = override ?? event.sendToPipedrive;
-    if (!should) {
-      await this.regRepo.setPipedriveStatus(reg.id, 'skipped');
+    // Já entregou: reenvio da mesma resposta não repete o webhook.
+    if (response.pipedriveStatus === 'sent') return;
+
+    if (!form.sendToPipedrive) {
+      await this.formResponses.setPipedriveStatus(response.id, 'skipped');
       return;
     }
-    await this.regRepo.setPipedriveStatus(reg.id, 'pending');
+
+    await this.formResponses.setPipedriveStatus(response.id, 'pending');
     void this.pipedrive
       .send({
         event: {
@@ -230,10 +234,10 @@ export class RegistrationService {
         contact: { email: reg.email, phone: reg.phone },
         answers,
       })
-      .then(() => this.regRepo.setPipedriveStatus(reg.id, 'sent'))
+      .then(() => this.formResponses.setPipedriveStatus(response.id, 'sent'))
       .catch((err) => {
-        this.logger.error({ err, eventId: event.id }, 'Pipedrive webhook error');
-        return this.regRepo.setPipedriveStatus(reg.id, 'failed');
+        this.logger.error({ err, eventId: event.id, formId: form.id }, 'Pipedrive webhook error');
+        return this.formResponses.setPipedriveStatus(response.id, 'failed');
       });
   }
 

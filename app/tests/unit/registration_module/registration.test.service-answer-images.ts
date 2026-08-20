@@ -11,7 +11,6 @@ const event = {
   title: 'Tech Day',
   status: 'published',
   capacity: null,
-  sendToPipedrive: true,
 };
 
 function make(overrides?: { existing?: unknown }) {
@@ -21,7 +20,6 @@ function make(overrides?: { existing?: unknown }) {
       .mockResolvedValue(overrides && 'existing' in overrides ? overrides.existing : null),
     create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 'reg-new', ...data })),
     countByEvent: jest.fn().mockResolvedValue(0),
-    setPipedriveStatus: jest.fn().mockResolvedValue(undefined),
     findById: jest.fn().mockResolvedValue({
       id: 'reg-1',
       eventId: 'evt-1',
@@ -37,11 +35,16 @@ function make(overrides?: { existing?: unknown }) {
   const emitter = { emit: jest.fn() };
   const pipedrive = { send: jest.fn().mockResolvedValue(undefined) };
   const forms = {
-    findPublic: jest.fn().mockResolvedValue({ id: 'form-1', requireImageAuthorization: false }),
+    findPublic: jest
+      .fn()
+      .mockResolvedValue({ id: 'form-1', requireImageAuthorization: false, sendToPipedrive: false }),
     primary: jest.fn(),
     findOne: jest.fn(),
   };
-  const formResponses = { upsert: jest.fn().mockResolvedValue({ id: 'resp-1' }) };
+  const formResponses = {
+    upsert: jest.fn().mockResolvedValue({ id: 'resp-1', pipedriveStatus: null }),
+    setPipedriveStatus: jest.fn().mockResolvedValue(undefined),
+  };
   const formFields = {
     listValidationFields: jest
       .fn()
@@ -67,7 +70,7 @@ function make(overrides?: { existing?: unknown }) {
     formFields as any,
     answerImages as any,
   );
-  return { service, regRepo, pipedrive, formResponses, answerImages };
+  return { service, regRepo, pipedrive, forms, formResponses, answerImages };
 }
 
 // A submissão usa o MESMO objeto answers em três consumidores. Converter depois
@@ -107,11 +110,14 @@ describe('RegistrationService.submitForm — imagem materializada', () => {
   });
 
   it('sends the URL to the CRM, not megabytes of base64', async () => {
-    const { service, pipedrive } = make();
-
-    await service.submitForm('tech-day', 'inscricao', '11999998888', { Foto: BASE64 }, {
+    const { service, forms, pipedrive } = make();
+    forms.findPublic.mockResolvedValue({
+      id: 'form-1',
+      requireImageAuthorization: false,
       sendToPipedrive: true,
     });
+
+    await service.submitForm('tech-day', 'inscricao', '11999998888', { Foto: BASE64 });
 
     expect(pipedrive.send).toHaveBeenCalledWith(
       expect.objectContaining({ answers: { Foto: STORED } }),

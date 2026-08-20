@@ -36,7 +36,6 @@ describe('EventLifecycleService.duplicate', () => {
     groupLink: null,
     eventDate: null,
     endDate: null,
-    sendToPipedrive: false,
     forms: [
       {
         kind: 'registration',
@@ -117,7 +116,6 @@ describe('EventLifecycleService.duplicate — automation rules with formIds', ()
     groupLink: null,
     eventDate: null,
     endDate: null,
-    sendToPipedrive: false,
     forms: [{ slug: 'inscricao', fields: [] }],
     automationRules: [
       {

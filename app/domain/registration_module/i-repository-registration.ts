@@ -1,4 +1,4 @@
-import { RegistrationEntity, FunnelStatus, PipedriveStatus } from './registration.entity';
+import { RegistrationEntity, FunnelStatus } from './registration.entity';
 
 export const REGISTRATION_REPOSITORY_PORT = Symbol('REGISTRATION_REPOSITORY_PORT');
 
@@ -63,8 +63,6 @@ export interface RegistrationRepositoryPort {
    * por `phoneMatchKey`). Evento sem data fica fora — não há como medir distância.
    */
   findByPhoneWithEventDate(phoneSuffix: string): Promise<RegistrationWithEventDate[]>;
-  /** Resultado do envio ao Pipedrive por inscrito (antes vivia em user_subscriptions). */
-  setPipedriveStatus(id: string, status: PipedriveStatus): Promise<void>;
   countByEvent(eventId: string): Promise<number>;
   /** Registrations still in the funnel (approved/pending) — used for cancellation notices. */
   findActiveByEvent(eventId: string): Promise<RegistrationEntity[]>;

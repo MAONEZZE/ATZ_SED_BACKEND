@@ -19,6 +19,7 @@ type FormRow = {
   postRegistrationMessage: string | null;
   linkPostSubscription: string | null;
   requireImageAuthorization: boolean;
+  sendToPipedrive: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -36,6 +37,7 @@ export class PrismaFormRepository extends PrismaRepositoryBase implements FormRe
       row.postRegistrationMessage,
       row.linkPostSubscription,
       row.requireImageAuthorization,
+      row.sendToPipedrive,
       row.createdAt,
       row.updatedAt,
     );
@@ -88,6 +90,9 @@ export class PrismaFormRepository extends PrismaRepositoryBase implements FormRe
         ...(data.requireImageAuthorization !== undefined && {
           requireImageAuthorization: data.requireImageAuthorization,
         }),
+        ...(data.sendToPipedrive !== undefined && {
+          sendToPipedrive: data.sendToPipedrive,
+        }),
       },
     });
     return this.toEntity(row);
@@ -108,6 +113,7 @@ export class PrismaFormRepository extends PrismaRepositoryBase implements FormRe
       ...(data.requireImageAuthorization !== undefined && {
         requireImageAuthorization: data.requireImageAuthorization,
       }),
+      ...(data.sendToPipedrive !== undefined && { sendToPipedrive: data.sendToPipedrive }),
     };
     return this.toEntity(await this.prisma.form.update({ where: { id }, data: payload }));
   }
@@ -135,6 +141,7 @@ export class PrismaFormRepository extends PrismaRepositoryBase implements FormRe
         description: form.description,
         postRegistrationMessage: form.postRegistrationMessage,
         linkPostSubscription: form.linkPostSubscription,
+        sendToPipedrive: form.sendToPipedrive,
         fields: {
           create: form.fields.map((f) => ({
             label: f.label,

@@ -12,7 +12,6 @@ export interface CreateEventData {
   groupLink?: string;
   eventDate?: Date;
   endDate?: Date;
-  sendToPipedrive?: boolean;
   recurrenceFreq?: string;
   recurrenceInterval?: number;
   recurrenceUntil?: Date;
@@ -28,7 +27,6 @@ export interface UpdateEventData {
   groupLink?: string;
   eventDate?: Date;
   endDate?: Date;
-  sendToPipedrive?: boolean;
   whatsappInstanceId?: string;
   whatsappToken?: string;
   lastEditedById?: string;
@@ -61,6 +59,7 @@ export interface EventDuplicationForm {
   description: string | null;
   postRegistrationMessage: string | null;
   linkPostSubscription: string | null;
+  sendToPipedrive: boolean;
   fields: Array<{
     label: string;
     type: string;
@@ -97,7 +96,6 @@ export interface EventDuplicationSource {
   groupLink: string | null;
   eventDate: Date | null;
   endDate: Date | null;
-  sendToPipedrive: boolean;
   forms: EventDuplicationForm[];
   automationRules: EventDuplicationAutomationRule[];
 }
@@ -112,7 +110,6 @@ export interface CreateDuplicateEventData {
   groupLink: string | null;
   eventDate: Date | null;
   endDate: Date | null;
-  sendToPipedrive: boolean;
   lastEditedById: string;
 }
 
@@ -149,7 +146,6 @@ export interface PublicEventSummary {
   dressCode: string | null;
   eventDate: Date | null;
   endDate: Date | null;
-  sendToPipedrive: boolean;
   status: EventStatus;
 }
 

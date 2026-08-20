@@ -3,7 +3,6 @@ import {
   IsOptional,
   IsInt,
   IsDateString,
-  IsBoolean,
   IsIn,
   IsUUID,
   MinLength,
@@ -47,14 +46,6 @@ export class CreateEventDto {
   @IsOptional()
   @IsDateString()
   endDate?: string;
-
-  @ApiPropertyOptional({
-    example: false,
-    description: 'Se true, inscrições deste evento enviam o payload ao webhook do Pipedrive',
-  })
-  @IsOptional()
-  @IsBoolean()
-  sendToPipedrive?: boolean;
 
   @ApiPropertyOptional({
     example: 'WEEKLY',

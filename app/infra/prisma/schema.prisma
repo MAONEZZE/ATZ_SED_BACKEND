@@ -149,7 +149,6 @@ model Event {
   groupLink          String?             @map("group_link")
   eventDate          DateTime?           @map("event_date")
   endDate            DateTime?           @map("end_date")
-  sendToPipedrive    Boolean             @default(false) @map("send_to_pipedrive")
   recurrenceFreq     String?             @map("recurrence_freq")
   recurrenceInterval Int?                @map("recurrence_interval")
   recurrenceUntil    DateTime?           @map("recurrence_until")
@@ -268,6 +267,7 @@ model Form {
   postRegistrationMessage   String?              @map("post_registration_message")
   linkPostSubscription      String?              @map("link_post_subscription")
   requireImageAuthorization Boolean              @default(false) @map("require_image_authorization")
+  sendToPipedrive           Boolean              @default(false) @map("send_to_pipedrive")
   createdAt                 DateTime             @default(now()) @map("created_at")
   updatedAt                 DateTime             @updatedAt @map("updated_at")
   event                     Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -322,6 +322,9 @@ model FormResponse {
   eventId        String       @map("event_id")
   registrationId String       @map("registration_id")
   answers        Json
+  /// Resultado do envio ao Pipedrive. Antes vivia em Registration.pipedriveStatus,
+  /// que só cobria a resposta que criou o inscrito.
+  pipedriveStatus PipedriveStatus? @map("pipedrive_status")
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
   form           Form         @relation(fields: [formId], references: [id], onDelete: Cascade)
@@ -345,9 +348,6 @@ model Registration {
   phone              String
   imageAuthorization Boolean          @default(false) @map("image_authorization")
   attended           Boolean          @default(false)
-  /// Resultado do envio ao Pipedrive. Antes vivia em user_subscriptions, tabela
-  /// removida do código em 2026-08-17.
-  pipedriveStatus    PipedriveStatus? @map("pipedrive_status")
   /// Formulário que criou a inscrição. Imutável desde a criação — FormResponse é
   /// N-N e não serve pra isso depois da segunda resposta. Nulo para inscritos
   /// criados antes desta coluna (sem backfill possível) ou direto pelo painel.

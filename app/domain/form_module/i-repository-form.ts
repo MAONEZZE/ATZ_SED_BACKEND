@@ -11,6 +11,7 @@ export interface CreateFormData {
   postRegistrationMessage?: string | null;
   linkPostSubscription?: string | null;
   requireImageAuthorization?: boolean;
+  sendToPipedrive?: boolean;
 }
 
 /** Chave ausente deixa a coluna intacta. */
@@ -21,6 +22,7 @@ export interface UpdateFormData {
   postRegistrationMessage?: string;
   linkPostSubscription?: string;
   requireImageAuthorization?: boolean;
+  sendToPipedrive?: boolean;
 }
 
 export interface FormRepositoryPort {

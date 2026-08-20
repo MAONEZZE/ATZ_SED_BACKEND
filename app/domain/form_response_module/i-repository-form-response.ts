@@ -1,4 +1,5 @@
 import { FormResponseEntity } from './form-response.entity';
+import { PipedriveStatus } from '@domain/registration_module/registration.entity';
 
 export const FORM_RESPONSE_REPOSITORY_PORT = Symbol('FORM_RESPONSE_REPOSITORY_PORT');
 
@@ -32,4 +33,6 @@ export interface FormResponseRepositoryPort {
     pagination: { skip: number; take: number },
     formId?: string,
   ): Promise<{ data: FormResponseWithContext[]; total: number }>;
+  /** Resultado do envio ao Pipedrive por resposta (antes vivia em Registration). */
+  setPipedriveStatus(id: string, status: PipedriveStatus): Promise<void>;
 }

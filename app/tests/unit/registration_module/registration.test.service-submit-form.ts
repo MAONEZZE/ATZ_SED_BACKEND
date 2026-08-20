@@ -11,10 +11,9 @@ const event = {
   status: 'published',
   capacity: null as number | null,
   eventDate: new Date('2026-09-10T18:30:00Z'),
-  sendToPipedrive: false,
 };
 
-const form = { id: 'form-1', requireImageAuthorization: false };
+const form = { id: 'form-1', requireImageAuthorization: false, sendToPipedrive: false };
 
 const existingReg = {
   id: 'reg-1',
@@ -35,6 +34,7 @@ function make(overrides?: {
   count?: number;
   requireImage?: boolean;
   sendToPipedrive?: boolean;
+  responsePipedriveStatus?: string | null;
 }) {
   const regRepo = {
     findByEventAndContact: jest
@@ -42,27 +42,35 @@ function make(overrides?: {
       .mockResolvedValue(overrides && 'existing' in overrides ? overrides.existing : existingReg),
     create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 'reg-new', ...data })),
     countByEvent: jest.fn().mockResolvedValue(overrides?.count ?? 0),
-    setPipedriveStatus: jest.fn().mockResolvedValue(undefined),
   };
   const eventsService = {
     findBySlug: jest.fn().mockResolvedValue({
       ...event,
       status: overrides?.eventStatus ?? 'published',
       capacity: overrides?.capacity ?? null,
-      sendToPipedrive: overrides?.sendToPipedrive ?? false,
     }),
     findById: jest.fn(),
   };
   const emitter = { emit: jest.fn() };
   const pipedrive = { send: jest.fn().mockResolvedValue(undefined) };
   const forms = {
-    findPublic: jest
-      .fn()
-      .mockResolvedValue({ ...form, requireImageAuthorization: overrides?.requireImage ?? false }),
+    findPublic: jest.fn().mockResolvedValue({
+      ...form,
+      requireImageAuthorization: overrides?.requireImage ?? false,
+      sendToPipedrive: overrides?.sendToPipedrive ?? false,
+    }),
     primary: jest.fn(),
     findOne: jest.fn(),
   };
-  const formResponses = { upsert: jest.fn().mockResolvedValue({ id: 'resp-1' }) };
+  const formResponses = {
+    upsert: jest
+      .fn()
+      .mockResolvedValue({
+        id: 'resp-1',
+        pipedriveStatus: overrides?.responsePipedriveStatus ?? null,
+      }),
+    setPipedriveStatus: jest.fn().mockResolvedValue(undefined),
+  };
   const formFields = {
     listValidationFields: jest
       .fn()
@@ -235,21 +243,21 @@ describe('RegistrationService.submitForm — regras do evento', () => {
 });
 
 describe('RegistrationService.submitForm — Pipedrive', () => {
-  it('marks skipped when the event does not ask for it', async () => {
-    const { service, regRepo, pipedrive } = make({ existing: null });
+  it('marks skipped when the form does not ask for it', async () => {
+    const { service, formResponses, pipedrive } = make({ existing: null });
 
     await service.submitForm('tech-day', 'inscricao', '11912345678', { nome: 'Maria' });
 
-    expect(regRepo.setPipedriveStatus).toHaveBeenCalledWith('reg-new', 'skipped');
+    expect(formResponses.setPipedriveStatus).toHaveBeenCalledWith('resp-1', 'skipped');
     expect(pipedrive.send).not.toHaveBeenCalled();
   });
 
-  it('marks pending and sends when the event asks for it', async () => {
-    const { service, regRepo, pipedrive } = make({ existing: null, sendToPipedrive: true });
+  it('marks pending and sends when the form asks for it', async () => {
+    const { service, formResponses, pipedrive } = make({ existing: null, sendToPipedrive: true });
 
     await service.submitForm('tech-day', 'inscricao', '11912345678', { nome: 'Maria' });
 
-    expect(regRepo.setPipedriveStatus).toHaveBeenCalledWith('reg-new', 'pending');
+    expect(formResponses.setPipedriveStatus).toHaveBeenCalledWith('resp-1', 'pending');
     expect(pipedrive.send).toHaveBeenCalled();
   });
 
@@ -271,13 +279,38 @@ describe('RegistrationService.submitForm — Pipedrive', () => {
     );
   });
 
-  // Quem já era inscrito não é reenviado ao CRM a cada formulário respondido.
-  it('does not touch Pipedrive for an existing registration', async () => {
-    const { service, regRepo, pipedrive } = make({ sendToPipedrive: true });
+  // Caso que o antigo gate `!existing` bloqueava: quem já era inscrito também
+  // dispara ao responder um formulário com a flag ligada.
+  it('sends for an existing registration when the form asks for it', async () => {
+    const { service, formResponses, pipedrive } = make({ sendToPipedrive: true });
 
     await service.submitForm('tech-day', 'nps', '11999998888', {});
 
-    expect(regRepo.setPipedriveStatus).not.toHaveBeenCalled();
+    expect(formResponses.setPipedriveStatus).toHaveBeenCalledWith('resp-1', 'pending');
+    expect(pipedrive.send).toHaveBeenCalled();
+  });
+
+  it('does not resend a response already marked sent', async () => {
+    const { service, formResponses, pipedrive } = make({
+      sendToPipedrive: true,
+      responsePipedriveStatus: 'sent',
+    });
+
+    await service.submitForm('tech-day', 'nps', '11999998888', {});
+
+    expect(formResponses.setPipedriveStatus).not.toHaveBeenCalled();
     expect(pipedrive.send).not.toHaveBeenCalled();
+  });
+
+  it('retries a response marked failed', async () => {
+    const { service, formResponses, pipedrive } = make({
+      sendToPipedrive: true,
+      responsePipedriveStatus: 'failed',
+    });
+
+    await service.submitForm('tech-day', 'nps', '11999998888', {});
+
+    expect(formResponses.setPipedriveStatus).toHaveBeenCalledWith('resp-1', 'pending');
+    expect(pipedrive.send).toHaveBeenCalled();
   });
 });
