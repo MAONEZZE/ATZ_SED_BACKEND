@@ -58,6 +58,32 @@ describe('PrismaFormResponseRepository.upsert', () => {
     });
     expect(result).toBeInstanceOf(FormResponseEntity);
   });
+
+  // Resposta anônima: sem inscrito, `where` composto com null é inválido no
+  // Prisma, e idempotência não faz sentido sem chave — sempre create.
+  it('creates a new row instead of upserting when registrationId is null', async () => {
+    const create = jest.fn().mockResolvedValue({ ...ROW, registrationId: null, registration: null });
+    const upsert = jest.fn();
+    const { repo } = await makeRepo({ create, upsert });
+
+    const result = await repo.upsert({
+      formId: 'form-1',
+      eventId: 'evt-1',
+      registrationId: null,
+      answers: { Nota: '9' },
+    });
+
+    expect(upsert).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledWith({
+      data: {
+        formId: 'form-1',
+        eventId: 'evt-1',
+        registrationId: null,
+        answers: { Nota: '9' },
+      },
+    });
+    expect(result).toBeInstanceOf(FormResponseEntity);
+  });
 });
 
 describe('PrismaFormResponseRepository listagens', () => {
@@ -73,6 +99,25 @@ describe('PrismaFormResponseRepository listagens', () => {
       email: 'joao@test.com',
       phone: '5511999998888',
       answers: { Nota: '9' },
+    });
+  });
+
+  it('labels an anonymous response (null registration join) as Anônimo', async () => {
+    const anonymousRow = {
+      ...ROW,
+      registrationId: null,
+      registration: null,
+    };
+    const findMany = jest.fn().mockResolvedValue([anonymousRow]);
+    const { repo } = await makeRepo({ findMany });
+
+    const [row] = await repo.findAllByEvent('evt-1');
+
+    expect(row).toMatchObject({
+      registrationId: null,
+      name: 'Anônimo',
+      email: '',
+      phone: '',
     });
   });
 

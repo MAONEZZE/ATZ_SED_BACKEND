@@ -31,7 +31,12 @@ function make(folder: unknown = GLOBAL_FOLDER, existing: object = EXISTING) {
     reorder: jest.fn().mockResolvedValue(undefined),
   };
   const folders = { findById: jest.fn().mockResolvedValue(folder) };
-  return { svc: new MessageTemplateService(repo as any, folders as any), repo, folders };
+  const automations = { findActiveRuleByTemplate: jest.fn().mockResolvedValue(null) };
+  return {
+    svc: new MessageTemplateService(repo as any, folders as any, automations as any),
+    repo,
+    folders,
+  };
 }
 
 describe('MessageTemplateService.create folderId', () => {

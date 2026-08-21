@@ -386,12 +386,34 @@ export class PrismaAutomationRepository
 
   // A exceção do `ended` mora aqui, não no AutomationEngine (compartilhado, e
   // os outros gatilhos disparam em `ended` de propósito).
-  findActiveFormFieldDateRules({ take }: { take: number }): Promise<FormFieldDateRule[]> {
+  findActiveFormFieldDateRules({
+    take,
+    eventDateCutoff,
+  }: {
+    take: number;
+    eventDateCutoff: Date;
+  }): Promise<FormFieldDateRule[]> {
     return this.prisma.automationRule.findMany({
-      where: { trigger: 'on_date_form_field', active: true, event: { status: 'published' } },
+      where: {
+        trigger: 'on_date_form_field',
+        active: true,
+        event: {
+          status: 'published',
+          OR: [{ eventDate: null }, { eventDate: { gte: eventDateCutoff } }],
+        },
+      },
       select: { id: true, eventId: true, sendTime: true, timezone: true },
       orderBy: { createdAt: 'asc' },
       take,
+    });
+  }
+
+  findActiveRuleByTemplate(
+    templateId: string,
+  ): Promise<{ id: string; eventId: string; trigger: string } | null> {
+    return this.prisma.automationRule.findFirst({
+      where: { templateId, active: true },
+      select: { id: true, eventId: true, trigger: true },
     });
   }
 

@@ -6,7 +6,8 @@ export const FORM_RESPONSE_REPOSITORY_PORT = Symbol('FORM_RESPONSE_REPOSITORY_PO
 export interface UpsertFormResponseData {
   formId: string;
   eventId: string;
-  registrationId: string;
+  /** Null em resposta anônima: sem inscrito, sem upsert (vira create). */
+  registrationId: string | null;
   answers: Record<string, unknown>;
 }
 
@@ -15,7 +16,7 @@ export interface FormResponseWithContext {
   id: string;
   formId: string;
   formName: string;
-  registrationId: string;
+  registrationId: string | null;
   name: string;
   email: string;
   phone: string;
@@ -25,7 +26,7 @@ export interface FormResponseWithContext {
 }
 
 export interface FormResponseRepositoryPort {
-  /** Idempotente por `(formId, registrationId)`: reenviar sobrescreve as respostas. */
+  /** Idempotente por `(formId, registrationId)` quando há inscrito; resposta anônima (registrationId null) sempre cria linha nova. */
   upsert(data: UpsertFormResponseData): Promise<FormResponseEntity>;
   findAllByEvent(eventId: string, formId?: string): Promise<FormResponseWithContext[]>;
   findAllByEventPaginated(
@@ -45,4 +46,16 @@ export interface FormResponseRepositoryPort {
     formId: string,
     pagination: { skip: number; take: number },
   ): Promise<Array<{ registrationId: string; answers: Record<string, unknown> }>>;
+
+  /**
+   * Merge raso (jsonb ||) das chaves editadas dentro do FormResponse existente.
+   * No-op se a linha não existir (inscrito nunca respondeu esse formulário) —
+   * não cria uma resposta vazia. Usado pelo painel: mantém FormResponse.answers
+   * em sincronia com Registration.answers pros campos que a automação lê.
+   */
+  mergeAnswers(
+    formId: string,
+    registrationId: string,
+    partialAnswers: Record<string, unknown>,
+  ): Promise<void>;
 }

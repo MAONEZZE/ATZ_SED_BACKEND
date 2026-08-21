@@ -17,6 +17,7 @@ const form = { id: 'form-1', requireImageAuthorization: false, sendToPipedrive: 
 
 const NOTA_FIELD_ID = 'nota-field-id';
 const NOME_FIELD_ID = 'nome-field-id';
+const OPCAO_FIELD_ID = 'opcao-field-id';
 
 const existingReg = {
   id: 'reg-1',
@@ -38,6 +39,7 @@ function make(overrides?: {
   requireImage?: boolean;
   sendToPipedrive?: boolean;
   responsePipedriveStatus?: string | null;
+  anonymous?: boolean;
 }) {
   const regRepo = {
     findByEventAndContact: jest
@@ -61,6 +63,7 @@ function make(overrides?: {
       ...form,
       requireImageAuthorization: overrides?.requireImage ?? false,
       sendToPipedrive: overrides?.sendToPipedrive ?? false,
+      anonymous: overrides?.anonymous ?? false,
     }),
     primary: jest.fn(),
     findOne: jest.fn(),
@@ -78,6 +81,7 @@ function make(overrides?: {
     listValidationFields: jest.fn().mockResolvedValue([
       { id: NOTA_FIELD_ID, label: 'Nota', type: 'text', required: false, isFixed: false },
       { id: NOME_FIELD_ID, label: 'nome', type: 'text', required: false, isFixed: false },
+      { id: OPCAO_FIELD_ID, label: 'opcao', type: 'text', required: false, isFixed: false },
     ]),
   };
   // Pass-through por padrão; os testes de imagem trocam o retorno para provar
@@ -316,5 +320,77 @@ describe('RegistrationService.submitForm — Pipedrive', () => {
 
     expect(formResponses.setPipedriveStatus).toHaveBeenCalledWith('resp-1', 'pending');
     expect(pipedrive.send).toHaveBeenCalled();
+  });
+});
+
+// Formulário anônimo: sem telefone, sem inscrito. Bifurca antes de tudo que
+// depende de telefone (createFromForm, capacidade, form.submitted, Pipedrive).
+describe('RegistrationService.submitForm — formulário anônimo', () => {
+  it('records the response with a null registrationId and creates no Registration', async () => {
+    const { service, regRepo, formResponses } = make({ anonymous: true });
+
+    const result = await service.submitForm('tech-day', 'voto', undefined, { opcao: 'A' });
+
+    expect(regRepo.create).not.toHaveBeenCalled();
+    expect(regRepo.findByEventAndContact).not.toHaveBeenCalled();
+    expect(result).toEqual({ registration: null, created: false });
+    expect(formResponses.upsert).toHaveBeenCalledWith({
+      formId: 'form-1',
+      eventId: 'evt-1',
+      registrationId: null,
+      answers: { [OPCAO_FIELD_ID]: 'A' },
+    });
+  });
+
+  it('does not emit form.submitted', async () => {
+    const { service, emitter } = make({ anonymous: true });
+
+    await service.submitForm('tech-day', 'voto', undefined, { opcao: 'A' });
+
+    expect(emitter.emit).not.toHaveBeenCalledWith('form.submitted', expect.anything());
+  });
+
+  it('does not dispatch to Pipedrive', async () => {
+    const { service, formResponses, pipedrive } = make({ anonymous: true, sendToPipedrive: true });
+
+    await service.submitForm('tech-day', 'voto', undefined, { opcao: 'A' });
+
+    expect(formResponses.setPipedriveStatus).not.toHaveBeenCalled();
+    expect(pipedrive.send).not.toHaveBeenCalled();
+  });
+
+  it('does not consume event capacity', async () => {
+    const { service, regRepo } = make({ anonymous: true, capacity: 1, count: 1 });
+
+    await expect(
+      service.submitForm('tech-day', 'voto', undefined, { opcao: 'A' }),
+    ).resolves.toBeDefined();
+    expect(regRepo.countByEvent).not.toHaveBeenCalled();
+  });
+
+  it('creates a new row for each anonymous submission (non-idempotent)', async () => {
+    const { service, formResponses } = make({ anonymous: true });
+
+    await service.submitForm('tech-day', 'voto', undefined, { opcao: 'A' });
+    await service.submitForm('tech-day', 'voto', undefined, { opcao: 'B' });
+
+    expect(formResponses.upsert).toHaveBeenCalledTimes(2);
+    expect(formResponses.upsert).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ registrationId: null, answers: { [OPCAO_FIELD_ID]: 'A' } }),
+    );
+    expect(formResponses.upsert).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ registrationId: null, answers: { [OPCAO_FIELD_ID]: 'B' } }),
+    );
+  });
+
+  it('still requires a phone on a non-anonymous form', async () => {
+    const { service, formResponses } = make({ anonymous: false });
+
+    await expect(service.submitForm('tech-day', 'nps', undefined, { Nota: '9' })).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(formResponses.upsert).not.toHaveBeenCalled();
   });
 });

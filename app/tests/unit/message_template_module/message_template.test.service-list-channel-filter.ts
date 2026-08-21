@@ -6,7 +6,8 @@ function make(eventAccessible = true) {
     eventAccessible: jest.fn().mockResolvedValue(eventAccessible),
   };
   const folders = { findById: jest.fn().mockResolvedValue(null) };
-  const svc = new MessageTemplateService(repo as any, folders as any);
+  const automations = { findActiveRuleByTemplate: jest.fn().mockResolvedValue(null) };
+  const svc = new MessageTemplateService(repo as any, folders as any, automations as any);
   return { svc, repo, folders };
 }
 

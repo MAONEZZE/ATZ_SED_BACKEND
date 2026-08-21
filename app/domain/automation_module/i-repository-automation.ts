@@ -112,7 +112,15 @@ export interface AutomationRepositoryPort {
    * aqui, não no `AutomationEngine` (compartilhado, e os outros gatilhos
    * disparam de propósito em evento `ended`). `take` limita o lote por tick.
    */
-  findActiveFormFieldDateRules(opts: { take: number }): Promise<FormFieldDateRule[]>;
+  findActiveFormFieldDateRules(opts: {
+    take: number;
+    eventDateCutoff: Date;
+  }): Promise<FormFieldDateRule[]>;
+
+  /** Regra ativa que usa este template — barra o delete do template em uso. */
+  findActiveRuleByTemplate(
+    templateId: string,
+  ): Promise<{ id: string; eventId: string; trigger: string } | null>;
 
   findById(id: string): Promise<AutomationRuleEntity | null>;
 

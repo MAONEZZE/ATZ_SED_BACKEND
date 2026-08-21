@@ -108,7 +108,7 @@ export class AutomationService {
     const sendAt = this.resolveSendAt(input.trigger, input.sendAt, input.timezone);
     this.assertRuleValid(input.trigger, input.cron, input.timezone, input.formIds, sendAt);
     this.assertSendAtFuture(input.trigger, sendAt, input.active ?? true, null);
-    if (input.formIds?.length) await this.assertFormsBelongToEvent(input.formIds, eventId);
+    if (input.formIds?.length) await this.assertFormsBelongToEvent(input.formIds, eventId, input.trigger);
     if (input.folderId) await this.assertFolderBelongsToEvent(input.folderId, eventId);
     const formIds = AutomationRuleEntity.acceptsForm(input.trigger) ? (input.formIds ?? []) : [];
     // Gatilho repetido é permitido (e-mail + WhatsApp na mesma etapa, por
@@ -174,7 +174,7 @@ export class AutomationService {
     const sendAtChanged = sendAt?.getTime() !== existing.sendAt?.getTime();
     this.assertSendAtFuture(trigger, sendAt, willBeActive, sendAtChanged ? null : existing.firedAt);
     this.assertDateNotRearmed(existing, trigger, sendAt, input.sendAt);
-    if (input.formIds?.length) await this.assertFormsBelongToEvent(input.formIds, eventId);
+    if (input.formIds?.length) await this.assertFormsBelongToEvent(input.formIds, eventId, trigger);
     const formIds = AutomationRuleEntity.acceptsForm(trigger) ? mergedFormIds : [];
 
     // A regra vale sobre o resultado da mesclagem: trocar só o template também
@@ -327,11 +327,24 @@ export class AutomationService {
     }
   }
 
-  /** Cada formulário do gatilho tem que ser do próprio evento. */
-  private async assertFormsBelongToEvent(formIds: string[], eventId: string): Promise<void> {
+  /**
+   * Cada formulário do gatilho tem que ser do próprio evento. `on_form_submitted`
+   * também recusa formulário anônimo: sem inscrito, o evento `form.submitted`
+   * nunca dispara pra ele (ver submitForm no registration.service).
+   */
+  private async assertFormsBelongToEvent(
+    formIds: string[],
+    eventId: string,
+    trigger: string,
+  ): Promise<void> {
     for (const formId of formIds) {
       const form = await this.forms.findByIdAndEvent(formId, eventId);
       if (!form) throw new NotFoundException('Form not found');
+      if (trigger === 'on_form_submitted' && form.anonymous) {
+        throw new BadRequestException(
+          `Formulário '${form.name}' é anônimo e nunca dispara o gatilho on_form_submitted`,
+        );
+      }
     }
   }
 

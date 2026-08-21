@@ -20,6 +20,7 @@ type FormRow = {
   linkPostSubscription: string | null;
   requireImageAuthorization: boolean;
   sendToPipedrive: boolean;
+  anonymous: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -38,6 +39,7 @@ export class PrismaFormRepository extends PrismaRepositoryBase implements FormRe
       row.linkPostSubscription,
       row.requireImageAuthorization,
       row.sendToPipedrive,
+      row.anonymous,
       row.createdAt,
       row.updatedAt,
     );
@@ -93,12 +95,13 @@ export class PrismaFormRepository extends PrismaRepositoryBase implements FormRe
         ...(data.sendToPipedrive !== undefined && {
           sendToPipedrive: data.sendToPipedrive,
         }),
+        ...(data.anonymous !== undefined && { anonymous: data.anonymous }),
       },
     });
     return this.toEntity(row);
   }
 
-  /** Só as chaves presentes em `data` chegam ao banco. */
+  /** Só as chaves presentes em `data` chegam ao banco. `anonymous` fica de fora de propósito: imutável. */
   async update(id: string, data: UpdateFormData): Promise<FormEntity> {
     const payload: Prisma.FormUncheckedUpdateInput = {
       ...(data.name !== undefined && { name: data.name }),

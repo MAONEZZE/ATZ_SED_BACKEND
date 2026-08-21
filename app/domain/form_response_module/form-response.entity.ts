@@ -13,7 +13,7 @@ export class FormResponseEntity extends EntityBase {
     id: string,
     public readonly formId: string,
     public readonly eventId: string,
-    public readonly registrationId: string,
+    public readonly registrationId: string | null,
     public readonly answers: Record<string, unknown>,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,

@@ -13,6 +13,7 @@ export interface CreateFormInput {
   linkPostSubscription?: string;
   requireImageAuthorization?: boolean;
   sendToPipedrive?: boolean;
+  anonymous?: boolean;
 }
 
 @Injectable()
@@ -41,6 +42,11 @@ export class FormService {
 
   /** O slug vem do nome e é a chave pública dentro do evento — daí o 409 no choque. */
   async create(eventId: string, input: CreateFormInput): Promise<FormEntity> {
+    if (input.anonymous && (input.requireImageAuthorization || input.sendToPipedrive)) {
+      throw new BadRequestException(
+        'Formulário anônimo não pode exigir autorização de imagem nem enviar ao Pipedrive',
+      );
+    }
     const slug = FormEntity.generateSlug(input.name);
     if (!slug) throw new BadRequestException('Nome do formulário inválido');
     if (await this.repo.findByEventAndSlug(eventId, slug)) {
@@ -51,6 +57,11 @@ export class FormService {
 
   async update(id: string, eventId: string, input: UpdateFormData): Promise<FormEntity> {
     const form = await this.findOne(id, eventId);
+    if (form.anonymous && (input.requireImageAuthorization || input.sendToPipedrive)) {
+      throw new BadRequestException(
+        'Formulário anônimo não pode exigir autorização de imagem nem enviar ao Pipedrive',
+      );
+    }
     // Renomear reescreve o slug, então a URL pública do formulário muda junto.
     let slug: string | undefined;
     if (input.name !== undefined && input.name !== form.name) {

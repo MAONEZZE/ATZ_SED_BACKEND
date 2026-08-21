@@ -1,23 +1,34 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { FormFieldService } from '@application/form_field_module/form-field.service';
 
-function makeService(existing: { id: string; label: string } | null = null) {
+function makeService(
+  existing: { id: string; label: string } | null = null,
+  fieldType = 'text',
+  activeRules: unknown[] = [],
+) {
   const repo = {
     create: jest.fn().mockResolvedValue({ id: 'f-new' }),
     update: jest.fn().mockResolvedValue({ id: 'f1' }),
     delete: jest.fn().mockResolvedValue(undefined),
     findByEvent: jest
       .fn()
-      .mockResolvedValue({ id: 'f1', label: 'Campo', type: 'text', options: null }),
+      .mockResolvedValue({ id: 'f1', label: 'Campo', type: fieldType, options: null }),
     findByEventAndType: jest.fn().mockResolvedValue(existing),
     findAllByEventPaginated: jest.fn().mockResolvedValue({ data: [], total: 0 }),
     touchEvent: jest.fn().mockResolvedValue(undefined),
   };
   const eventsService = { findById: jest.fn().mockResolvedValue({ isEditable: () => true }) };
   const formsService = { findOne: jest.fn().mockResolvedValue({ id: 'form-1' }) };
+  const automations = { findActiveTriggerRules: jest.fn().mockResolvedValue(activeRules) };
   return {
-    service: new FormFieldService(repo as any, eventsService as any, formsService as any),
+    service: new FormFieldService(
+      repo as any,
+      eventsService as any,
+      formsService as any,
+      automations as any,
+    ),
     repo,
+    automations,
   };
 }
 
@@ -81,5 +92,31 @@ describe('FormFieldService — no máximo 1 campo on_date_automation_field por e
     const { service, repo } = makeService({ id: 'f-old', label: 'Dia da mensalidade' });
     await service.update('evt-1', 'f1', 'user-1', { label: 'Novo label' });
     expect(repo.findByEventAndType).not.toHaveBeenCalled();
+  });
+});
+
+describe('FormFieldService.delete — guarda contra regra on_date_form_field ativa', () => {
+  it('409s ao apagar o campo de data quando há regra on_date_form_field ativa', async () => {
+    const { service, repo } = makeService(null, 'on_date_automation_field', [{ id: 'rule-1' }]);
+
+    await expect(service.delete('evt-1', 'f1', 'user-1')).rejects.toThrow(ConflictException);
+    expect(repo.delete).not.toHaveBeenCalled();
+  });
+
+  it('apaga o campo de data quando não há regra ativa', async () => {
+    const { service, repo } = makeService(null, 'on_date_automation_field', []);
+
+    await service.delete('evt-1', 'f1', 'user-1');
+
+    expect(repo.delete).toHaveBeenCalledWith('f1');
+  });
+
+  it('apaga um campo comum sem consultar automações', async () => {
+    const { service, repo, automations } = makeService(null, 'text', []);
+
+    await service.delete('evt-1', 'f1', 'user-1');
+
+    expect(repo.delete).toHaveBeenCalledWith('f1');
+    expect(automations.findActiveTriggerRules).not.toHaveBeenCalled();
   });
 });

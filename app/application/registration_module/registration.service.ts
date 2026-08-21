@@ -105,10 +105,10 @@ export class RegistrationService {
   async submitForm(
     eventSlug: string,
     formSlug: string,
-    phone: string,
+    phone: string | undefined,
     answers: Record<string, unknown>,
     options?: { imageAuthorization?: boolean },
-  ): Promise<{ registration: RegistrationEntity; created: boolean }> {
+  ): Promise<{ registration: RegistrationEntity | null; created: boolean }> {
     const event = await this.eventsService.findBySlug(eventSlug);
     if (event.status !== 'published' && event.status !== 'ended') {
       throw new BadRequestException('Event is not accepting form responses');
@@ -136,6 +136,20 @@ export class RegistrationService {
         `Submissão do formulário ${form.id}: ${discarded} chave(s) de resposta sem campo correspondente, descartada(s)`,
       );
     }
+
+    // Anônimo: sem telefone, sem inscrito, sem capacidade, sem createFromForm,
+    // sem evento de domínio, sem Pipedrive. Cada envio é linha nova (a chave
+    // única (formId, registrationId) não protege — registrationId é null).
+    if (form.anonymous) {
+      await this.formResponses.upsert({
+        formId: form.id,
+        eventId: event.id,
+        registrationId: null,
+        answers: convertedAnswers,
+      });
+      return { registration: null, created: false };
+    }
+    if (!phone) throw new BadRequestException('Telefone é obrigatório');
 
     const normalized = normalizePhone(phone) ?? phone.replace(/\D/g, '');
     if (!normalized) throw new BadRequestException('Telefone é obrigatório');
@@ -458,6 +472,7 @@ export class RegistrationService {
     eventId: string,
     answers: Record<string, unknown>,
     formFields: AnswerFieldMeta[],
+    formId?: string,
   ): Promise<RegistrationEntity> {
     const reg = await this.regRepo.findById(id);
     if (!reg || reg.eventId !== eventId) {
@@ -502,6 +517,9 @@ export class RegistrationService {
     if (phone) updateData.phone = phone;
 
     const updated = await this.regRepo.updateAnswers(id, updateData);
+    if (formId) {
+      await this.formResponses.mergeAnswers(formId, id, convertedAnswers);
+    }
     return this.cloneWithAnswers(updated, hydrateAnswerLabels(formFields, updated.answers));
   }
 

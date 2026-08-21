@@ -12,9 +12,10 @@ export interface CreateFormData {
   linkPostSubscription?: string | null;
   requireImageAuthorization?: boolean;
   sendToPipedrive?: boolean;
+  anonymous?: boolean;
 }
 
-/** Chave ausente deixa a coluna intacta. */
+/** Sem `anonymous`: imutável após criação. Chave ausente deixa a coluna intacta. */
 export interface UpdateFormData {
   name?: string;
   slug?: string;

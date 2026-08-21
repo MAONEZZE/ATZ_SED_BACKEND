@@ -1,7 +1,6 @@
 import {
   IsArray,
   IsBoolean,
-  IsNotEmpty,
   IsObject,
   IsOptional,
   IsString,
@@ -49,6 +48,15 @@ export class CreateFormDto {
   @IsOptional()
   @IsBoolean()
   sendToPipedrive?: boolean;
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'Formulário sem telefone/e-mail: resposta não cria inscrito. Imutável após criação; incompatível com requireImageAuthorization e sendToPipedrive.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  anonymous?: boolean;
 }
 
 export class UpdateFormDto {
@@ -93,10 +101,14 @@ export class ReorderFormsDto {
 }
 
 export class SubmitFormResponseDto {
-  @ApiProperty({ example: '11999998888', description: 'Identidade do respondente; casa com o inscrito do evento.' })
+  @ApiPropertyOptional({
+    example: '11999998888',
+    description:
+      'Identidade do respondente; casa com o inscrito do evento. Obrigatório, exceto em formulário anônimo.',
+  })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  phone!: string;
+  phone?: string;
 
   @ApiProperty({
     type: 'object',

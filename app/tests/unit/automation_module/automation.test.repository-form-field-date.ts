@@ -19,15 +19,19 @@ describe('PrismaAutomationRepository.findActiveFormFieldDateRules', () => {
   it('filtra por trigger on_date_form_field, active e event.status published', async () => {
     const findMany = jest.fn().mockResolvedValue([]);
     const { repo } = await makeRepo({ findMany });
+    const eventDateCutoff = new Date('2026-07-22T00:00:00Z');
 
-    await repo.findActiveFormFieldDateRules({ take: 200 });
+    await repo.findActiveFormFieldDateRules({ take: 200, eventDateCutoff });
 
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
           trigger: 'on_date_form_field',
           active: true,
-          event: { status: 'published' },
+          event: {
+            status: 'published',
+            OR: [{ eventDate: null }, { eventDate: { gte: eventDateCutoff } }],
+          },
         },
         take: 200,
       }),

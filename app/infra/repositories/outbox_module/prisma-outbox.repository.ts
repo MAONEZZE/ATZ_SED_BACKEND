@@ -181,4 +181,11 @@ export class PrismaOutboxRepository implements OutboxRepositoryPort {
       data: { status: 'failed', errorMessage: error },
     });
   }
+
+  async deleteSentOlderThan(cutoff: Date): Promise<number> {
+    const { count } = await this.prisma.outboxMessage.deleteMany({
+      where: { status: 'sent', createdAt: { lt: cutoff } },
+    });
+    return count;
+  }
 }

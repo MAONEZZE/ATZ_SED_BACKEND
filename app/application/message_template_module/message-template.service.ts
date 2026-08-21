@@ -1,4 +1,10 @@
-import { Inject, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { MessageChannel } from '@domain/shared/message-channel.type';
 import { MessageTemplateValidator } from '@domain/message_template_module/message-template.validator';
 import {
@@ -10,6 +16,10 @@ import {
   FOLDER_REPOSITORY_PORT,
   FolderRepositoryPort,
 } from '@domain/folder_module/i-repository-folder';
+import {
+  AUTOMATION_REPOSITORY_PORT,
+  AutomationRepositoryPort,
+} from '@domain/automation_module/i-repository-automation';
 
 export interface CreateTemplateInput {
   name: string;
@@ -40,6 +50,8 @@ export class MessageTemplateService {
     private readonly repo: MessageTemplateRepositoryPort,
     @Inject(FOLDER_REPOSITORY_PORT)
     private readonly folders: FolderRepositoryPort,
+    @Inject(AUTOMATION_REPOSITORY_PORT)
+    private readonly automations: AutomationRepositoryPort,
   ) {}
 
   async create(userId: string, input: CreateTemplateInput) {
@@ -131,6 +143,12 @@ export class MessageTemplateService {
 
   async delete(userId: string, id: string): Promise<void> {
     await this.findOne(userId, id);
+    const rule = await this.automations.findActiveRuleByTemplate(id);
+    if (rule) {
+      throw new ConflictException(
+        `Template em uso por uma automação ativa (gatilho '${rule.trigger}'). Desative a regra antes de apagar o template.`,
+      );
+    }
     await this.repo.delete(id);
   }
 

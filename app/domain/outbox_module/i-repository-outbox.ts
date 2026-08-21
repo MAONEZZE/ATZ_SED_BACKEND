@@ -71,4 +71,6 @@ export interface OutboxRepositoryPort {
   updateSentAttachments(id: string, sentAttachments: number): Promise<void>;
   markDispatchSent(id: string, providerMessageId: string | null): Promise<void>;
   markDispatchFailed(id: string, error: string): Promise<void>;
+  /** Apaga linhas `sent` mais velhas que `cutoff`. MessageLog é a trilha durável — isto não perde histórico. */
+  deleteSentOlderThan(cutoff: Date): Promise<number>;
 }

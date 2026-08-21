@@ -19,6 +19,11 @@ async function bootstrap() {
   app.useBodyParser('json', { limit: bodyLimit });
   app.useBodyParser('urlencoded', { limit: bodyLimit, extended: true });
 
+  // Confia no primeiro salto de X-Forwarded-For pra resolver req.ip. Só seguro
+  // se todo tráfego chegar via proxy do Easypanel — sem caminho direto ao
+  // container, senão o header é forjável e o ThrottlerGuard global vira decorativo.
+  app.set('trust proxy', 1);
+
   app.use(
     helmet({
       contentSecurityPolicy: process.env.ENVIROMENT === 'dev' ? false : undefined,

@@ -158,7 +158,7 @@ export class RegistrationController {
   ) {
     const primary = await this.forms.primary(eventId);
     const formFields = primary ? await this.formFields.validationFields(primary.id) : [];
-    return this.registrations.updateAnswers(id, eventId, dto.answers, formFields);
+    return this.registrations.updateAnswers(id, eventId, dto.answers, formFields, primary?.id);
   }
 
   @Delete(':id')

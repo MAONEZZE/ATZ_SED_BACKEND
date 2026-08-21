@@ -274,6 +274,8 @@ model Form {
   linkPostSubscription      String?              @map("link_post_subscription")
   requireImageAuthorization Boolean              @default(false) @map("require_image_authorization")
   sendToPipedrive           Boolean              @default(false) @map("send_to_pipedrive")
+  /// Formulário sem inscrito por trás (sem telefone). Imutável após criação.
+  anonymous                 Boolean              @default(false)
   createdAt                 DateTime             @default(now()) @map("created_at")
   updatedAt                 DateTime             @updatedAt @map("updated_at")
   event                     Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -326,7 +328,8 @@ model FormResponse {
   id             String       @id @default(uuid())
   formId         String       @map("form_id")
   eventId        String       @map("event_id")
-  registrationId String       @map("registration_id")
+  /// Null para resposta anônima (formulário sem telefone, sem inscrito).
+  registrationId String?      @map("registration_id")
   answers        Json
   /// Resultado do envio ao Pipedrive. Antes vivia em Registration.pipedriveStatus,
   /// que só cobria a resposta que criou o inscrito.
@@ -335,7 +338,7 @@ model FormResponse {
   updatedAt      DateTime     @updatedAt @map("updated_at")
   form           Form         @relation(fields: [formId], references: [id], onDelete: Cascade)
   event          Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  registration   Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  registration   Registration? @relation(fields: [registrationId], references: [id], onDelete: Cascade)
 
   @@unique([formId, registrationId])
   @@index([eventId])

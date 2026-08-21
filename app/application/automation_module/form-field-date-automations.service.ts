@@ -89,8 +89,12 @@ export class FormFieldDateAutomationsService {
     // (query estável) perder a janela se as primeiras gastarem tempo — mês
     // perdido só pras últimas, todo mês.
     const now = DateTime.now();
+    const eventDateCutoff = now.minus({ days: 30 }).toJSDate();
 
-    const rules = await this.automations.findActiveFormFieldDateRules({ take: RULES_PER_TICK });
+    const rules = await this.automations.findActiveFormFieldDateRules({
+      take: RULES_PER_TICK,
+      eventDateCutoff,
+    });
     if (rules.length === 0) return;
 
     // Pré-filtro de janela antes de tocar em campo/respostas — é o que segura

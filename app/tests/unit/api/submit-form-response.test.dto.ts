@@ -24,12 +24,12 @@ describe('SubmitFormResponseDto', () => {
     expect(errors.length).toBeGreaterThan(0);
   });
 
-  it('rejects an empty phone', async () => {
+  // Telefone virou opcional no DTO: quem exige (formulário não-anônimo) é o
+  // service, em runtime, porque a obrigatoriedade depende do form.anonymous.
+  it('accepts a missing phone (anonymous form path)', async () => {
     const dto = plainToInstance(SubmitFormResponseDto, {
-      phone: '',
-      answers: { nome: 'João' },
+      answers: { nota: '9' },
     });
-    const errors = await validate(dto, VALIDATOR_OPTIONS);
-    expect(errors.some((e) => e.property === 'phone')).toBe(true);
+    expect(await validate(dto, VALIDATOR_OPTIONS)).toHaveLength(0);
   });
 });

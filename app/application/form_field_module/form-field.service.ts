@@ -5,6 +5,7 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { FieldType, FormFieldEntity } from '@domain/form_field_module/form-field.entity';
 import {
@@ -13,6 +14,10 @@ import {
 } from '@domain/form_field_module/i-repository-form-field';
 import { FormService } from '@application/form_module/form.service';
 import { EventService } from '@application/event_module/event.service';
+import {
+  AUTOMATION_REPOSITORY_PORT,
+  AutomationRepositoryPort,
+} from '@domain/automation_module/i-repository-automation';
 
 export interface CreateFormFieldInput {
   label: string;
@@ -41,6 +46,8 @@ export class FormFieldService {
     private readonly repo: FormFieldRepositoryPort,
     private readonly eventsService: EventService,
     private readonly formsService: FormService,
+    @Inject(AUTOMATION_REPOSITORY_PORT)
+    private readonly automations: AutomationRepositoryPort,
   ) {}
 
   listPaginated(eventId: string, formId: string | undefined, page: number, limit: number) {
@@ -133,7 +140,15 @@ export class FormFieldService {
 
   async delete(eventId: string, id: string, editorId: string): Promise<void> {
     await this.assertEventEditable(eventId);
-    await this.assertExists(eventId, id);
+    const field = await this.assertExists(eventId, id);
+    if (field.type === 'on_date_automation_field') {
+      const rules = await this.automations.findActiveTriggerRules(eventId, 'on_date_form_field');
+      if (rules.length > 0) {
+        throw new ConflictException(
+          'Este campo alimenta uma regra on_date_form_field ativa. Desative a regra antes de apagar o campo.',
+        );
+      }
+    }
     await this.repo.delete(id);
     await this.repo.touchEvent(eventId, editorId);
   }

@@ -27,6 +27,7 @@ export class PublicFormController {
       order: f.order,
       description: f.description,
       requireImageAuthorization: f.requireImageAuthorization,
+      anonymous: f.anonymous,
     }));
   }
 
@@ -42,12 +43,16 @@ export class PublicFormController {
   @HttpCode(201)
   @ApiOperation({
     summary:
-      'Responder um formulário público. O telefone identifica o inscrito; sem match, o inscrito é criado.',
+      'Responder um formulário público. Formulário normal: o telefone identifica o inscrito; sem match, o inscrito é criado. Formulário anônimo: sem telefone, resposta não vira inscrito.',
   })
-  @ApiResponse({ status: 201, description: '{ registrationId, created }' })
+  @ApiResponse({
+    status: 201,
+    description: '{ registrationId, created }; registrationId é null em formulário anônimo',
+  })
   @ApiResponse({
     status: 400,
-    description: 'Campo obrigatório ausente, telefone vazio, capacidade esgotada ou autorização de imagem obrigatória',
+    description:
+      'Campo obrigatório ausente, telefone vazio (formulário não-anônimo), capacidade esgotada ou autorização de imagem obrigatória',
   })
   @ApiResponse({ status: 404, description: 'Evento ou formulário não encontrado' })
   async submit(
@@ -62,6 +67,6 @@ export class PublicFormController {
       dto.answers,
       { imageAuthorization: dto.image_authorization },
     );
-    return { registrationId: registration.id, created };
+    return { registrationId: registration?.id ?? null, created };
   }
 }

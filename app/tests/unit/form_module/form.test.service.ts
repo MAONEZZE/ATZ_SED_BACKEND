@@ -4,8 +4,28 @@ import { FormEntity } from '@domain/form_module/form.entity';
 
 const DATE = new Date('2026-08-17T12:00:00Z');
 
-function form(id: string, name: string, slug: string, order = 0): FormEntity {
-  return new FormEntity(id, 'evt-1', name, slug, order, null, null, null, false, false, DATE, DATE);
+function form(
+  id: string,
+  name: string,
+  slug: string,
+  order = 0,
+  anonymous = false,
+): FormEntity {
+  return new FormEntity(
+    id,
+    'evt-1',
+    name,
+    slug,
+    order,
+    null,
+    null,
+    null,
+    false,
+    false,
+    anonymous,
+    DATE,
+    DATE,
+  );
 }
 
 function make(forms: FormEntity[] = []) {
@@ -53,6 +73,24 @@ describe('FormService.create', () => {
 
     await expect(service.create('evt-1', { name: '!!!' })).rejects.toThrow(BadRequestException);
   });
+
+  it('rejects anonymous combined with requireImageAuthorization', async () => {
+    const { service, repo } = make();
+
+    await expect(
+      service.create('evt-1', { name: 'Voto', anonymous: true, requireImageAuthorization: true }),
+    ).rejects.toThrow(BadRequestException);
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects anonymous combined with sendToPipedrive', async () => {
+    const { service, repo } = make();
+
+    await expect(
+      service.create('evt-1', { name: 'Voto', anonymous: true, sendToPipedrive: true }),
+    ).rejects.toThrow(BadRequestException);
+    expect(repo.create).not.toHaveBeenCalled();
+  });
 });
 
 describe('FormService.update', () => {
@@ -91,6 +129,26 @@ describe('FormService.update', () => {
     await expect(service.update('form-1', 'evt-1', { name: 'x' })).rejects.toThrow(
       NotFoundException,
     );
+  });
+
+  // anonymous nem está no shape de UpdateFormData (imutável); a trava aqui é a
+  // outra ponta: não deixar as flags incompatíveis ligarem num form já anônimo.
+  it('rejects turning on sendToPipedrive for an anonymous form', async () => {
+    const { service, repo } = make([form('form-1', 'Voto', 'voto', 0, true)]);
+
+    await expect(
+      service.update('form-1', 'evt-1', { sendToPipedrive: true }),
+    ).rejects.toThrow(BadRequestException);
+    expect(repo.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects turning on requireImageAuthorization for an anonymous form', async () => {
+    const { service, repo } = make([form('form-1', 'Voto', 'voto', 0, true)]);
+
+    await expect(
+      service.update('form-1', 'evt-1', { requireImageAuthorization: true }),
+    ).rejects.toThrow(BadRequestException);
+    expect(repo.update).not.toHaveBeenCalled();
   });
 });
 

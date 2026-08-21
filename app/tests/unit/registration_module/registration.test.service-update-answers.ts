@@ -34,17 +34,18 @@ function makeService(regOverrides: Partial<{ id: string; eventId: string }> = {}
   // Pass-through: a conversão de imagem tem testes próprios; aqui só interessa
   // que o resultado dela é o que segue para o repositório.
   const answerImages = { materialize: jest.fn().mockImplementation((a) => Promise.resolve(a)) };
+  const formResponses = { upsert: jest.fn(), mergeAnswers: jest.fn().mockResolvedValue(undefined) };
   const service = new RegistrationService(
     regRepo as any,
     eventsService as any,
     { emit: jest.fn() } as any,
     { send: jest.fn() } as any,
     { findOne: jest.fn(), primary: jest.fn(), findPublic: jest.fn() } as any,
-    { upsert: jest.fn() } as any,
+    formResponses as any,
     { listValidationFields: jest.fn().mockResolvedValue([]), listLabels: jest.fn().mockResolvedValue([]) } as any,
     answerImages as any,
   );
-  return { service, regRepo, answerImages };
+  return { service, regRepo, answerImages, formResponses };
 }
 
 const allFields: FormFieldLike[] = [
@@ -161,5 +162,28 @@ describe('RegistrationService.updateAnswers', () => {
     await service.updateAnswers('reg-1', 'evt-1', answers, fieldsNoFixed);
 
     expect(regRepo.updateAnswers).toHaveBeenCalledWith('reg-1', { answers: { [CIDADE_ID]: 'SP' } });
+  });
+
+  it('propagates the edited key to FormResponse via mergeAnswers when formId is given', async () => {
+    const { service, formResponses } = makeService();
+    const answers = { Nome: 'João', 'E-mail': 'joao@test.com', Telefone: '11999', Cidade: 'SP' };
+
+    await service.updateAnswers('reg-1', 'evt-1', answers, allFields, 'form-1');
+
+    expect(formResponses.mergeAnswers).toHaveBeenCalledWith('form-1', 'reg-1', {
+      [NOME_ID]: 'João',
+      [EMAIL_ID]: 'joao@test.com',
+      [TEL_ID]: '11999',
+      [CIDADE_ID]: 'SP',
+    });
+  });
+
+  it('does not call mergeAnswers when formId is absent', async () => {
+    const { service, formResponses } = makeService();
+    const answers = { Nome: 'João', 'E-mail': 'joao@test.com', Telefone: '11999' };
+
+    await service.updateAnswers('reg-1', 'evt-1', answers, allFields);
+
+    expect(formResponses.mergeAnswers).not.toHaveBeenCalled();
   });
 });

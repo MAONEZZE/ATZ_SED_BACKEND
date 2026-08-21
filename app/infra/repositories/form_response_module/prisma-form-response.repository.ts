@@ -13,7 +13,7 @@ type ResponseRow = {
   id: string;
   formId: string;
   eventId: string;
-  registrationId: string;
+  registrationId: string | null;
   answers: Prisma.JsonValue;
   pipedriveStatus: string | null;
   createdAt: Date;
@@ -22,7 +22,7 @@ type ResponseRow = {
 
 type ResponseRowWithJoins = ResponseRow & {
   form: { name: string };
-  registration: { name: string; email: string; phone: string };
+  registration: { name: string; email: string; phone: string } | null;
 };
 
 @Injectable()
@@ -49,9 +49,9 @@ export class PrismaFormResponseRepository
       formId: row.formId,
       formName: row.form.name,
       registrationId: row.registrationId,
-      name: row.registration.name,
-      email: row.registration.email,
-      phone: row.registration.phone,
+      name: row.registration?.name ?? 'Anônimo',
+      email: row.registration?.email ?? '',
+      phone: row.registration?.phone ?? '',
       answers: (row.answers ?? {}) as Record<string, unknown>,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -64,6 +64,20 @@ export class PrismaFormResponseRepository
   } as const;
 
   async upsert(data: UpsertFormResponseData): Promise<FormResponseEntity> {
+    // Resposta anônima (registrationId null): where composto com null é inválido
+    // no Prisma, e não faz sentido idempotência sem inscrito — sempre cria linha nova.
+    if (data.registrationId === null) {
+      const row = await this.prisma.formResponse.create({
+        data: {
+          formId: data.formId,
+          eventId: data.eventId,
+          registrationId: null,
+          answers: data.answers as Prisma.InputJsonValue,
+        },
+      });
+      return this.toEntity(row);
+    }
+
     const row = await this.prisma.formResponse.upsert({
       where: {
         formId_registrationId: { formId: data.formId, registrationId: data.registrationId },
@@ -126,8 +140,23 @@ export class PrismaFormResponseRepository
       take: pagination.take,
     });
     return rows.map((row) => ({
-      registrationId: row.registrationId,
+      // INNER JOIN acima já garante não-null em runtime; a coluna só é
+      // nullable pro caso (sem relação aqui) de formulário anônimo.
+      registrationId: row.registrationId as string,
       answers: (row.answers ?? {}) as Record<string, unknown>,
     }));
+  }
+
+  async mergeAnswers(
+    formId: string,
+    registrationId: string,
+    partialAnswers: Record<string, unknown>,
+  ): Promise<void> {
+    if (Object.keys(partialAnswers).length === 0) return;
+    await this.prisma.$executeRaw`
+      UPDATE "SED"."form_responses"
+      SET answers = answers || ${JSON.stringify(partialAnswers)}::jsonb
+      WHERE form_id = ${formId} AND registration_id = ${registrationId}
+    `;
   }
 }
