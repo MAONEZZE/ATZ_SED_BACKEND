@@ -34,3 +34,4 @@ docs/
 .worktrees/
 Plano/
 scripts/
+.claude/
