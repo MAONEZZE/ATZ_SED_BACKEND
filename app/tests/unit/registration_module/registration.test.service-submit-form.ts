@@ -15,6 +15,9 @@ const event = {
 
 const form = { id: 'form-1', requireImageAuthorization: false, sendToPipedrive: false };
 
+const NOTA_FIELD_ID = 'nota-field-id';
+const NOME_FIELD_ID = 'nome-field-id';
+
 const existingReg = {
   id: 'reg-1',
   eventId: 'evt-1',
@@ -72,9 +75,10 @@ function make(overrides?: {
     setPipedriveStatus: jest.fn().mockResolvedValue(undefined),
   };
   const formFields = {
-    listValidationFields: jest
-      .fn()
-      .mockResolvedValue([{ label: 'Nota', type: 'text', required: false, isFixed: false }]),
+    listValidationFields: jest.fn().mockResolvedValue([
+      { id: NOTA_FIELD_ID, label: 'Nota', type: 'text', required: false, isFixed: false },
+      { id: NOME_FIELD_ID, label: 'nome', type: 'text', required: false, isFixed: false },
+    ]),
   };
   // Pass-through por padrão; os testes de imagem trocam o retorno para provar
   // que é o valor convertido que chega em inscrito, FormResponse e Pipedrive.
@@ -108,7 +112,7 @@ describe('RegistrationService.submitForm — identidade por telefone', () => {
       formId: 'form-1',
       eventId: 'evt-1',
       registrationId: 'reg-1',
-      answers: { Nota: '9' },
+      answers: { [NOTA_FIELD_ID]: '9' },
     });
   });
 
@@ -147,7 +151,7 @@ describe('RegistrationService.submitForm — identidade por telefone', () => {
 
     expect(formResponses.upsert).toHaveBeenNthCalledWith(
       2,
-      expect.objectContaining({ answers: { Nota: '10' } }),
+      expect.objectContaining({ answers: { [NOTA_FIELD_ID]: '10' } }),
     );
   });
 });

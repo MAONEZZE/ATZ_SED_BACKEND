@@ -162,13 +162,64 @@ describe('AutomationService — on_date trigger', () => {
     expect(data.timezone).toBeNull();
   });
 
-  // Sem limpar o fired_at, remarcar a data de uma regra já disparada não
-  // dispararia nada na data nova.
-  it('clears firedAt when the date changes', async () => {
+  // Trava: regra já disparada não pode ter a data remarcada — senão a mesma
+  // regra manda a mensagem de novo.
+  it('rejects changing sendAt on a rule that already fired', async () => {
     const { svc, repo } = make();
     repo.findByEvent.mockResolvedValue(
       existingDateRule(new Date('2027-02-12T12:00:00Z'), new Date('2027-02-12T12:00:05Z')),
     );
+
+    await expect(
+      svc.update('evt-1', 'rule-1', { sendAt: '2027-03-20T09:00:00' }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  // Fecha o bypass de 2 hops: desativar + remarcar não pode zerar firedAt por
+  // baixo dos panos pra depois reativar sem passar pela trava.
+  it('rejects changing sendAt even when deactivating in the same patch', async () => {
+    const { svc, repo } = make();
+    repo.findByEvent.mockResolvedValue(
+      existingDateRule(new Date('2027-02-12T12:00:00Z'), new Date('2027-02-12T12:00:05Z')),
+    );
+
+    await expect(
+      svc.update('evt-1', 'rule-1', { sendAt: '2027-03-20T09:00:00', active: false }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  // Front que devolve o objeto inteiro (incluindo o sendAt que já estava lá) não
+  // pode tomar 400 numa regra já disparada — a trava compara instantes, não a
+  // presença da chave no patch.
+  it('accepts a patch that repeats the exact same sendAt on a fired rule', async () => {
+    const { svc, repo } = make();
+    repo.findByEvent.mockResolvedValue(
+      existingDateRule(new Date('2027-02-12T12:00:00Z'), new Date('2027-02-12T12:00:05Z')),
+    );
+
+    await expect(
+      svc.update('evt-1', 'rule-1', { sendAt: '2027-02-12T09:00:00' }),
+    ).resolves.toBeDefined();
+  });
+
+  // Trocar de gatilho não é "remarcar a data" — a trava do on_date não se
+  // aplica quando a regra deixa de ser on_date.
+  it('allows switching away from on_date on a fired rule', async () => {
+    const { svc, repo } = make();
+    repo.findByEvent.mockResolvedValue(
+      existingDateRule(new Date('2027-02-12T12:00:00Z'), new Date('2027-02-12T12:00:05Z')),
+    );
+
+    await expect(
+      svc.update('evt-1', 'rule-1', { trigger: 'on_approval' }),
+    ).resolves.toBeDefined();
+  });
+
+  // Regra que nunca disparou pode ter a data remarcada livremente — a trava só
+  // se aplica depois do primeiro disparo.
+  it('clears firedAt (already null) when the date changes on a rule that never fired', async () => {
+    const { svc, repo } = make();
+    repo.findByEvent.mockResolvedValue(existingDateRule(new Date('2027-02-12T12:00:00Z'), null));
 
     await svc.update('evt-1', 'rule-1', { sendAt: '2027-03-20T09:00:00' });
 

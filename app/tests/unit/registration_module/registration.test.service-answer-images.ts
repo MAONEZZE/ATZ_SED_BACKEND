@@ -3,6 +3,8 @@ import { RegistrationService } from '@application/registration_module/registrati
 const DATE = new Date('2026-08-19T12:00:00Z');
 const BASE64 = 'data:image/png;base64,AAAA';
 const STORED = 'https://proj.supabase.co/storage/v1/object/public/ATZ_SED/foto.png';
+const FOTO_FIELD_ID = 'field-foto';
+const NOME_FIELD_ID = 'field-nome';
 
 const event = {
   id: 'evt-1',
@@ -23,7 +25,7 @@ function make(overrides?: { existing?: unknown }) {
     findById: jest.fn().mockResolvedValue({
       id: 'reg-1',
       eventId: 'evt-1',
-      answers: { Nome: 'João' },
+      answers: { [NOME_FIELD_ID]: 'João' },
       createdAt: DATE,
     }),
     updateAnswers: jest.fn().mockImplementation((id, data) => Promise.resolve({ id, ...data })),
@@ -48,7 +50,10 @@ function make(overrides?: { existing?: unknown }) {
   const formFields = {
     listValidationFields: jest
       .fn()
-      .mockResolvedValue([{ label: 'Foto', type: 'image', required: false, isFixed: false }]),
+      .mockResolvedValue([
+        { id: FOTO_FIELD_ID, label: 'Foto', type: 'image', required: false, isFixed: false },
+      ]),
+    listLabels: jest.fn().mockResolvedValue([{ id: FOTO_FIELD_ID, label: 'Foto' }]),
   };
   // Simula a materialização de verdade: data URI entra, URL sai.
   const answerImages = {
@@ -89,27 +94,27 @@ describe('RegistrationService.submitForm — imagem materializada', () => {
     );
   });
 
-  it('stores the URL on the registration, never the base64', async () => {
+  it('stores the URL keyed by field id on the registration, never the base64', async () => {
     const { service, regRepo } = make();
 
     await service.submitForm('tech-day', 'inscricao', '11999998888', { Foto: BASE64 });
 
     expect(regRepo.create).toHaveBeenCalledWith(
-      expect.objectContaining({ answers: { Foto: STORED } }),
+      expect.objectContaining({ answers: { [FOTO_FIELD_ID]: STORED } }),
     );
   });
 
-  it('stores the URL on the FormResponse', async () => {
+  it('stores the URL on the FormResponse, keyed by field id', async () => {
     const { service, formResponses } = make();
 
     await service.submitForm('tech-day', 'inscricao', '11999998888', { Foto: BASE64 });
 
     expect(formResponses.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ answers: { Foto: STORED } }),
+      expect.objectContaining({ answers: { [FOTO_FIELD_ID]: STORED } }),
     );
   });
 
-  it('sends the URL to the CRM, not megabytes of base64', async () => {
+  it('sends the URL to the CRM hydrated back by label (external contract unchanged)', async () => {
     const { service, forms, pipedrive } = make();
     forms.findPublic.mockResolvedValue({
       id: 'form-1',
@@ -133,16 +138,19 @@ describe('RegistrationService.submitForm — imagem materializada', () => {
 
     expect(answerImages.materialize).toHaveBeenCalledTimes(1);
     expect(formResponses.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ answers: { Foto: STORED } }),
+      expect.objectContaining({ answers: { [FOTO_FIELD_ID]: STORED } }),
     );
   });
 });
 
 // Sem isso o painel reintroduz base64 no JSON que a submissão pública limpou.
 describe('RegistrationService.updateAnswers — imagem materializada', () => {
-  const fields = [{ label: 'Foto', type: 'image', required: false, isFixed: false }];
+  const fields = [
+    { id: FOTO_FIELD_ID, label: 'Foto', type: 'image', required: false, isFixed: false },
+    { id: NOME_FIELD_ID, label: 'Nome', type: 'text', required: false, isFixed: false },
+  ];
 
-  it('converts the edited answers before merging', async () => {
+  it('converts the edited answers before merging, keyed by field id', async () => {
     const { service, regRepo, answerImages } = make();
 
     await service.updateAnswers('reg-1', 'evt-1', { Foto: BASE64 }, fields);
@@ -150,7 +158,9 @@ describe('RegistrationService.updateAnswers — imagem materializada', () => {
     expect(answerImages.materialize).toHaveBeenCalledWith({ Foto: BASE64 }, { eventId: 'evt-1' });
     expect(regRepo.updateAnswers).toHaveBeenCalledWith(
       'reg-1',
-      expect.objectContaining({ answers: { Nome: 'João', Foto: STORED } }),
+      expect.objectContaining({
+        answers: { [NOME_FIELD_ID]: 'João', [FOTO_FIELD_ID]: STORED },
+      }),
     );
   });
 
@@ -161,7 +171,7 @@ describe('RegistrationService.updateAnswers — imagem materializada', () => {
 
     expect(regRepo.updateAnswers).toHaveBeenCalledWith(
       'reg-1',
-      expect.objectContaining({ answers: { Nome: 'Maria' } }),
+      expect.objectContaining({ answers: { [NOME_FIELD_ID]: 'Maria' } }),
     );
   });
 });

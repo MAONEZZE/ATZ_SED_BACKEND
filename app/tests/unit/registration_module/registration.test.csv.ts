@@ -1,5 +1,7 @@
 import { buildRegistrationsCsv } from '@application/registration_module/registration-csv';
 
+const EMPRESA_ID = 'empresa-id';
+
 const reg = {
   name: 'João',
   email: 'joao@test.com',
@@ -9,16 +11,13 @@ const reg = {
   imageAuthorization: true,
   attended: false,
   answers: {
-    nome: 'João',
-    email: 'joao@test.com',
-    telefone: '+5511999999999',
-    Empresa: 'ACME, Ltda',
+    [EMPRESA_ID]: 'ACME, Ltda',
   },
 };
 
 describe('buildRegistrationsCsv', () => {
   it('renders fixed header + dynamic columns from form field labels', () => {
-    const csv = buildRegistrationsCsv([reg], [{ label: 'Empresa' }]);
+    const csv = buildRegistrationsCsv([reg], [{ id: EMPRESA_ID, label: 'Empresa' }]);
     const lines = csv.replace(/^﻿/, '').split('\n');
     expect(lines[0]).toBe(
       'nome,email,telefone,status,data_inscricao,autorizacao_imagem,compareceu,Empresa',
@@ -26,7 +25,7 @@ describe('buildRegistrationsCsv', () => {
   });
 
   it('escapes values containing commas/quotes and formats date as ISO', () => {
-    const csv = buildRegistrationsCsv([reg], [{ label: 'Empresa' }]);
+    const csv = buildRegistrationsCsv([reg], [{ id: EMPRESA_ID, label: 'Empresa' }]);
     const lines = csv.replace(/^﻿/, '').split('\n');
     // Leading "'" neutralizes CSV-formula injection for cells starting with +/-/=/@
     // (Excel/Sheets hide the marker and render the value as plain text).
@@ -49,14 +48,14 @@ describe('buildRegistrationsCsv', () => {
   it('doubles internal quotes when escaping', () => {
     const withQuote = {
       ...reg,
-      answers: { ...reg.answers, Empresa: 'A "B" C' },
+      answers: { ...reg.answers, [EMPRESA_ID]: 'A "B" C' },
     };
-    const csv = buildRegistrationsCsv([withQuote], [{ label: 'Empresa' }]);
+    const csv = buildRegistrationsCsv([withQuote], [{ id: EMPRESA_ID, label: 'Empresa' }]);
     expect(csv).toContain('"A ""B"" C"');
   });
 
   it('leaves empty cell when answer for a dynamic column is missing', () => {
-    const csv = buildRegistrationsCsv([reg], [{ label: 'Cargo' }]);
+    const csv = buildRegistrationsCsv([reg], [{ id: 'cargo-id', label: 'Cargo' }]);
     const lines = csv.replace(/^﻿/, '').split('\n');
     expect(lines[1].endsWith(',')).toBe(true);
   });

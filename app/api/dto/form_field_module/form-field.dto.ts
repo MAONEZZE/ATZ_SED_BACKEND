@@ -13,6 +13,7 @@ const FORM_FIELD_TYPES = [
   'date',
   'linkedin',
   'instagram',
+  'on_date_automation_field',
 ] as const;
 
 export class CreateFormFieldDto {

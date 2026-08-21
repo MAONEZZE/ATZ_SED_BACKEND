@@ -116,6 +116,8 @@ describe('PrismaAutomationRepository.createManyForDuplication', () => {
         cron: null,
         timezone: null,
         sendAt: null,
+        sendTime: null,
+        name: null,
         active: true,
         order: 0,
         formIds: ['form-new-1'],

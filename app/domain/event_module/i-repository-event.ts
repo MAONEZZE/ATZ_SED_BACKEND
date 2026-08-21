@@ -78,6 +78,10 @@ export interface EventDuplicationAutomationRule {
   timezone: string | null;
   /** Data do gatilho `on_date`. Copiada, mas a regra nasce inativa: a data é do evento antigo. */
   sendAt: Date | null;
+  /** Hora do disparo mensal de `on_date_form_field`, "HH:mm". */
+  sendTime: string | null;
+  /** Nome próprio da regra. */
+  name: string | null;
   active: boolean;
   order: number;
   /**

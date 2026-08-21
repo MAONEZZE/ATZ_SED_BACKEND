@@ -55,3 +55,39 @@ describe('CreateAutomationDto.delayMinutes', () => {
     expect(errors.some((e) => e.property === 'delayMinutes')).toBe(true);
   });
 });
+
+describe('CreateAutomationDto.trigger — on_date_form_field', () => {
+  it('accepts the new trigger', async () => {
+    const dto = plainToInstance(CreateAutomationDto, { templateId: 'tpl-1', trigger: 'on_date_form_field' });
+    expect(await validate(dto)).toHaveLength(0);
+  });
+});
+
+describe('CreateAutomationDto.sendTime', () => {
+  it.each(['09:00', '00:00', '23:59'])('accepts %s', async (value) => {
+    const dto = plainToInstance(CreateAutomationDto, {
+      templateId: 'tpl-1',
+      trigger: 'on_date_form_field',
+      sendTime: value,
+    });
+    expect(await validate(dto)).toHaveLength(0);
+  });
+
+  it.each(['9:00', '24:00', '09:60', '0900'])('rejects %s', async (value) => {
+    const dto = plainToInstance(CreateAutomationDto, {
+      templateId: 'tpl-1',
+      trigger: 'on_date_form_field',
+      sendTime: value,
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === 'sendTime')).toBe(true);
+  });
+
+  it('is optional', async () => {
+    const dto = plainToInstance(CreateAutomationDto, {
+      templateId: 'tpl-1',
+      trigger: 'on_date_form_field',
+    });
+    expect(await validate(dto)).toHaveLength(0);
+  });
+});

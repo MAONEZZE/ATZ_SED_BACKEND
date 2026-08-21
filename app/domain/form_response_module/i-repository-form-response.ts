@@ -35,4 +35,14 @@ export interface FormResponseRepositoryPort {
   ): Promise<{ data: FormResponseWithContext[]; total: number }>;
   /** Resultado do envio ao Pipedrive por resposta (antes vivia em Registration). */
   setPipedriveStatus(id: string, status: PipedriveStatus): Promise<void>;
+
+  /**
+   * Página de respostas de inscritos `approved` a um formulário — usada pelo
+   * sweeper de `on_date_form_field`. INNER JOIN com `registration` (não LEFT):
+   * resolve de graça o caso de `registrationId` nullable (formulário anônimo).
+   */
+  findApprovedByForm(
+    formId: string,
+    pagination: { skip: number; take: number },
+  ): Promise<Array<{ registrationId: string; answers: Record<string, unknown> }>>;
 }

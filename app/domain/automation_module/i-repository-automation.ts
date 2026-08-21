@@ -16,6 +16,10 @@ export interface CreateAutomationRuleData {
   timezone?: string | null;
   /** Instante do disparo único de `on_date`, em UTC. */
   sendAt?: Date | null;
+  /** Hora do disparo mensal de `on_date_form_field`, "HH:mm". */
+  sendTime?: string | null;
+  /** Nome próprio da regra. `null`/ausente = a UI cai no nome do template. */
+  name?: string | null;
   active?: boolean;
   folderId?: string | null;
 }
@@ -31,6 +35,8 @@ export interface UpdateAutomationRuleData {
   sendAt?: Date | null;
   /** Trocar a data reabre o disparo: o service manda `null` para limpar. */
   firedAt?: Date | null;
+  sendTime?: string | null;
+  name?: string | null;
   active?: boolean;
   folderId?: string | null;
 }
@@ -56,6 +62,14 @@ export type AutomationRuleWithEventAndTemplate = AutomationRuleWithTemplate & {
 export type AutomationRuleWithFullTemplate = AutomationRuleEntity & {
   template: MessageTemplateEntity;
 };
+
+/** Só o necessário para o sweeper mensal decidir a janela — sem template, sem forms. */
+export interface FormFieldDateRule {
+  id: string;
+  eventId: string;
+  sendTime: string | null;
+  timezone: string | null;
+}
 
 /** Só o necessário para (re)agendar: o scheduler não lê corpo de mensagem. */
 export interface RecurringSchedule {
@@ -92,6 +106,13 @@ export interface AutomationRepositoryPort {
    * retenta — o `dedupKey` do outbox impede mensagem repetida.
    */
   markDateRuleFired(id: string): Promise<void>;
+
+  /**
+   * Regras `on_date_form_field` ativas de evento `published` — a exceção mora
+   * aqui, não no `AutomationEngine` (compartilhado, e os outros gatilhos
+   * disparam de propósito em evento `ended`). `take` limita o lote por tick.
+   */
+  findActiveFormFieldDateRules(opts: { take: number }): Promise<FormFieldDateRule[]>;
 
   findById(id: string): Promise<AutomationRuleEntity | null>;
 

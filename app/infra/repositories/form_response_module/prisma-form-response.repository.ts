@@ -110,4 +110,24 @@ export class PrismaFormResponseRepository
   async setPipedriveStatus(id: string, status: PipedriveStatus): Promise<void> {
     await this.prisma.formResponse.update({ where: { id }, data: { pipedriveStatus: status } });
   }
+
+  // `registration: { status: 'approved' }` gera INNER JOIN — resolve de graça o
+  // caso de `registrationId` nullable (formulário anônimo): sem inscrito, sem
+  // como aprovar, sem como casar no join. Não trocar por SQL cru com LEFT JOIN.
+  async findApprovedByForm(
+    formId: string,
+    pagination: { skip: number; take: number },
+  ): Promise<Array<{ registrationId: string; answers: Record<string, unknown> }>> {
+    const rows = await this.prisma.formResponse.findMany({
+      where: { formId, registration: { status: 'approved' } },
+      select: { registrationId: true, answers: true },
+      orderBy: { id: 'asc' },
+      skip: pagination.skip,
+      take: pagination.take,
+    });
+    return rows.map((row) => ({
+      registrationId: row.registrationId,
+      answers: (row.answers ?? {}) as Record<string, unknown>,
+    }));
+  }
 }

@@ -292,6 +292,8 @@ export class PrismaEventRepository implements EventRepositoryPort {
         cron: a.cron,
         timezone: a.timezone,
         sendAt: a.sendAt,
+        sendTime: a.sendTime,
+        name: a.name,
         active: a.active,
         order: a.order,
         formSlugs: a.forms.map((f) => f.form.slug),

@@ -70,12 +70,28 @@ export class PrismaFormFieldRepository
     return row ? this.toEntity(row) : null;
   }
 
+  findByEventAndType(
+    eventId: string,
+    type: string,
+    excludeId?: string,
+  ): Promise<{ id: string; formId: string; label: string } | null> {
+    return this.prisma.formField.findFirst({
+      where: {
+        form: { eventId },
+        type: type as FieldType,
+        ...(excludeId && { id: { not: excludeId } }),
+      },
+      select: { id: true, formId: true, label: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   /** Rótulos do formulário na ordem, opcionalmente só os dinâmicos — cabeçalho do CSV. */
   listLabels(formId: string, onlyDynamic = false): Promise<FormFieldLabel[]> {
     return this.prisma.formField.findMany({
       where: { formId, ...(onlyDynamic ? { isFixed: false } : {}) },
       orderBy: { order: 'asc' },
-      select: { label: true },
+      select: { id: true, label: true },
     });
   }
 
@@ -83,7 +99,7 @@ export class PrismaFormFieldRepository
   listValidationFields(formId: string): Promise<FormFieldValidationRule[]> {
     return this.prisma.formField.findMany({
       where: { formId },
-      select: { label: true, type: true, required: true, isFixed: true, options: true },
+      select: { id: true, label: true, type: true, required: true, isFixed: true, options: true },
     });
   }
 

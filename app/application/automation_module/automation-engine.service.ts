@@ -95,6 +95,8 @@ export class AutomationEngine {
     trigger: string,
     ruleIds?: string[],
     occurrenceKey?: string,
+    /** Variáveis extra pro template — hoje só `on_date_form_field` usa (`dia_automacao`). */
+    extra?: Record<string, string>,
   ): Promise<void> {
     const registration = await this.registrations.findById(registrationId);
     if (!registration) {
@@ -113,6 +115,7 @@ export class AutomationEngine {
       },
       ruleIds,
       occurrenceKey,
+      extra,
     );
   }
 
@@ -122,6 +125,7 @@ export class AutomationEngine {
     contact: { registrationId?: string; name: string; email: string; phone: string },
     ruleIds?: string[],
     occurrenceKey?: string,
+    extra?: Record<string, string>,
   ): Promise<void> {
     const rules = await this.automations.findActiveTriggerRules(eventId, trigger, ruleIds);
 
@@ -165,6 +169,7 @@ export class AutomationEngine {
           dressCode: event.dressCode,
           groupLink: event.groupLink,
         },
+        extra,
       });
 
       const renderedBody = this.renderer.render(rule.template.body, vars);

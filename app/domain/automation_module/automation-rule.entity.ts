@@ -8,16 +8,23 @@ export const AUTOMATION_TRIGGERS = [
   'recurring',
   'on_form_submitted',
   'on_date',
+  'on_date_form_field',
 ] as const;
 
 export type AutomationTrigger = (typeof AUTOMATION_TRIGGERS)[number];
 
+/** Hora do disparo mensal de `on_date_form_field` quando a regra não define `sendTime`. */
+export const DEFAULT_SEND_TIME = '09:00';
+
 /**
  * Regra que dispara uma mensagem a partir de um acontecimento do evento.
  *
- * `recurring` e `on_date` são os gatilhos fora da curva: em vez de reagir a um
- * acontecimento, rodam por agenda. `recurring` repete por cron (exige `cron` +
- * `timezone`); `on_date` dispara uma vez só, no instante de `sendAt`.
+ * `recurring`, `on_date` e `on_date_form_field` são os gatilhos fora da curva:
+ * em vez de reagir a um acontecimento, rodam por agenda. `recurring` repete por
+ * cron (exige `cron` + `timezone`); `on_date` dispara uma vez só, no instante de
+ * `sendAt`; `on_date_form_field` dispara todo mês, por inscrito, no dia-do-mês
+ * que a pessoa respondeu num campo `on_date_automation_field` — hora vem de
+ * `sendTime` (default `09:00`) no `timezone` da regra.
  *
  * Qualquer gatilho aceita mais de uma regra ativa no mesmo evento, desde que
  * usem templates diferentes (ex: aprovação mandando e-mail e WhatsApp). Repetir
@@ -52,6 +59,10 @@ export class AutomationRuleEntity extends EntityBase {
     public readonly sendAt: Date | null = null,
     /** Preenchido no claim do sweeper: regra já disparada não dispara de novo. */
     public readonly firedAt: Date | null = null,
+    /** Hora do disparo mensal de `on_date_form_field`, "HH:mm". Só esse gatilho usa. */
+    public readonly sendTime: string | null = null,
+    /** Nome próprio da regra. `null` = a UI cai no nome do template. */
+    public readonly name: string | null = null,
   ) {
     super(id);
   }
@@ -87,6 +98,11 @@ export class AutomationRuleEntity extends EntityBase {
   /** Disparo único numa data marcada na regra, igual para todos os inscritos. */
   static isDate(trigger: string): boolean {
     return trigger === 'on_date';
+  }
+
+  /** Recorrência mensal por inscrito, calculada a partir do formulário — sem agenda materializada. */
+  static isDateFormField(trigger: string): boolean {
+    return trigger === 'on_date_form_field';
   }
 
   /**

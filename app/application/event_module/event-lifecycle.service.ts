@@ -96,7 +96,15 @@ export class EventLifecycleService {
           // A data de uma regra `on_date` é do evento de origem e pode já ter
           // passado: copiar ativa faria a duplicação disparar tudo na varredura
           // seguinte. Nasce inativa, e reativar exige data nova (400 se passada).
-          active: AutomationRuleEntity.isDate(rule.trigger) ? false : rule.active,
+          // `on_date_form_field` entra na mesma trava por razão diferente: o
+          // evento novo nasce sem respostas, então ativar de cara mandaria a
+          // mensagem sem ninguém ter respondido nada — decisão explícita, não
+          // herdada da cópia.
+          active:
+            AutomationRuleEntity.isDate(rule.trigger) ||
+            AutomationRuleEntity.isDateFormField(rule.trigger)
+              ? false
+              : rule.active,
           // Formulário do evento de origem que não existe mais aqui (raro: só se
           // a criação de formulários acima falhar parcialmente) é descartado em
           // vez de travar a duplicação inteira.

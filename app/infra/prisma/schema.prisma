@@ -71,6 +71,9 @@ enum FieldType {
   date
   linkedin
   instagram
+  /// Data (AAAA-MM-DD) que alimenta o gatilho `on_date_form_field`: só o dia
+  /// conta, mês/ano são ignorados (recorrência mensal). No máximo 1 por evento.
+  on_date_automation_field
 
   @@schema("SED")
 }
@@ -91,6 +94,9 @@ enum AutomationTrigger {
   recurring
   on_form_submitted
   on_date
+  /// Recorrência mensal por inscrito: dispara no dia-do-mês que a pessoa
+  /// respondeu num campo `on_date_automation_field`. Hora vem de `sendTime`.
+  on_date_form_field
 
   @@schema("SED")
 }
@@ -405,6 +411,10 @@ model AutomationRule {
   sendAt       DateTime?            @map("send_at")
   /// Marcado no claim do sweeper: regra de data já disparada não dispara de novo.
   firedAt      DateTime?            @map("fired_at")
+  /// Hora do disparo mensal de on_date_form_field, "HH:mm", no `timezone` da regra. NULL nos outros gatilhos.
+  sendTime     String?              @map("send_time")
+  /// Nome próprio da regra. NULL = a UI cai no nome do template.
+  name         String?
   active       Boolean              @default(true)
   folderId     String?              @map("folder_id")
   order        Int                  @default(0)

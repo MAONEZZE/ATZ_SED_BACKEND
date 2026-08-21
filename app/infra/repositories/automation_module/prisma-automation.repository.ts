@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-repository.base';
 import { MessageChannel } from '@domain/shared/message-channel.type';
@@ -16,6 +16,7 @@ import {
   AutomationRuleWithFullTemplate,
   AutomationRuleWithTemplate,
   CreateAutomationRuleData,
+  FormFieldDateRule,
   RecurringSchedule,
   UpdateAutomationRuleData,
 } from '@domain/automation_module/i-repository-automation';
@@ -38,6 +39,8 @@ type AutomationRuleRow = {
   createdAt: Date;
   sendAt: Date | null;
   firedAt: Date | null;
+  sendTime: string | null;
+  name: string | null;
   forms?: Array<{ formId: string }>;
 };
 
@@ -80,6 +83,8 @@ export class PrismaAutomationRepository
       row.createdAt,
       row.sendAt,
       row.firedAt,
+      row.sendTime,
+      row.name,
     );
   }
 
@@ -233,24 +238,45 @@ export class PrismaAutomationRepository
     return row ? this.toTemplateEntity(row) : null;
   }
 
+  /**
+   * A corrida do `assertNoActiveDuplicate` do service (SELECT-depois-INSERT,
+   * sem transação) vira 500 sem isto: o `GlobalExceptionFilter` procura
+   * `.status` numérico e o erro do Prisma não tem. Precedente no próprio repo:
+   * `prisma-outbox.repository.ts` já trata P2002 na camada infra.
+   */
+  private rethrowUniqueAsConflict(err: unknown): never {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw new ConflictException(
+        'An active automation with this trigger and template already exists on this event',
+      );
+    }
+    throw err;
+  }
+
   async create(data: CreateAutomationRuleData): Promise<AutomationRuleWithTemplate> {
-    const row = await this.prisma.automationRule.create({
-      data: {
-        eventId: data.eventId,
-        templateId: data.templateId,
-        trigger: data.trigger,
-        delayMinutes: data.delayMinutes ?? null,
-        cron: data.cron ?? null,
-        timezone: data.timezone ?? null,
-        sendAt: data.sendAt ?? null,
-        folderId: data.folderId ?? null,
-        ...(data.active !== undefined && { active: data.active }),
-        // O service já normaliza: lista vazia quando o gatilho não aceita formulário.
-        ...(data.formIds?.length && { forms: { create: data.formIds.map((formId) => ({ formId })) } }),
-      },
-      include: { ...TEMPLATE_SUMMARY, ...WITH_FORMS },
-    });
-    return this.withTemplate(row);
+    try {
+      const row = await this.prisma.automationRule.create({
+        data: {
+          eventId: data.eventId,
+          templateId: data.templateId,
+          trigger: data.trigger,
+          delayMinutes: data.delayMinutes ?? null,
+          cron: data.cron ?? null,
+          timezone: data.timezone ?? null,
+          sendAt: data.sendAt ?? null,
+          sendTime: data.sendTime ?? null,
+          name: data.name ?? null,
+          folderId: data.folderId ?? null,
+          ...(data.active !== undefined && { active: data.active }),
+          // O service já normaliza: lista vazia quando o gatilho não aceita formulário.
+          ...(data.formIds?.length && { forms: { create: data.formIds.map((formId) => ({ formId })) } }),
+        },
+        include: { ...TEMPLATE_SUMMARY, ...WITH_FORMS },
+      });
+      return this.withTemplate(row);
+    } catch (err) {
+      this.rethrowUniqueAsConflict(err);
+    }
   }
 
   async update(id: string, data: UpdateAutomationRuleData): Promise<AutomationRuleWithTemplate> {
@@ -262,30 +288,36 @@ export class PrismaAutomationRepository
       ...(data.timezone !== undefined && { timezone: data.timezone }),
       ...(data.sendAt !== undefined && { sendAt: data.sendAt }),
       ...(data.firedAt !== undefined && { firedAt: data.firedAt }),
+      ...(data.sendTime !== undefined && { sendTime: data.sendTime }),
+      ...(data.name !== undefined && { name: data.name }),
       ...(data.active !== undefined && { active: data.active }),
       ...(data.folderId !== undefined && { folderId: data.folderId }),
     };
-    // `formIds` presente substitui a junção inteira (inclusive por lista vazia,
-    // que significa "todos"); ausente deixa a relação intacta.
-    const row =
-      data.formIds !== undefined
-        ? await this.prisma.automationRule.update({
-            where: { id },
-            data: {
-              ...payload,
-              forms: {
-                deleteMany: {},
-                create: data.formIds.map((formId) => ({ formId })),
+    try {
+      // `formIds` presente substitui a junção inteira (inclusive por lista vazia,
+      // que significa "todos"); ausente deixa a relação intacta.
+      const row =
+        data.formIds !== undefined
+          ? await this.prisma.automationRule.update({
+              where: { id },
+              data: {
+                ...payload,
+                forms: {
+                  deleteMany: {},
+                  create: data.formIds.map((formId) => ({ formId })),
+                },
               },
-            },
-            include: { ...TEMPLATE_SUMMARY, ...WITH_FORMS },
-          })
-        : await this.prisma.automationRule.update({
-            where: { id },
-            data: payload,
-            include: { ...TEMPLATE_SUMMARY, ...WITH_FORMS },
-          });
-    return this.withTemplate(row);
+              include: { ...TEMPLATE_SUMMARY, ...WITH_FORMS },
+            })
+          : await this.prisma.automationRule.update({
+              where: { id },
+              data: payload,
+              include: { ...TEMPLATE_SUMMARY, ...WITH_FORMS },
+            });
+      return this.withTemplate(row);
+    } catch (err) {
+      this.rethrowUniqueAsConflict(err);
+    }
   }
 
   async delete(id: string): Promise<void> {
@@ -352,6 +384,17 @@ export class PrismaAutomationRepository
     await this.prisma.automationRule.update({ where: { id }, data: { firedAt: new Date() } });
   }
 
+  // A exceção do `ended` mora aqui, não no AutomationEngine (compartilhado, e
+  // os outros gatilhos disparam em `ended` de propósito).
+  findActiveFormFieldDateRules({ take }: { take: number }): Promise<FormFieldDateRule[]> {
+    return this.prisma.automationRule.findMany({
+      where: { trigger: 'on_date_form_field', active: true, event: { status: 'published' } },
+      select: { id: true, eventId: true, sendTime: true, timezone: true },
+      orderBy: { createdAt: 'asc' },
+      take,
+    });
+  }
+
   /**
    * Regras ativas de um evento+trigger. `ruleIds` filtra pelo conjunto exato
    * (usado pelo worker de recorrência); sem isso, dispara imediato: apenas
@@ -396,6 +439,8 @@ export class PrismaAutomationRepository
             cron: a.cron ?? undefined,
             timezone: a.timezone ?? undefined,
             sendAt: a.sendAt ?? undefined,
+            sendTime: a.sendTime ?? undefined,
+            name: a.name ?? undefined,
             order: a.order,
             active: a.active,
             ...(a.formIds.length && { forms: { create: a.formIds.map((formId) => ({ formId })) } }),

@@ -1,4 +1,11 @@
-import { Inject, Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { FieldType, FormFieldEntity } from '@domain/form_field_module/form-field.entity';
 import {
   FORM_FIELD_REPOSITORY_PORT,
@@ -63,6 +70,7 @@ export class FormFieldService {
     // O formulário é escolhido explicitamente: sem os 3 tipos fixos não existe
     // mais "o form padrão" para materializar na hora.
     const form = await this.formsService.findOne(input.formId, eventId);
+    await this.assertSingleAutomationDateField(eventId, input.type);
     const field = await this.repo.create({
       formId: form.id,
       label: input.label,
@@ -83,6 +91,7 @@ export class FormFieldService {
     if (input.type !== undefined && input.type !== field.type) {
       this.warnIfTypeChangeIncoherent(field, input);
     }
+    await this.assertSingleAutomationDateField(eventId, input.type, id);
 
     const updated = await this.repo.update(id, {
       ...(input.label !== undefined && { label: input.label }),
@@ -136,6 +145,28 @@ export class FormFieldService {
     const field = await this.repo.findByEvent(eventId, id);
     if (!field) throw new NotFoundException('Form field not found');
     return field;
+  }
+
+  /**
+   * O sweeper de `on_date_form_field` lê um campo fixo por evento — mais de um
+   * não teria como escolher qual dia usar. Corrida aceita e documentada: dois
+   * POSTs simultâneos podem criar 2 campos (não é fechável no banco, `form_fields`
+   * não tem `event_id` — chega por join com `forms`). Ação de painel
+   * administrativo; o `orderBy: createdAt asc` do repo garante que o sweeper
+   * sempre escolha o mesmo campo se a corrida vazar.
+   */
+  private async assertSingleAutomationDateField(
+    eventId: string,
+    type?: string,
+    excludeId?: string,
+  ): Promise<void> {
+    if (type !== 'on_date_automation_field') return; // custo zero nos outros tipos
+    const existing = await this.repo.findByEventAndType(eventId, type, excludeId);
+    if (existing) {
+      throw new BadRequestException(
+        `Este evento já tem um campo de data para automação ("${existing.label}"). Só é permitido um por evento.`,
+      );
+    }
   }
 
   private async assertEventEditable(eventId: string): Promise<void> {

@@ -3,6 +3,7 @@ import { buildCsv, CsvColumn } from '@application/shared/csv-builder';
 import { FormResponseWithContext } from '@domain/form_response_module/i-repository-form-response';
 
 export interface CsvFormField {
+  id: string;
   label: string;
 }
 
@@ -24,7 +25,7 @@ export function buildFormResponsesCsv(
     ...fields.map(
       (f): CsvColumn<FormResponseWithContext> => ({
         header: f.label,
-        value: (r) => answerToString(r.answers?.[f.label]),
+        value: (r) => answerToString(r.answers?.[f.id]),
       }),
     ),
   ];

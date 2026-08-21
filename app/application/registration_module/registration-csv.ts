@@ -13,6 +13,7 @@ export interface CsvRegistration {
 }
 
 export interface CsvFormField {
+  id: string;
   label: string;
 }
 
@@ -31,7 +32,7 @@ export function buildRegistrationsCsv(
     ...formFields.map(
       (f): CsvColumn<CsvRegistration> => ({
         header: f.label,
-        value: (r) => answerToString(r.answers?.[f.label]),
+        value: (r) => answerToString(r.answers?.[f.id]),
       }),
     ),
   ];

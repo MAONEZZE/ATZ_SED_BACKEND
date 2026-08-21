@@ -7,6 +7,8 @@ import {
   IsBoolean,
   Min,
   Max,
+  MaxLength,
+  Matches,
   registerDecorator,
   ValidationOptions,
   ValidateIf,
@@ -117,6 +119,24 @@ export class CreateAutomationDto {
   @IsOptional()
   @IsISO8601()
   sendAt?: string;
+
+  @ApiPropertyOptional({
+    example: '09:00',
+    description:
+      'Hora do disparo mensal — obrigatório só quando trigger="on_date_form_field" (default 09:00 se ausente). Lida no `timezone` da regra.',
+  })
+  @IsOptional()
+  @IsString()
+  // Mais estrita que a de send-message.dto.ts de propósito: "25:99" tem que
+  // morrer no DTO, ninguém revalida depois.
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, { message: 'sendTime deve ser HH:mm (00:00–23:59)' })
+  sendTime?: string;
+
+  @ApiPropertyOptional({ example: 'Cobrança mensal' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  name?: string;
 
   @ApiPropertyOptional({ example: true })
   @IsOptional()

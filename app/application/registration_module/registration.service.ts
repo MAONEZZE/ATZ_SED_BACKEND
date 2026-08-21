@@ -24,8 +24,8 @@ import {
 import {
   validateAnswers,
   resolveAnswer,
-  resolveAnswerByKeys,
-  buildAnswerLookup,
+  mapAnswersToFieldIds,
+  hydrateAnswerLabels,
   AnswerFieldMeta,
 } from '@domain/shared/answer-validation';
 import { normalizePhone, phoneMatchKey, phoneMatchSuffix } from '@handlers/phone';
@@ -126,6 +126,17 @@ export class RegistrationService {
       formId: form.id,
     });
 
+    // Uma conversão só, depois do materialize (para as mensagens de erro de
+    // imagem continuarem citando o label): o mesmo objeto id-keyed alimenta o
+    // inscrito, a FormResponse e (hidratado de volta) o Pipedrive.
+    const convertedAnswers = mapAnswersToFieldIds(fields, storedAnswers);
+    const discarded = Object.keys(storedAnswers).length - Object.keys(convertedAnswers).length;
+    if (discarded > 0) {
+      this.logger.warn(
+        `Submissão do formulário ${form.id}: ${discarded} chave(s) de resposta sem campo correspondente, descartada(s)`,
+      );
+    }
+
     const normalized = normalizePhone(phone) ?? phone.replace(/\D/g, '');
     if (!normalized) throw new BadRequestException('Telefone é obrigatório');
 
@@ -136,7 +147,8 @@ export class RegistrationService {
           event,
           form,
           normalized,
-          storedAnswers,
+          convertedAnswers,
+          fields,
           options?.imageAuthorization,
         );
 
@@ -144,7 +156,7 @@ export class RegistrationService {
       formId: form.id,
       eventId: event.id,
       registrationId: registration.id,
-      answers: storedAnswers,
+      answers: convertedAnswers,
     });
 
     this.eventEmitter.emit(
@@ -156,7 +168,7 @@ export class RegistrationService {
       }),
     );
 
-    await this.dispatchToPipedrive(event, form, registration, response, storedAnswers);
+    await this.dispatchToPipedrive(event, form, registration, response, convertedAnswers, fields);
 
     return { registration, created: !existing };
   }
@@ -167,6 +179,7 @@ export class RegistrationService {
     form: { id: string; requireImageAuthorization: boolean },
     phone: string,
     answers: Record<string, unknown>,
+    fields: AnswerFieldMeta[],
     imageAuthorization?: boolean,
   ): Promise<RegistrationEntity> {
     if (event.status !== 'published') {
@@ -182,11 +195,10 @@ export class RegistrationService {
       throw new BadRequestException('Autorização de uso de imagem é obrigatória');
     }
 
-    const fields = await this.formFields.listValidationFields(form.id);
     const reg = await this.regRepo.create({
       eventId: event.id,
       answers,
-      name: this.extractString(answers, ['nome', 'name']),
+      name: this.extractString(answers, fields, ['nome', 'name']),
       email: this.extractByFieldType(answers, fields, 'email', ['email']),
       phone,
       imageAuthorization: imageAuthorization === true,
@@ -212,6 +224,7 @@ export class RegistrationService {
     reg: RegistrationEntity,
     response: { id: string; pipedriveStatus: string | null },
     answers: Record<string, unknown>,
+    fields: AnswerFieldMeta[],
   ): Promise<void> {
     // Já entregou: reenvio da mesma resposta não repete o webhook.
     if (response.pipedriveStatus === 'sent') return;
@@ -220,6 +233,9 @@ export class RegistrationService {
       await this.formResponses.setPipedriveStatus(response.id, 'skipped');
       return;
     }
+
+    // Contrato externo inalterado: o Pipedrive continua recebendo por label.
+    const hydratedAnswers = hydrateAnswerLabels(fields, answers);
 
     await this.formResponses.setPipedriveStatus(response.id, 'pending');
     void this.pipedrive
@@ -232,7 +248,7 @@ export class RegistrationService {
         },
         form: 'registration',
         contact: { email: reg.email, phone: reg.phone },
-        answers,
+        answers: hydratedAnswers,
       })
       .then(() => this.formResponses.setPipedriveStatus(response.id, 'sent'))
       .catch((err) => {
@@ -247,6 +263,11 @@ export class RegistrationService {
     items: Array<{ nome: string; telefone?: string; email?: string }>,
   ): Promise<{ created: number; skipped: number; rejected: Array<{ linha: number; motivo: string }> }> {
     await this.formsService.findOne(formId, eventId); // 404 se o formulário não é do evento
+
+    const fields = await this.formFields.listValidationFields(formId);
+    const emailFieldId = fields.find((f) => f.type === 'email')?.id;
+    const phoneFieldId = fields.find((f) => f.type === 'phone')?.id;
+    const nomeFieldId = fields.find((f) => f.label.trim().toLowerCase() === 'nome')?.id;
 
     let created = 0;
     const rejected: Array<{ linha: number; motivo: string }> = [];
@@ -273,9 +294,11 @@ export class RegistrationService {
         continue;
       }
 
-      const answers: Record<string, unknown> = { nome: name };
-      if (phone) answers.telefone = phone;
-      if (email) answers.email = email;
+      // Falta de campo correspondente no formulário (raro) mantém a chave de
+      // texto como fallback, para o dado não se perder.
+      const answers: Record<string, unknown> = { [nomeFieldId ?? 'nome']: name };
+      if (phone) answers[phoneFieldId ?? 'telefone'] = phone;
+      if (email) answers[emailFieldId ?? 'email'] = email;
 
       try {
         await this.regRepo.create({
@@ -300,6 +323,7 @@ export class RegistrationService {
     return { created, skipped: rejected.length, rejected };
   }
 
+  /** Cru (id-keyed): usado pela exportação CSV, que já lê `answers` por `field.id`. */
   async findAll(
     eventId: string,
     status?: FunnelStatus,
@@ -317,13 +341,14 @@ export class RegistrationService {
     search?: string,
     attended?: boolean,
   ): Promise<{ data: RegistrationEntity[]; total: number }> {
-    return this.regRepo.findAllByEventPaginated(
+    const { data, total } = await this.regRepo.findAllByEventPaginated(
       eventId,
       { skip: (page - 1) * limit, take: limit },
       status,
       search,
       attended,
     );
+    return { data: await this.hydrateRegistrations(data), total };
   }
 
   /**
@@ -393,7 +418,8 @@ export class RegistrationService {
     if (!reg || reg.eventId !== eventId) {
       throw new NotFoundException('Registration not found');
     }
-    return reg;
+    const [hydrated] = await this.hydrateRegistrations([reg]);
+    return hydrated;
   }
 
   async updateStatus(
@@ -423,20 +449,22 @@ export class RegistrationService {
       ),
     );
 
-    return updated;
+    const [hydrated] = await this.hydrateRegistrations([updated]);
+    return hydrated;
   }
 
   async updateAnswers(
     id: string,
     eventId: string,
     answers: Record<string, unknown>,
-    formFields: Array<{ label: string; type: string; required: boolean; isFixed: boolean }>,
+    formFields: AnswerFieldMeta[],
   ): Promise<RegistrationEntity> {
     const reg = await this.regRepo.findById(id);
     if (!reg || reg.eventId !== eventId) {
       throw new NotFoundException('Registration not found');
     }
 
+    // O DTO do painel continua chaveado por label (contrato inalterado).
     for (const field of formFields) {
       if (field.required) {
         const val = resolveAnswer(answers, field.label);
@@ -450,7 +478,10 @@ export class RegistrationService {
     // reintroduz base64 no JSON. Idempotente, então as respostas antigas que já
     // são URL passam reto.
     const storedAnswers = await this.answerImages.materialize(answers, { eventId });
-    const mergedAnswers = { ...reg.answers, ...storedAnswers };
+    const convertedAnswers = mapAnswersToFieldIds(formFields, storedAnswers);
+    // `reg.answers` já é id-keyed no banco: o merge tem que ficar no mesmo
+    // espaço de chaves, senão duplica a resposta (uma sob label, outra sob id).
+    const mergedAnswers = { ...reg.answers, ...convertedAnswers };
 
     const updateData: {
       answers: Record<string, unknown>;
@@ -459,7 +490,7 @@ export class RegistrationService {
       phone?: string;
     } = { answers: mergedAnswers };
 
-    const name = this.extractString(mergedAnswers, ['nome', 'name']);
+    const name = this.extractString(mergedAnswers, formFields, ['nome', 'name']);
     const email = this.extractByFieldType(mergedAnswers, formFields, 'email', ['email']);
     const phone = this.extractByFieldType(mergedAnswers, formFields, 'phone', [
       'telefone',
@@ -470,20 +501,78 @@ export class RegistrationService {
     if (email) updateData.email = email;
     if (phone) updateData.phone = phone;
 
-    return this.regRepo.updateAnswers(id, updateData);
+    const updated = await this.regRepo.updateAnswers(id, updateData);
+    return this.cloneWithAnswers(updated, hydrateAnswerLabels(formFields, updated.answers));
   }
 
-  private extractString(answers: Record<string, unknown>, keys: string[]): string {
-    const exact = resolveAnswerByKeys(answers, keys);
-    if (typeof exact === 'string' && exact.trim()) return exact.trim();
+  /** Reconstrói a entidade com `answers` substituído — usado nas hidratações de leitura. */
+  private cloneWithAnswers(
+    reg: RegistrationEntity,
+    answers: Record<string, unknown>,
+  ): RegistrationEntity {
+    return new RegistrationEntity(
+      reg.id,
+      reg.eventId,
+      reg.status,
+      answers,
+      reg.name,
+      reg.email,
+      reg.phone,
+      reg.createdAt,
+      reg.updatedAt,
+      reg.imageAuthorization,
+      reg.attended,
+      reg.originFormId,
+    );
+  }
 
-    const lookup = buildAnswerLookup(answers);
+  /**
+   * Hidrata `answers` (id→label atual) para cada inscrito, agrupando por
+   * `originFormId` para não repetir a query de campos por formulário.
+   * `originFormId` nulo (import antigo/painel sem origem) passa reto.
+   */
+  private async hydrateRegistrations(regs: RegistrationEntity[]): Promise<RegistrationEntity[]> {
+    const formIds = [...new Set(regs.map((r) => r.originFormId).filter((id): id is string => !!id))];
+    if (formIds.length === 0) return regs;
+
+    const fieldsByForm = new Map(
+      await Promise.all(
+        formIds.map(
+          async (formId) => [formId, await this.formFields.listLabels(formId)] as const,
+        ),
+      ),
+    );
+
+    return regs.map((reg) => {
+      const fields = reg.originFormId ? fieldsByForm.get(reg.originFormId) : undefined;
+      if (!fields) return reg;
+      return this.cloneWithAnswers(reg, hydrateAnswerLabels(fields, reg.answers));
+    });
+  }
+
+  /**
+   * `answers` já é id-keyed aqui — a busca é sempre pelo `label` do campo,
+   * nunca por chave direta do objeto (que virou uuid).
+   */
+  private extractString(
+    answers: Record<string, unknown>,
+    fields: AnswerFieldMeta[],
+    keys: string[],
+  ): string {
     for (const key of keys) {
       const needle = key.trim().toLowerCase();
-      for (const [k, val] of lookup) {
-        if (k.includes(needle) && typeof val === 'string' && val.trim()) {
-          return val.trim();
-        }
+      const field = fields.find((f) => f.label.trim().toLowerCase() === needle);
+      if (field) {
+        const val = answers[field.id];
+        if (typeof val === 'string' && val.trim()) return val.trim();
+      }
+    }
+    for (const key of keys) {
+      const needle = key.trim().toLowerCase();
+      const field = fields.find((f) => f.label.trim().toLowerCase().includes(needle));
+      if (field) {
+        const val = answers[field.id];
+        if (typeof val === 'string' && val.trim()) return val.trim();
       }
     }
     return '';
@@ -497,9 +586,9 @@ export class RegistrationService {
   ): string {
     const field = fields.find((f) => f.type === type);
     if (field) {
-      const val = resolveAnswer(answers, field.label);
+      const val = answers[field.id];
       if (typeof val === 'string' && val.trim()) return val.trim();
     }
-    return this.extractString(answers, fallbackKeys);
+    return this.extractString(answers, fields, fallbackKeys);
   }
 }

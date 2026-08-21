@@ -145,8 +145,23 @@ describe('EventLifecycleService.duplicate — automation rules with formIds', ()
         cron: null,
         timezone: 'America/Sao_Paulo',
         sendAt: new Date('2026-02-12T12:00:00Z'),
+        sendTime: null,
+        name: null,
         active: true,
         order: 2,
+        formSlugs: [],
+      },
+      {
+        templateId: 'tpl-monthly',
+        trigger: 'on_date_form_field',
+        delayMinutes: null,
+        cron: null,
+        timezone: 'America/Sao_Paulo',
+        sendAt: null,
+        sendTime: '18:30',
+        name: 'Cobrança mensal',
+        active: true,
+        order: 3,
         formSlugs: [],
       },
     ],
@@ -235,6 +250,25 @@ describe('EventLifecycleService.duplicate — automation rules with formIds', ()
     await service.duplicate('evt-1', 'user-9');
 
     expect(scheduler.upsert).not.toHaveBeenCalled();
+  });
+
+  // O evento novo nasce sem respostas: ativar de cara mandaria a mensagem sem
+  // ninguém ter respondido nada. sendTime/name têm que sobreviver à cópia,
+  // senão a regra ressuscita em 09:00 silenciosamente.
+  it('copies an on_date_form_field rule deactivated, preserving sendTime and name', async () => {
+    const { service, automations } = makeServiceWithNewForm();
+    await service.duplicate('evt-1', 'user-9');
+
+    const rules = automations.createManyForDuplication.mock.calls[0][1];
+    expect(rules[3]).toEqual(
+      expect.objectContaining({
+        templateId: 'tpl-monthly',
+        trigger: 'on_date_form_field',
+        sendTime: '18:30',
+        name: 'Cobrança mensal',
+        active: false,
+      }),
+    );
   });
 
   it('carries cron, timezone and order over for a recurring rule with no form scope', async () => {

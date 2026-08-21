@@ -1,7 +1,12 @@
 import { RegistrationService } from '@application/registration_module/registration.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 
-type FormFieldLike = { label: string; type: string; required: boolean; isFixed: boolean };
+type FormFieldLike = { id: string; label: string; type: string; required: boolean; isFixed: boolean };
+
+const NOME_ID = 'nome-id';
+const EMAIL_ID = 'email-id';
+const TEL_ID = 'tel-id';
+const CIDADE_ID = 'cidade-id';
 
 function makeService(regOverrides: Partial<{ id: string; eventId: string }> = {}) {
   const reg = {
@@ -19,7 +24,7 @@ function makeService(regOverrides: Partial<{ id: string; eventId: string }> = {}
   };
   const regRepo = {
     findById: jest.fn().mockResolvedValue(reg),
-    updateAnswers: jest.fn().mockResolvedValue({ ...reg, answers: { Nome: 'New' } }),
+    updateAnswers: jest.fn().mockImplementation((_id, data) => Promise.resolve({ ...reg, ...data })),
     updateStatus: jest.fn(),
     create: jest.fn(),
     findAllByEvent: jest.fn(),
@@ -36,17 +41,17 @@ function makeService(regOverrides: Partial<{ id: string; eventId: string }> = {}
     { send: jest.fn() } as any,
     { findOne: jest.fn(), primary: jest.fn(), findPublic: jest.fn() } as any,
     { upsert: jest.fn() } as any,
-    { listValidationFields: jest.fn().mockResolvedValue([]) } as any,
+    { listValidationFields: jest.fn().mockResolvedValue([]), listLabels: jest.fn().mockResolvedValue([]) } as any,
     answerImages as any,
   );
   return { service, regRepo, answerImages };
 }
 
 const allFields: FormFieldLike[] = [
-  { label: 'Nome', type: 'text', required: true, isFixed: true },
-  { label: 'E-mail', type: 'email', required: true, isFixed: true },
-  { label: 'Telefone', type: 'phone', required: true, isFixed: true },
-  { label: 'Cidade', type: 'text', required: false, isFixed: false },
+  { id: NOME_ID, label: 'Nome', type: 'text', required: true, isFixed: true },
+  { id: EMAIL_ID, label: 'E-mail', type: 'email', required: true, isFixed: true },
+  { id: TEL_ID, label: 'Telefone', type: 'phone', required: true, isFixed: true },
+  { id: CIDADE_ID, label: 'Cidade', type: 'text', required: false, isFixed: false },
 ];
 
 describe('RegistrationService.updateAnswers', () => {
@@ -97,8 +102,8 @@ describe('RegistrationService.updateAnswers', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
-  it('accepts extra unknown keys in answers without error', async () => {
-    const { service } = makeService();
+  it('discards extra unknown keys in answers without error (no field matches them)', async () => {
+    const { service, regRepo } = makeService();
     await expect(
       service.updateAnswers(
         'reg-1',
@@ -107,16 +112,23 @@ describe('RegistrationService.updateAnswers', () => {
         allFields,
       ),
     ).resolves.not.toThrow();
+    const [, data] = regRepo.updateAnswers.mock.calls[0];
+    expect(data.answers).not.toHaveProperty('UnknownField');
   });
 
-  it('syncs name/email/phone from fixed fields into the repository call', async () => {
+  it('syncs name/email/phone from fixed fields into the repository call, keyed by field id', async () => {
     const { service, regRepo } = makeService();
     const answers = { Nome: 'João', 'E-mail': 'joao@test.com', Telefone: '11999', Cidade: 'SP' };
 
     await service.updateAnswers('reg-1', 'evt-1', answers, allFields);
 
     expect(regRepo.updateAnswers).toHaveBeenCalledWith('reg-1', {
-      answers,
+      answers: {
+        [NOME_ID]: 'João',
+        [EMAIL_ID]: 'joao@test.com',
+        [TEL_ID]: '11999',
+        [CIDADE_ID]: 'SP',
+      },
       name: 'João',
       email: 'joao@test.com',
       phone: '11999',
@@ -131,7 +143,7 @@ describe('RegistrationService.updateAnswers', () => {
       service.updateAnswers('reg-1', 'evt-1', answers, allFields),
     ).resolves.not.toThrow();
     expect(regRepo.updateAnswers).toHaveBeenCalledWith('reg-1', {
-      answers,
+      answers: { [NOME_ID]: 'João', [EMAIL_ID]: 'joao@test.com', [TEL_ID]: '11999' },
       name: 'João',
       email: 'joao@test.com',
       phone: '11999',
@@ -142,12 +154,12 @@ describe('RegistrationService.updateAnswers', () => {
     const { service, regRepo } = makeService();
     // fields: only a non-required non-fixed field — no fixed fields present
     const fieldsNoFixed: FormFieldLike[] = [
-      { label: 'Cidade', type: 'text', required: false, isFixed: false },
+      { id: CIDADE_ID, label: 'Cidade', type: 'text', required: false, isFixed: false },
     ];
     const answers = { Cidade: 'SP' };
 
     await service.updateAnswers('reg-1', 'evt-1', answers, fieldsNoFixed);
 
-    expect(regRepo.updateAnswers).toHaveBeenCalledWith('reg-1', { answers });
+    expect(regRepo.updateAnswers).toHaveBeenCalledWith('reg-1', { answers: { [CIDADE_ID]: 'SP' } });
   });
 });

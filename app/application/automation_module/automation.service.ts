@@ -8,6 +8,7 @@ import {
 import {
   AutomationRuleEntity,
   AutomationTrigger,
+  DEFAULT_SEND_TIME,
 } from '@domain/automation_module/automation-rule.entity';
 import { AutomationValidator } from '@domain/automation_module/automation.validator';
 import { DateTime } from 'luxon';
@@ -32,6 +33,10 @@ export interface CreateAutomationInput {
   timezone?: string | null;
   /** ISO do disparo único de `on_date`, interpretado no `timezone` da regra. */
   sendAt?: string | null;
+  /** Hora do disparo mensal de `on_date_form_field`, "HH:mm". Default 09:00. */
+  sendTime?: string | null;
+  /** Nome próprio da regra. Ausente = a UI cai no nome do template. */
+  name?: string | null;
   active?: boolean;
   folderId?: string | null;
 }
@@ -44,6 +49,8 @@ export interface UpdateAutomationInput {
   cron?: string | null;
   timezone?: string | null;
   sendAt?: string | null;
+  sendTime?: string | null;
+  name?: string | null;
   active?: boolean;
   folderId?: string | null;
 }
@@ -125,6 +132,8 @@ export class AutomationService {
       // precisa dele para mostrar a data de volta como o usuário digitou.
       timezone: this.resolveTimezone(input.trigger, input.timezone),
       sendAt,
+      sendTime: this.resolveSendTime(input.trigger, input.sendTime),
+      name: input.name ?? null,
       active: input.active ?? true,
       folderId: input.folderId ?? null,
     });
@@ -151,11 +160,20 @@ export class AutomationService {
         : AutomationRuleEntity.isDate(trigger)
           ? existing.sendAt
           : null;
+    // Mesmo raciocínio do `formIdsChanged`: comparar com o resultado mesclado, e
+    // não com `input.sendTime !== undefined`, é o que faz trocar o gatilho para
+    // fora de `on_date_form_field` zerar a coluna mesmo num PATCH que não
+    // menciona `sendTime`.
+    const sendTime = this.resolveSendTime(
+      trigger,
+      input.sendTime !== undefined ? input.sendTime : existing.sendTime,
+    );
     this.assertRuleValid(trigger, cron, timezone, mergedFormIds, sendAt);
     // Remarcar a data reabre o disparo, então a regra volta a valer como nova:
     // o `firedAt` gravado não a isenta da checagem de data futura.
     const sendAtChanged = sendAt?.getTime() !== existing.sendAt?.getTime();
     this.assertSendAtFuture(trigger, sendAt, willBeActive, sendAtChanged ? null : existing.firedAt);
+    this.assertDateNotRearmed(existing, trigger, sendAt, input.sendAt);
     if (input.formIds?.length) await this.assertFormsBelongToEvent(input.formIds, eventId);
     const formIds = AutomationRuleEntity.acceptsForm(trigger) ? mergedFormIds : [];
 
@@ -184,6 +202,8 @@ export class AutomationService {
       // Remarcar a data (ou trocar de gatilho) reabre o disparo: sem limpar o
       // `firedAt`, uma regra já disparada nunca dispararia na data nova.
       ...(sendAtChanged && { sendAt, firedAt: null }),
+      ...(sendTime !== existing.sendTime && { sendTime }),
+      ...(input.name !== undefined && { name: input.name }),
       ...(input.active !== undefined && { active: input.active }),
       ...(input.folderId !== undefined && { folderId: input.folderId }),
     });
@@ -224,11 +244,23 @@ export class AutomationService {
     if (errors.length > 0) throw new BadRequestException(errors[0]);
   }
 
-  /** Fuso em que a regra agendada foi marcada; só `recurring` e `on_date` guardam. */
+  /**
+   * Fuso em que a regra agendada foi marcada; só `recurring`, `on_date` e
+   * `on_date_form_field` guardam. Sem isso o `create` de `on_date_form_field`
+   * gravaria `timezone: null`, e o sweeper cairia sempre no default.
+   */
   private resolveTimezone(trigger: string, timezone?: string | null): string | null {
     if (AutomationRuleEntity.isRecurring(trigger)) return timezone ?? null;
-    if (AutomationRuleEntity.isDate(trigger)) return timezone?.trim() || APP_TIMEZONE;
+    if (AutomationRuleEntity.isDate(trigger) || AutomationRuleEntity.isDateFormField(trigger)) {
+      return timezone?.trim() || APP_TIMEZONE;
+    }
     return null;
+  }
+
+  /** Só `on_date_form_field` guarda hora de disparo; default 09:00 quando ausente. */
+  private resolveSendTime(trigger: string, sendTime?: string | null): string | null {
+    if (!AutomationRuleEntity.isDateFormField(trigger)) return null;
+    return sendTime?.trim() || DEFAULT_SEND_TIME;
   }
 
   /**
@@ -264,6 +296,34 @@ export class AutomationService {
     if (!AutomationRuleEntity.isDate(trigger) || !sendAt || !willBeActive || firedAt) return;
     if (sendAt.getTime() <= Date.now()) {
       throw new BadRequestException('sendAt precisa ser no futuro');
+    }
+  }
+
+  /**
+   * Regra `on_date` já disparada (`firedAt`) não pode ter a data remarcada —
+   * senão a mesma regra manda a mensagem de novo. Só barra quando o gatilho
+   * *continua* `on_date` dos dois lados (`staysOnDate`) e o patch de fato
+   * menciona `sendAt` (`input.sendAt !== undefined`): sem essas duas guardas,
+   * um PATCH que nem toca a data (`{trigger:'on_approval'}`, `{folderId}`)
+   * cairia em "mudou" só porque `sendAt` normalizado varia, e um 400 sairia num
+   * request que não tem nada a ver com data.
+   *
+   * Não olha `willBeActive` de propósito: se olhasse, `{active:false,
+   * sendAt:<nova>}` seguido de `{active:true}` reabriria a trava em 2 hops —
+   * exatamente o que ela existe para proibir.
+   */
+  private assertDateNotRearmed(
+    existing: AutomationRuleEntity,
+    trigger: string,
+    sendAt: Date | null,
+    inputSendAt: string | null | undefined,
+  ): void {
+    const staysOnDate =
+      AutomationRuleEntity.isDate(existing.trigger) && AutomationRuleEntity.isDate(trigger);
+    const dateMoved =
+      staysOnDate && inputSendAt !== undefined && sendAt?.getTime() !== existing.sendAt?.getTime();
+    if (dateMoved && existing.firedAt) {
+      throw new BadRequestException('Regra on_date já disparada: a data não pode ser alterada');
     }
   }
 

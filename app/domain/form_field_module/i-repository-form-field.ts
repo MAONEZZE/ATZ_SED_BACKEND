@@ -21,17 +21,19 @@ export interface UpdateFormFieldData {
   order?: number;
 }
 
-/** Só o rótulo, na ordem de exibição — vira cabeçalho de coluna no CSV. */
+/** Rótulo, na ordem de exibição — vira cabeçalho de coluna no CSV. `id` é a chave real dos `answers`. */
 export interface FormFieldLabel {
+  id: string;
   label: string;
 }
 
 /**
  * Metadados para validar uma resposta enviada por quem edita o evento. Traz
  * `isFixed` porque campos fixos (nome/e-mail/telefone) são tratados à parte na
- * validação.
+ * validação. `id` é a chave canônica de `answers`.
  */
 export interface FormFieldValidationRule {
+  id: string;
   label: string;
   type: string;
   required: boolean;
@@ -59,6 +61,18 @@ export interface FormFieldRepositoryPort {
 
   /** Resolve pelo evento, e não só pelo id, para não alcançar campo de outro evento. */
   findByEvent(eventId: string, id: string): Promise<FormFieldEntity | null>;
+
+  /**
+   * Campo do evento com o `type` dado (join com `forms`, que é quem carrega
+   * `event_id`). `excludeId` ignora o próprio campo — usado no `update`, para
+   * não colidir com ele mesmo. `orderBy: createdAt asc` faz a corrida de 2
+   * criações simultâneas convergir sempre no mesmo campo.
+   */
+  findByEventAndType(
+    eventId: string,
+    type: string,
+    excludeId?: string,
+  ): Promise<{ id: string; formId: string; label: string } | null>;
 
   listLabels(formId: string, onlyDynamic?: boolean): Promise<FormFieldLabel[]>;
 
