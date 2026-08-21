@@ -13,7 +13,12 @@ const ROW = {
   createdAt: new Date('2026-08-17'),
   updatedAt: new Date('2026-08-17'),
   form: { name: 'NPS' },
-  registration: { name: 'João', email: 'joao@test.com', phone: '5511999998888' },
+  registration: {
+    name: 'João',
+    email: 'joao@test.com',
+    phone: '5511999998888',
+    status: 'approved',
+  },
 };
 
 async function makeRepo(formResponse: Record<string, jest.Mock> = {}) {
@@ -98,6 +103,7 @@ describe('PrismaFormResponseRepository listagens', () => {
       name: 'João',
       email: 'joao@test.com',
       phone: '5511999998888',
+      status: 'approved',
       answers: { Nota: '9' },
     });
   });
@@ -118,6 +124,7 @@ describe('PrismaFormResponseRepository listagens', () => {
       name: 'Anônimo',
       email: '',
       phone: '',
+      status: null,
     });
   });
 

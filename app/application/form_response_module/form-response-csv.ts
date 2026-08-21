@@ -21,6 +21,7 @@ export function buildFormResponsesCsv(
     { header: 'nome', value: (r) => r.name },
     { header: 'email', value: (r) => r.email },
     { header: 'telefone', value: (r) => r.phone },
+    { header: 'status', value: (r) => r.status ?? '' },
     { header: 'respondido_em', value: (r) => r.createdAt.toISOString() },
     ...fields.map(
       (f): CsvColumn<FormResponseWithContext> => ({

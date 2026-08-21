@@ -1,5 +1,8 @@
 import { FormResponseEntity } from './form-response.entity';
-import { PipedriveStatus } from '@domain/registration_module/registration.entity';
+import {
+  FunnelStatus,
+  PipedriveStatus,
+} from '@domain/registration_module/registration.entity';
 
 export const FORM_RESPONSE_REPOSITORY_PORT = Symbol('FORM_RESPONSE_REPOSITORY_PORT');
 
@@ -20,6 +23,8 @@ export interface FormResponseWithContext {
   name: string;
   email: string;
   phone: string;
+  /** Null em resposta anônima: sem inscrito, sem status de funil. */
+  status: FunnelStatus | null;
   answers: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;

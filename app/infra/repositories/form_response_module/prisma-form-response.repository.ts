@@ -7,7 +7,10 @@ import {
   FormResponseWithContext,
   UpsertFormResponseData,
 } from '@domain/form_response_module/i-repository-form-response';
-import { PipedriveStatus } from '@domain/registration_module/registration.entity';
+import {
+  FunnelStatus,
+  PipedriveStatus,
+} from '@domain/registration_module/registration.entity';
 
 type ResponseRow = {
   id: string;
@@ -22,7 +25,7 @@ type ResponseRow = {
 
 type ResponseRowWithJoins = ResponseRow & {
   form: { name: string };
-  registration: { name: string; email: string; phone: string } | null;
+  registration: { name: string; email: string; phone: string; status: FunnelStatus } | null;
 };
 
 @Injectable()
@@ -52,6 +55,7 @@ export class PrismaFormResponseRepository
       name: row.registration?.name ?? 'Anônimo',
       email: row.registration?.email ?? '',
       phone: row.registration?.phone ?? '',
+      status: row.registration?.status ?? null,
       answers: (row.answers ?? {}) as Record<string, unknown>,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -60,7 +64,7 @@ export class PrismaFormResponseRepository
 
   private readonly joins = {
     form: { select: { name: true } },
-    registration: { select: { name: true, email: true, phone: true } },
+    registration: { select: { name: true, email: true, phone: true, status: true } },
   } as const;
 
   async upsert(data: UpsertFormResponseData): Promise<FormResponseEntity> {
