@@ -33,11 +33,17 @@ export interface FormResponseWithContext {
 export interface FormResponseRepositoryPort {
   /** Idempotente por `(formId, registrationId)` quando há inscrito; resposta anônima (registrationId null) sempre cria linha nova. */
   upsert(data: UpsertFormResponseData): Promise<FormResponseEntity>;
-  findAllByEvent(eventId: string, formId?: string): Promise<FormResponseWithContext[]>;
+  /** `search` casa por nome/email/telefone do inscrito; resposta anônima nunca casa (sem inscrito). */
+  findAllByEvent(
+    eventId: string,
+    formId?: string,
+    search?: string,
+  ): Promise<FormResponseWithContext[]>;
   findAllByEventPaginated(
     eventId: string,
     pagination: { skip: number; take: number },
     formId?: string,
+    search?: string,
   ): Promise<{ data: FormResponseWithContext[]; total: number }>;
   /** Resultado do envio ao Pipedrive por resposta (antes vivia em Registration). */
   setPipedriveStatus(id: string, status: PipedriveStatus): Promise<void>;

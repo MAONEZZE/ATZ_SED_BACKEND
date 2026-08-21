@@ -16,18 +16,25 @@ export class FormResponseService {
   ) {}
 
   /** `formId` ausente = respostas de todos os formulários do evento. */
-  async listPaginated(eventId: string, page: number, limit: number, formId?: string) {
+  async listPaginated(
+    eventId: string,
+    page: number,
+    limit: number,
+    formId?: string,
+    search?: string,
+  ) {
     const { data, total } = await this.repo.findAllByEventPaginated(
       eventId,
       { skip: (page - 1) * limit, take: limit },
       formId,
+      search,
     );
     return { data: await this.hydrateRows(data), total };
   }
 
   /** Cru (id-keyed): usado pela exportação CSV, que já lê `answers` por `field.id`. */
-  exportRows(eventId: string, formId?: string) {
-    return this.repo.findAllByEvent(eventId, formId);
+  exportRows(eventId: string, formId?: string, search?: string) {
+    return this.repo.findAllByEvent(eventId, formId, search);
   }
 
   /** Hidrata `answers` (id→label atual), agrupando por `formId` para não repetir a query. */

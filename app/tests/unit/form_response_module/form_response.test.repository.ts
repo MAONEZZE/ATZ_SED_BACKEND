@@ -148,6 +148,27 @@ describe('PrismaFormResponseRepository listagens', () => {
     expect(where).toEqual({ eventId: 'evt-1' });
   });
 
+  // Busca casa por nome/email/telefone do inscrito (relation to-one); resposta
+  // anônima (registration null) nunca satisfaz o OR, então some do resultado.
+  it('filters by registration name/email/phone when search is given', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const { repo } = await makeRepo({ findMany });
+
+    await repo.findAllByEvent('evt-1', undefined, 'joao');
+
+    const [{ where }] = findMany.mock.calls[0] as [{ where: Record<string, unknown> }];
+    expect(where).toEqual({
+      eventId: 'evt-1',
+      registration: {
+        OR: [
+          { name: { contains: 'joao', mode: 'insensitive' } },
+          { email: { contains: 'joao', mode: 'insensitive' } },
+          { phone: { contains: 'joao', mode: 'insensitive' } },
+        ],
+      },
+    });
+  });
+
   it('paginates with the same scope', async () => {
     const findMany = jest.fn().mockResolvedValue([ROW]);
     const count = jest.fn().mockResolvedValue(1);

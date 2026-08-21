@@ -24,6 +24,7 @@ export class FormResponseController {
   })
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiQuery({ name: 'formId', required: false, description: 'Filtra por formulário' })
+  @ApiQuery({ name: 'search', required: false, description: 'Busca por nome, email ou telefone do inscrito' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'format', required: false, enum: ['json', 'csv'] })
@@ -31,6 +32,7 @@ export class FormResponseController {
   async findAll(
     @Param('eventId') eventId: string,
     @Query('formId') formId?: string,
+    @Query('search') search?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('format') format?: string,
@@ -40,7 +42,7 @@ export class FormResponseController {
       // As colunas dinâmicas são os campos do formulário, então o CSV é por
       // formulário: sem formId não há cabeçalho coerente.
       const [rows, fields] = await Promise.all([
-        this.responses.exportRows(eventId, formId),
+        this.responses.exportRows(eventId, formId, search),
         formId ? this.formFields.exportLabels(formId) : Promise.resolve([]),
       ]);
       res!.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -50,7 +52,7 @@ export class FormResponseController {
 
     const p = Number(page) || 1;
     const l = Number(limit) || 20;
-    const { data, total } = await this.responses.listPaginated(eventId, p, l, formId);
+    const { data, total } = await this.responses.listPaginated(eventId, p, l, formId, search);
     return { data, total, page: p, limit: l };
   }
 }

@@ -97,9 +97,19 @@ export class PrismaFormResponseRepository
     return this.toEntity(row);
   }
 
-  async findAllByEvent(eventId: string, formId?: string): Promise<FormResponseWithContext[]> {
+  // `search` filtra pelo inscrito (relation to-one): Prisma exclui de graça as
+  // respostas anônimas (`registration` null nunca satisfaz o `OR`).
+  private searchClause(search?: string) {
+    return search ? { registration: this.containsSearch(['name', 'email', 'phone'], search) } : {};
+  }
+
+  async findAllByEvent(
+    eventId: string,
+    formId?: string,
+    search?: string,
+  ): Promise<FormResponseWithContext[]> {
     const rows = await this.prisma.formResponse.findMany({
-      where: { eventId, ...(formId && { formId }) },
+      where: { eventId, ...(formId && { formId }), ...this.searchClause(search) },
       include: this.joins,
       orderBy: { createdAt: 'desc' },
     });
@@ -110,8 +120,9 @@ export class PrismaFormResponseRepository
     eventId: string,
     pagination: { skip: number; take: number },
     formId?: string,
+    search?: string,
   ): Promise<{ data: FormResponseWithContext[]; total: number }> {
-    const where = { eventId, ...(formId && { formId }) };
+    const where = { eventId, ...(formId && { formId }), ...this.searchClause(search) };
     const [rows, total] = await Promise.all([
       this.prisma.formResponse.findMany({
         where,
