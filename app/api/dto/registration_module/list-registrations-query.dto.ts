@@ -15,6 +15,11 @@ export class ListRegistrationsQueryDto extends PaginationQueryDto {
   @IsString()
   search?: string;
 
+  @ApiPropertyOptional({ description: 'Filtra por formulário de origem (originFormId)' })
+  @IsOptional()
+  @IsString()
+  formId?: string;
+
   @ApiPropertyOptional({
     type: Boolean,
     description: 'Filtra por presença. Ausente = todos.',

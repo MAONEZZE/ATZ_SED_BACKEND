@@ -23,6 +23,8 @@ export class RegistrationEntity extends EntityBase {
     public readonly attended: boolean = false,
     /** Formulário que criou a inscrição. Imutável; null = origem desconhecida (import/painel/anterior à coluna). */
     public readonly originFormId: string | null = null,
+    /** Nome de `originFormId` — só vem preenchido nas listagens que fazem join; nas demais fica null. */
+    public readonly formName: string | null = null,
   ) {
     super(id);
   }

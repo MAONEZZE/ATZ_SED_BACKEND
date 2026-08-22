@@ -37,6 +37,7 @@ export interface RegistrationRepositoryPort {
     status?: FunnelStatus,
     search?: string,
     attended?: boolean,
+    formId?: string,
   ): Promise<RegistrationEntity[]>;
   findAllByEventPaginated(
     eventId: string,
@@ -44,6 +45,7 @@ export interface RegistrationRepositoryPort {
     status?: FunnelStatus,
     search?: string,
     attended?: boolean,
+    formId?: string,
   ): Promise<{ data: RegistrationEntity[]; total: number }>;
   /** Apaga de vez. Cascateia as mensagens (outbox + logs) e a resposta de pós-evento do inscrito. */
   deleteMany(ids: string[], eventId: string): Promise<number>;
