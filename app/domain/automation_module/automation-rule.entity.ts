@@ -3,21 +3,33 @@ import { EntityBase } from '@domain/shared/entity.base';
 /** Gatilhos aceitos, espelhando o enum `AutomationTrigger` do banco. */
 export const AUTOMATION_TRIGGERS = [
   'on_registration',
-  'on_post_event',
-  'on_nps',
   'on_approval',
   'on_rejection',
   'recurring',
+  'on_form_submitted',
+  'on_date',
+  'on_date_form_field',
 ] as const;
 
 export type AutomationTrigger = (typeof AUTOMATION_TRIGGERS)[number];
 
+/** Hora do disparo mensal de `on_date_form_field` quando a regra não define `sendTime`. */
+export const DEFAULT_SEND_TIME = '09:00';
+
 /**
  * Regra que dispara uma mensagem a partir de um acontecimento do evento.
  *
- * `recurring` é o gatilho fora da curva: em vez de reagir a um acontecimento,
- * roda por agenda, e por isso é o único que exige `cron` + `timezone` e o único
- * que pode conviver com outras regras ativas do mesmo gatilho.
+ * `recurring`, `on_date` e `on_date_form_field` são os gatilhos fora da curva:
+ * em vez de reagir a um acontecimento, rodam por agenda. `recurring` repete por
+ * cron (exige `cron` + `timezone`); `on_date` dispara uma vez só, no instante de
+ * `sendAt`; `on_date_form_field` dispara todo mês, por inscrito, no dia-do-mês
+ * que a pessoa respondeu num campo `on_date_automation_field` — hora vem de
+ * `sendTime` (default `09:00`) no `timezone` da regra.
+ *
+ * Qualquer gatilho aceita mais de uma regra ativa no mesmo evento, desde que
+ * usem templates diferentes (ex: aprovação mandando e-mail e WhatsApp). Repetir
+ * o mesmo template no mesmo gatilho é recusado com 409 — as duas linhas
+ * colidiriam no `dedupKey` do outbox e a segunda nunca sairia.
  *
  * Campos públicos com o nome das colunas: as listagens são serializadas direto
  * como corpo da resposta.
@@ -28,11 +40,29 @@ export class AutomationRuleEntity extends EntityBase {
     public readonly eventId: string,
     public readonly templateId: string,
     public readonly trigger: AutomationTrigger,
+    /**
+     * Formulários que disparam a regra. Vazio = todos os formulários do evento,
+     * dinamicamente (formulário criado depois já dispara). Só relevante quando
+     * `acceptsForm(trigger)`; obrigatório e não-vazio em `on_form_submitted`.
+     */
+    public readonly formIds: string[],
     public readonly delayMinutes: number | null,
     public readonly cron: string | null,
     public readonly timezone: string | null,
     public readonly active: boolean,
+    /** Pasta que organiza a regra. Sempre uma pasta do mesmo evento. */
+    public readonly folderId: string | null,
+    /** Posição manual dentro da pasta (ou da raiz). */
+    public readonly order: number,
     public readonly createdAt: Date,
+    /** Instante do disparo único de `on_date`, em UTC. */
+    public readonly sendAt: Date | null = null,
+    /** Preenchido no claim do sweeper: regra já disparada não dispara de novo. */
+    public readonly firedAt: Date | null = null,
+    /** Hora do disparo mensal de `on_date_form_field`, "HH:mm". Só esse gatilho usa. */
+    public readonly sendTime: string | null = null,
+    /** Nome próprio da regra. `null` = a UI cai no nome do template. */
+    public readonly name: string | null = null,
   ) {
     super(id);
   }
@@ -41,8 +71,38 @@ export class AutomationRuleEntity extends EntityBase {
     return AutomationRuleEntity.isRecurring(this.trigger);
   }
 
+  /** `on_form_submitted` é escopado por formulário, então exige `formIds` não-vazio. */
+  static requiresForm(trigger: string): boolean {
+    return trigger === 'on_form_submitted';
+  }
+
+  /**
+   * Gatilhos que guardam `formIds`. Em `on_form_submitted` é obrigatório; em
+   * `on_registration` é escopo opcional — com formulários, a regra só vale para
+   * quem se inscreveu por um deles; sem (lista vazia), vale para qualquer
+   * formulário.
+   */
+  static acceptsForm(trigger: string): boolean {
+    return trigger === 'on_form_submitted' || trigger === 'on_registration';
+  }
+
+  /** Lista vazia = todos; caso contrário só quem entrou por um dos formulários. */
+  static matchesForm(formIds: string[], formId: string | null): boolean {
+    return formIds.length === 0 || (formId !== null && formIds.includes(formId));
+  }
+
   static isRecurring(trigger: string): boolean {
     return trigger === 'recurring';
+  }
+
+  /** Disparo único numa data marcada na regra, igual para todos os inscritos. */
+  static isDate(trigger: string): boolean {
+    return trigger === 'on_date';
+  }
+
+  /** Recorrência mensal por inscrito, calculada a partir do formulário — sem agenda materializada. */
+  static isDateFormField(trigger: string): boolean {
+    return trigger === 'on_date_form_field';
   }
 
   /**
@@ -53,6 +113,11 @@ export class AutomationRuleEntity extends EntityBase {
     return this.delayMinutes === null || this.delayMinutes === 0;
   }
 
+  /** Um gatilho de data sem data nunca dispararia. */
+  static requiresSendAt(trigger: string, sendAt?: Date | null): boolean {
+    return AutomationRuleEntity.isDate(trigger) && !sendAt;
+  }
+
   /** Um gatilho recorrente sem agenda nunca dispararia. */
   static requiresSchedule(
     trigger: string,
@@ -60,13 +125,5 @@ export class AutomationRuleEntity extends EntityBase {
     timezone?: string | null,
   ): boolean {
     return AutomationRuleEntity.isRecurring(trigger) && (!cron?.trim() || !timezone?.trim());
-  }
-
-  /**
-   * Fora do `recurring`, dois gatilhos iguais ativos no mesmo evento mandariam
-   * a mensagem em duplicidade.
-   */
-  static allowsDuplicateActive(trigger: string): boolean {
-    return AutomationRuleEntity.isRecurring(trigger);
   }
 }

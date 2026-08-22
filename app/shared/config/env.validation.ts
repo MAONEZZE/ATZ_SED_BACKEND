@@ -7,12 +7,12 @@ const envSchema = z.object({
   DIRECT_URL: z.string().url(),
   REDIS_URL: z.string().url(),
   SUPABASE_URL: z.string().url(),
-  SUPABASE_JWT_SECRET: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   SUPABASE_STORAGE_BUCKET: z.string().min(1),
   SUPABASE_STORAGE_BUCKET_COVERS: z.string().min(1),
-  SUPABASE_STORAGE_BUCKET_UPLOADS: z.string().min(1),
   SUPABASE_STORAGE_BUCKET_PROFILE_PHOTOS: z.string().min(1),
+  /** Pasta das imagens enviadas como resposta de formulário (campo `type: image`). */
+  SUPABASE_STORAGE_BUCKET_UPLOADS: z.string().min(1),
   WHATSAPP_API_URL: z.string().url(),
   WHATSAPP_WEBHOOK_SECRET: z.string().min(1),
   APP_PUBLIC_URL: z.string().url(),
@@ -46,7 +46,6 @@ const envSchema = z.object({
   MANUAL_BATCH_MIN_DELAY_MS: z.coerce.number().int().nonnegative(),
   MANUAL_BATCH_MAX_DELAY_MS: z.coerce.number().int().nonnegative(),
 
-  SCHEDULED_AUTOMATIONS_INTERVAL_MS: z.coerce.number().int().positive(),
   QUEUE_STALLED_INTERVAL_MS: z.coerce.number().int().positive(),
   REDIS_CLEANUP_CRON: z.string().min(1),
 });

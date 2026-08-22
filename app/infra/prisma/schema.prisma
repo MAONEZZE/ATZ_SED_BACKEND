@@ -21,18 +21,40 @@ enum EventStatus {
   @@schema("SED")
 }
 
-enum FunnelStatus {
-  pending
-  approved
-  rejected
+/// Papel de um colaborador dentro do evento. Ordem de poder: read < invited < admin.
+/// O dono do evento é admin implícito (não tem linha em event_collaborators).
+enum EventRole {
+  admin
+  invited
+  read
 
   @@schema("SED")
 }
 
-enum FormFieldKind {
-  registration
-  post_event
-  nps
+/// Papel do usuário na plataforma. `team` é gente da empresa e pode consultar
+/// o RAG com dados confidenciais; `user` é todo o resto (inclusive cliente
+/// externo). Default `user`: papel se concede na mão, nunca se presume.
+enum ProfileRole {
+  team
+  user
+
+  @@schema("SED")
+}
+
+/// Que tipo de registro uma pasta organiza. Uma pasta serve a UM tipo só — não
+/// existe pasta mista (evento e template na mesma).
+enum FolderResourceType {
+  event
+  message_template
+  automation_rule
+
+  @@schema("SED")
+}
+
+enum FunnelStatus {
+  pending
+  approved
+  rejected
 
   @@schema("SED")
 }
@@ -49,6 +71,9 @@ enum FieldType {
   date
   linkedin
   instagram
+  /// Data (AAAA-MM-DD) que alimenta o gatilho `on_date_form_field`: só o dia
+  /// conta, mês/ano são ignorados (recorrência mensal). No máximo 1 por evento.
+  on_date_automation_field
 
   @@schema("SED")
 }
@@ -67,6 +92,11 @@ enum AutomationTrigger {
   on_approval
   on_rejection
   recurring
+  on_form_submitted
+  on_date
+  /// Recorrência mensal por inscrito: dispara no dia-do-mês que a pessoa
+  /// respondeu num campo `on_date_automation_field`. Hora vem de `sendTime`.
+  on_date_form_field
 
   @@schema("SED")
 }
@@ -92,19 +122,22 @@ enum PipedriveStatus {
 // ==================== MODELS ====================
 
 model Profile {
-  id             String              @id @default(uuid())
-  userId         String              @unique @map("user_id")
-  name           String
-  email          String
-  photoUrl       String?             @map("photo_url")
-  createdAt      DateTime            @default(now()) @map("created_at")
-  updatedAt      DateTime            @updatedAt @map("updated_at")
-  events         Event[]             @relation("EventOwner")
-  editedEvents   Event[]             @relation("EventLastEditor")
-  collaborations EventCollaborator[]
-  templates      MessageTemplate[]
-  outboxMessages OutboxMessage[]
-  messageLogs    MessageLog[]        @relation("MessageLogOwner")
+  id                       String                    @id @default(uuid())
+  userId                   String                    @unique @map("user_id")
+  name                     String
+  email                    String
+  photoUrl                 String?                   @map("photo_url")
+  role                     ProfileRole               @default(user)
+  createdAt                DateTime                  @default(now()) @map("created_at")
+  updatedAt                DateTime                  @updatedAt @map("updated_at")
+  events                   Event[]                   @relation("EventOwner")
+  editedEvents             Event[]                   @relation("EventLastEditor")
+  collaborations           EventCollaborator[]
+  templates                MessageTemplate[]
+  outboxMessages           OutboxMessage[]
+  messageLogs              MessageLog[]              @relation("MessageLogOwner")
+  folders                  Folder[]
+  allowedWhatsappInstances ProfileWhatsappInstance[]
 
   @@map("profiles")
   @@schema("SED")
@@ -122,73 +155,149 @@ model Event {
   groupLink          String?             @map("group_link")
   eventDate          DateTime?           @map("event_date")
   endDate            DateTime?           @map("end_date")
-  sendToPipedrive    Boolean             @default(false) @map("send_to_pipedrive")
   recurrenceFreq     String?             @map("recurrence_freq")
   recurrenceInterval Int?                @map("recurrence_interval")
   recurrenceUntil    DateTime?           @map("recurrence_until")
   status             EventStatus         @default(draft)
   whatsappInstanceId String?             @map("whatsapp_instance_id")
   whatsappToken      String?             @map("whatsapp_token")
+  folderId           String?             @map("folder_id")
+  order              Int                 @default(0)
   lastEditedById     String?             @map("last_edited_by")
   createdAt          DateTime            @default(now()) @map("created_at")
   updatedAt          DateTime            @updatedAt @map("updated_at")
   owner              Profile             @relation("EventOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   lastEditedBy       Profile?            @relation("EventLastEditor", fields: [lastEditedById], references: [id], onDelete: SetNull)
   whatsappInstance   WhatsappInstance?   @relation(fields: [whatsappInstanceId], references: [id], onDelete: SetNull)
+  folder             Folder?             @relation("EventInFolder", fields: [folderId], references: [id], onDelete: SetNull)
+  folders            Folder[]            @relation("FolderInEvent")
   collaborators      EventCollaborator[]
   forms              Form[]
   registrations      Registration[]
-  postEventResponses PostEventResponse[]
+  formResponses      FormResponse[]
   automationRules    AutomationRule[]
   outboxMessages     OutboxMessage[]
   messageLogs        MessageLog[]
-  userSubscriptions  UserSubscription[]
   messageTemplates   MessageTemplate[]
 
   @@index([ownerId])
   @@index([whatsappInstanceId])
+  @@index([folderId])
   @@map("events")
   @@schema("SED")
 }
 
+/// Pasta de organização do painel. Aninhável (`parentId`) e ordenável (`order`,
+/// dentro do irmão). Dois eixos de escopo:
+///
+///   * `resourceType` — que tipo de registro ela organiza. Uma pasta serve a um
+///     tipo só; não há consulta que atravesse tipos.
+///   * `eventId` — `null` significa pasta do painel do dono (filtra por
+///     `ownerId`); preenchido significa que a pasta vive DENTRO do evento e
+///     acompanha o evento no compartilhamento, em vez de ficar presa ao perfil
+///     que a criou. Aí `ownerId` é só "quem criou" e quem autoriza escrita é o
+///     papel no evento.
+///
+/// A combinação válida de tipo x escopo é travada por CHECK no banco
+/// (`folders_event_scope_check`, não modelado pelo Prisma) e validada no
+/// service: `event` nunca dentro de evento, `automation_rule` sempre dentro.
+///
+/// Deletar a pasta não deleta o registro: as FKs `folder_id` são SetNull, e as
+/// subpastas são promovidas ao pai pelo repositório.
+model Folder {
+  id               String             @id @default(uuid())
+  ownerId          String             @map("owner_id")
+  resourceType     FolderResourceType @default(event) @map("resource_type")
+  eventId          String?            @map("event_id")
+  name             String
+  parentId         String?            @map("parent_id")
+  order            Int                @default(0)
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  owner            Profile            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  event            Event?             @relation("FolderInEvent", fields: [eventId], references: [id], onDelete: Cascade)
+  parent           Folder?            @relation("FolderTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children         Folder[]           @relation("FolderTree")
+  events           Event[]            @relation("EventInFolder")
+  messageTemplates MessageTemplate[]
+  automationRules  AutomationRule[]
+
+  @@index([ownerId])
+  @@index([parentId])
+  @@index([eventId])
+  @@index([ownerId, resourceType])
+  @@map("folders")
+  @@schema("SED")
+}
+
 model WhatsappInstance {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  nickname  String
-  token     String?  @map("token")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  events    Event[]
+  id              String                    @id @default(uuid())
+  name            String                    @unique
+  nickname        String
+  token           String?                   @map("token")
+  createdAt       DateTime                  @default(now()) @map("created_at")
+  updatedAt       DateTime                  @updatedAt @map("updated_at")
+  events          Event[]
+  allowedProfiles ProfileWhatsappInstance[]
 
   @@map("whatsapp_instances")
   @@schema("SED")
 }
 
-model Form {
-  id                        String        @id @default(uuid())
-  eventId                   String        @map("event_id")
-  kind                      FormFieldKind @default(registration)
-  description               String?
-  postRegistrationMessage   String?       @map("post_registration_message")
-  linkPostSubscription      String?       @map("link_post_subscription")
-  requireImageAuthorization Boolean       @default(false) @map("require_image_authorization")
-  createdAt                 DateTime      @default(now()) @map("created_at")
-  updatedAt                 DateTime      @updatedAt @map("updated_at")
-  event                     Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  fields                    FormField[]
+/// Lista de instâncias que um perfil PODE usar (N por perfil, ninguém é dono de
+/// instância). Fixa: populada e ajustada só por SQL direto, sem rota de escrita.
+/// Perfil sem nenhuma linha não dispara WhatsApp.
+model ProfileWhatsappInstance {
+  profileId  String           @map("profile_id")
+  instanceId String           @map("instance_id")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  profile    Profile          @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  instance   WhatsappInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
 
-  @@unique([eventId, kind])
+  @@id([profileId, instanceId])
+  @@index([instanceId])
+  @@map("profile_whatsapp_instances")
+  @@schema("SED")
+}
+
+/// Formulário do evento. Um evento tem N formulários (o `kind` fixo
+/// registration/post_event/nps morreu em 2026-08-17); `slug` é a chave pública
+/// dentro do evento e `order` posiciona na listagem.
+model Form {
+  id                        String               @id @default(uuid())
+  eventId                   String               @map("event_id")
+  name                      String
+  slug                      String
+  order                     Int                  @default(0)
+  description               String?
+  postRegistrationMessage   String?              @map("post_registration_message")
+  linkPostSubscription      String?              @map("link_post_subscription")
+  requireImageAuthorization Boolean              @default(false) @map("require_image_authorization")
+  sendToPipedrive           Boolean              @default(false) @map("send_to_pipedrive")
+  /// Formulário sem inscrito por trás (sem telefone). Imutável após criação.
+  anonymous                 Boolean              @default(false)
+  createdAt                 DateTime             @default(now()) @map("created_at")
+  updatedAt                 DateTime             @updatedAt @map("updated_at")
+  event                     Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  fields                    FormField[]
+  responses                 FormResponse[]
+  automationRuleForms       AutomationRuleForm[]
+  /// Inscritos que nasceram deste formulário (imutável desde a criação).
+  originOfRegistrations     Registration[]
+
+  @@unique([eventId, slug])
   @@map("forms")
   @@schema("SED")
 }
 
 model EventCollaborator {
-  id        String   @id @default(uuid())
-  eventId   String   @map("event_id")
-  profileId String   @map("profile_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  id        String    @id @default(uuid())
+  eventId   String    @map("event_id")
+  profileId String    @map("profile_id")
+  role      EventRole @default(invited)
+  createdAt DateTime  @default(now()) @map("created_at")
+  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  profile   Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, profileId])
   @@index([profileId])
@@ -213,62 +322,56 @@ model FormField {
   @@schema("SED")
 }
 
+/// Resposta de um inscrito a um formulário — a junção N formulários × N pessoas.
+/// Uma resposta por (form, inscrito): reenviar sobrescreve, como o pós-evento já fazia.
+model FormResponse {
+  id             String       @id @default(uuid())
+  formId         String       @map("form_id")
+  eventId        String       @map("event_id")
+  /// Null para resposta anônima (formulário sem telefone, sem inscrito).
+  registrationId String?      @map("registration_id")
+  answers        Json
+  /// Resultado do envio ao Pipedrive. Antes vivia em Registration.pipedriveStatus,
+  /// que só cobria a resposta que criou o inscrito.
+  pipedriveStatus PipedriveStatus? @map("pipedrive_status")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  form           Form         @relation(fields: [formId], references: [id], onDelete: Cascade)
+  event          Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  registration   Registration? @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  @@unique([formId, registrationId])
+  @@index([eventId])
+  @@index([registrationId])
+  @@map("form_responses")
+  @@schema("SED")
+}
+
 model Registration {
-  id                 String             @id @default(uuid())
-  eventId            String             @map("event_id")
-  status             FunnelStatus       @default(pending)
+  id                 String           @id @default(uuid())
+  eventId            String           @map("event_id")
+  status             FunnelStatus     @default(pending)
   answers            Json
   name               String
   email              String
   phone              String
-  imageAuthorization Boolean            @default(false) @map("image_authorization")
-  createdAt          DateTime           @default(now()) @map("created_at")
-  updatedAt          DateTime           @updatedAt @map("updated_at")
-  event              Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  imageAuthorization Boolean          @default(false) @map("image_authorization")
+  attended           Boolean          @default(false)
+  /// Formulário que criou a inscrição. Imutável desde a criação — FormResponse é
+  /// N-N e não serve pra isso depois da segunda resposta. Nulo para inscritos
+  /// criados antes desta coluna (sem backfill possível) ou direto pelo painel.
+  originFormId       String?          @map("origin_form_id")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  event              Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  originForm         Form?            @relation(fields: [originFormId], references: [id], onDelete: SetNull)
   outboxMessages     OutboxMessage[]
   messageLogs        MessageLog[]
-  postEventResponse  PostEventResponse?
+  formResponses      FormResponse[]
 
   @@index([eventId, status])
+  @@index([originFormId])
   @@map("registrations")
-  @@schema("SED")
-}
-
-model PostEventResponse {
-  id             String       @id @default(uuid())
-  eventId        String       @map("event_id")
-  registrationId String       @map("registration_id")
-  answers        Json
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
-  event          Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  registration   Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
-
-  @@unique([registrationId])
-  @@index([eventId])
-  @@map("post_event_responses")
-  @@schema("SED")
-}
-
-model UserSubscription {
-  id                  String           @id @default(uuid())
-  eventId             String           @map("event_id")
-  name                String?
-  email               String?
-  phone               String?
-  registrationAnswers Json?            @map("registration_answers")
-  postEventAnswers    Json?            @map("post_event_answers")
-  npsAnswers          Json?            @map("nps_answers")
-  sendToPipedrive     Boolean          @default(false) @map("send_to_pipedrive")
-  pipedriveStatus     PipedriveStatus? @map("pipedrive_status")
-  createdAt           DateTime         @default(now()) @map("created_at")
-  updatedAt           DateTime         @updatedAt @map("updated_at")
-  event               Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@index([eventId])
-  @@index([eventId, email])
-  @@index([eventId, phone])
-  @@map("user_subscriptions")
   @@schema("SED")
 }
 
@@ -282,34 +385,67 @@ model MessageTemplate {
   layoutConfig    Json?            @map("layout_config")
   styleKey        String?          @map("style_key")
   eventId         String?          @map("event_id")
+  folderId        String?          @map("folder_id")
+  order           Int              @default(0)
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
   owner           Profile          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   event           Event?           @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  folder          Folder?          @relation(fields: [folderId], references: [id], onDelete: SetNull)
   automationRules AutomationRule[]
   outboxMessages  OutboxMessage[]
 
   @@index([ownerId])
   @@index([eventId])
+  @@index([folderId])
   @@map("message_templates")
   @@schema("SED")
 }
 
 model AutomationRule {
-  id           String            @id @default(uuid())
-  eventId      String            @map("event_id")
-  templateId   String            @map("template_id")
+  id           String               @id @default(uuid())
+  eventId      String               @map("event_id")
+  templateId   String               @map("template_id")
   trigger      AutomationTrigger
-  delayMinutes Int?              @map("delay_minutes")
+  delayMinutes Int?                 @map("delay_minutes")
   cron         String?
   timezone     String?
-  active       Boolean           @default(true)
-  createdAt    DateTime          @default(now()) @map("created_at")
-  event        Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  template     MessageTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  /// Instante do disparo único (trigger on_date), em UTC. `timezone` guarda o fuso em que foi marcado.
+  sendAt       DateTime?            @map("send_at")
+  /// Marcado no claim do sweeper: regra de data já disparada não dispara de novo.
+  firedAt      DateTime?            @map("fired_at")
+  /// Hora do disparo mensal de on_date_form_field, "HH:mm", no `timezone` da regra. NULL nos outros gatilhos.
+  sendTime     String?              @map("send_time")
+  /// Nome próprio da regra. NULL = a UI cai no nome do template.
+  name         String?
+  active       Boolean              @default(true)
+  folderId     String?              @map("folder_id")
+  order        Int                  @default(0)
+  createdAt    DateTime             @default(now()) @map("created_at")
+  event        Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  template     MessageTemplate      @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  folder       Folder?              @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  /// Escopo por formulário: obrigatório em on_form_submitted, opcional em on_registration.
+  /// Vazio = todos os formulários do evento (dinâmico).
+  forms        AutomationRuleForm[]
 
   @@index([eventId, trigger, active])
+  @@index([folderId])
   @@map("automation_rules")
+  @@schema("SED")
+}
+
+/// Junção regra↔formulário (N formulários por regra). Linha ausente para uma
+/// regra = "todos os formulários", inclusive os criados depois.
+model AutomationRuleForm {
+  ruleId String         @map("rule_id")
+  formId String         @map("form_id")
+  rule   AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  form   Form           @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@id([ruleId, formId])
+  @@index([formId])
+  @@map("automation_rule_forms")
   @@schema("SED")
 }
 

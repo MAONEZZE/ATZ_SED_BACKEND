@@ -173,3 +173,60 @@ describe('PrismaAutomationRepository.update', () => {
     expect(args.data).toEqual({ delayMinutes: null });
   });
 });
+
+describe('PrismaAutomationRepository.findActiveByEventTriggerAndTemplate', () => {
+  // A duplicata barrada é (evento + gatilho + template) ativa. O templateId no
+  // where é o que libera e-mail + WhatsApp no mesmo gatilho. formIds não entra
+  // mais na chave: o mesmo template em formulários diferentes é uma regra com
+  // dois formIds, não duas regras.
+  it('filters by event, trigger, template and active', async () => {
+    const findFirst = jest.fn().mockResolvedValue(RULE_ROW);
+    const { repo } = await makeRepo({ findFirst });
+
+    const found = await repo.findActiveByEventTriggerAndTemplate('evt-1', 'on_approval', 'tpl-1');
+
+    expect(findFirst).toHaveBeenCalledWith({
+      where: {
+        eventId: 'evt-1',
+        trigger: 'on_approval',
+        templateId: 'tpl-1',
+        active: true,
+      },
+    });
+    expect(found).toBeInstanceOf(AutomationRuleEntity);
+  });
+
+  it('excludes the rule being edited', async () => {
+    const findFirst = jest.fn().mockResolvedValue(null);
+    const { repo } = await makeRepo({ findFirst });
+
+    await repo.findActiveByEventTriggerAndTemplate('evt-1', 'on_approval', 'tpl-1', 'rule-1');
+
+    const [{ where }] = findFirst.mock.calls[0] as [{ where: Record<string, unknown> }];
+    expect(where.id).toEqual({ not: 'rule-1' });
+  });
+});
+
+describe('PrismaAutomationRepository.templateById scope', () => {
+  // Antes o id era aceito sozinho: template de outro evento entrava na regra.
+  it('accepts only the event template or a global one when the event is given', async () => {
+    const findFirst = jest.fn().mockResolvedValue(TEMPLATE_ROW);
+    const { repo } = await makeRepo({}, { findFirst });
+
+    const template = await repo.templateById('tpl-1', 'evt-1');
+
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { id: 'tpl-1', OR: [{ eventId: 'evt-1' }, { eventId: null }] },
+    });
+    expect(template).toBeInstanceOf(MessageTemplateEntity);
+  });
+
+  it('keeps the plain lookup when no event is given', async () => {
+    const findFirst = jest.fn().mockResolvedValue(TEMPLATE_ROW);
+    const { repo } = await makeRepo({}, { findFirst });
+
+    await repo.templateById('tpl-1');
+
+    expect(findFirst).toHaveBeenCalledWith({ where: { id: 'tpl-1' } });
+  });
+});

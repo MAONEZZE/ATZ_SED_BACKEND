@@ -40,7 +40,10 @@ export class OutboxMessageController {
 
   @Post('messages')
   @HttpCode(202)
-  @ApiOperation({ summary: 'Enviar mensagem — eventId opcional no body' })
+  @ApiOperation({
+    summary:
+      'Enviar mensagem — eventId sempre opcional; canal whatsapp exige eventId ou instanceId',
+  })
   @ApiResponse({ status: 202, description: 'Mensagem(ns) enfileirada(s)' })
   send(@Body() dto: SendMessageDto, @CurrentUser() user: AuthenticatedUser) {
     return this.manualSend.send(dto, user.id);

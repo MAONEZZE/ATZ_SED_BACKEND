@@ -58,9 +58,10 @@ export class RecurringAutomationsWorker extends WorkerHost implements OnModuleIn
       return;
     }
 
+    const occurrenceKey = String(job.timestamp);
     for (const registrationId of event.registrationIds) {
       try {
-        await this.engine.fireAutomations(registrationId, event.id, 'recurring', [rule.id]);
+        await this.engine.fireAutomations(registrationId, event.id, 'recurring', [rule.id], occurrenceKey);
       } catch (err) {
         this.logger.error({ err, registrationId, ruleId }, 'Recurring automation failed');
       }

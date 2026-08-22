@@ -2,6 +2,9 @@ import { EntityBase } from '@domain/shared/entity.base';
 
 export type FunnelStatus = 'pending' | 'approved' | 'rejected';
 
+/** Resultado do envio ao Pipedrive. `null` = o evento não pede envio. */
+export type PipedriveStatus = 'pending' | 'sent' | 'failed' | 'skipped';
+
 export const FUNNEL_STATUSES: FunnelStatus[] = ['pending', 'approved', 'rejected'];
 
 export class RegistrationEntity extends EntityBase {
@@ -16,6 +19,10 @@ export class RegistrationEntity extends EntityBase {
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
     public readonly imageAuthorization: boolean = false,
+    /** Presença no evento. `false` = não compareceu ou ainda não foi conferido. */
+    public readonly attended: boolean = false,
+    /** Formulário que criou a inscrição. Imutável; null = origem desconhecida (import/painel/anterior à coluna). */
+    public readonly originFormId: string | null = null,
   ) {
     super(id);
   }

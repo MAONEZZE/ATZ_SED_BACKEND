@@ -47,11 +47,44 @@ describe('RecurringAutomationsWorker', () => {
       registrationIds: ['reg-1', 'reg-2'],
     });
 
-    await worker.process({ data: { ruleId: 'rule-1' } } as any);
+    await worker.process({ data: { ruleId: 'rule-1' }, timestamp: 1755600000000 } as any);
 
-    expect(engine.fireAutomations).toHaveBeenCalledWith('reg-1', 'evt-1', 'recurring', ['rule-1']);
-    expect(engine.fireAutomations).toHaveBeenCalledWith('reg-2', 'evt-1', 'recurring', ['rule-1']);
+    expect(engine.fireAutomations).toHaveBeenCalledWith(
+      'reg-1',
+      'evt-1',
+      'recurring',
+      ['rule-1'],
+      '1755600000000',
+    );
+    expect(engine.fireAutomations).toHaveBeenCalledWith(
+      'reg-2',
+      'evt-1',
+      'recurring',
+      ['rule-1'],
+      '1755600000000',
+    );
     expect(engine.fireAutomations).toHaveBeenCalledTimes(2);
+  });
+
+  it('process uses job.timestamp as the occurrence key, distinct per occurrence and stable on retry', async () => {
+    const { worker, automations, eventRepo, engine } = make();
+    automations.findById.mockResolvedValue({
+      id: 'rule-1',
+      eventId: 'evt-1',
+      active: true,
+      trigger: 'recurring',
+    });
+    eventRepo.findWithApprovedRegistrationIds.mockResolvedValue({
+      id: 'evt-1',
+      registrationIds: ['reg-1'],
+    });
+
+    await worker.process({ data: { ruleId: 'rule-1' }, timestamp: 1000 } as any);
+    await worker.process({ data: { ruleId: 'rule-1' }, timestamp: 1000 } as any); // retry
+    await worker.process({ data: { ruleId: 'rule-1' }, timestamp: 2000 } as any); // next occurrence
+
+    const occurrenceKeys = engine.fireAutomations.mock.calls.map((call) => call[4]);
+    expect(occurrenceKeys).toEqual(['1000', '1000', '2000']);
   });
 
   it('process skips when the rule no longer exists', async () => {

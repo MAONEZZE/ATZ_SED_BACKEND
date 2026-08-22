@@ -6,12 +6,9 @@ import {
   RegistrationRepositoryPort,
   CreateRegistrationData,
   UpdateAnswersData,
-  PostEventResponseData,
+  RegistrationWithEventDate,
 } from '@domain/registration_module/i-repository-registration';
-import {
-  RegistrationEntity,
-  FunnelStatus,
-} from '@domain/registration_module/registration.entity';
+import { RegistrationEntity, FunnelStatus } from '@domain/registration_module/registration.entity';
 
 @Injectable()
 export class PrismaRegistrationRepository
@@ -29,6 +26,8 @@ export class PrismaRegistrationRepository
     createdAt: Date;
     updatedAt: Date;
     imageAuthorization: boolean;
+    attended: boolean;
+    originFormId: string | null;
   }): RegistrationEntity {
     return new RegistrationEntity(
       row.id,
@@ -41,6 +40,8 @@ export class PrismaRegistrationRepository
       row.createdAt,
       row.updatedAt,
       row.imageAuthorization,
+      row.attended,
+      row.originFormId,
     );
   }
 
@@ -53,11 +54,13 @@ export class PrismaRegistrationRepository
     eventId: string,
     status?: FunnelStatus,
     search?: string,
+    attended?: boolean,
   ): Promise<RegistrationEntity[]> {
     const rows = await this.prisma.registration.findMany({
       where: {
         eventId,
         ...(status ? { status } : {}),
+        ...(attended !== undefined ? { attended } : {}),
         ...this.containsSearch(['name', 'email', 'phone'], search),
       },
       orderBy: { createdAt: 'desc' },
@@ -70,10 +73,12 @@ export class PrismaRegistrationRepository
     pagination: { skip: number; take: number },
     status?: FunnelStatus,
     search?: string,
+    attended?: boolean,
   ): Promise<{ data: RegistrationEntity[]; total: number }> {
     const where = {
       eventId,
       ...(status ? { status } : {}),
+      ...(attended !== undefined ? { attended } : {}),
       ...this.containsSearch(['name', 'email', 'phone'], search),
     };
     const [rows, total] = await Promise.all([
@@ -97,6 +102,23 @@ export class PrismaRegistrationRepository
       },
     });
     return this.map(row);
+  }
+
+  // O eventId entra no where junto do id: sem ele um id conhecido apagaria
+  // inscrito de outro evento.
+  async deleteMany(ids: string[], eventId: string): Promise<number> {
+    const { count } = await this.prisma.registration.deleteMany({
+      where: { id: { in: ids }, eventId },
+    });
+    return count;
+  }
+
+  async setAttendance(ids: string[], eventId: string, attended: boolean): Promise<number> {
+    const { count } = await this.prisma.registration.updateMany({
+      where: { id: { in: ids }, eventId },
+      data: { attended },
+    });
+    return count;
   }
 
   async updateStatus(id: string, status: FunnelStatus): Promise<RegistrationEntity> {
@@ -140,16 +162,31 @@ export class PrismaRegistrationRepository
     return null;
   }
 
-  async upsertPostEventResponse(data: PostEventResponseData): Promise<void> {
-    await this.prisma.postEventResponse.upsert({
-      where: { registrationId: data.registrationId },
-      create: {
-        eventId: data.eventId,
-        registrationId: data.registrationId,
-        answers: data.answers as Prisma.InputJsonValue,
-      },
-      update: { answers: data.answers as Prisma.InputJsonValue },
-    });
+  /**
+   * SQL cru porque o filtro precisa normalizar a coluna `phone` no banco: ela
+   * tem número com máscara, com e sem `55`, com e sem nono dígito, e o Prisma
+   * não expressa `regexp_replace`. Sem isso o `contains` erraria qualquer
+   * telefone formatado. O casamento definitivo é em memória (`phoneMatchKey`);
+   * aqui só se corta a tabela pelos 8 dígitos finais.
+   *
+   * A expressão `right(regexp_replace(...), 8)` é literalmente a do índice
+   * `registrations_phone_digits_suffix_idx` (migration 20260819...): igualdade,
+   * e não `LIKE '%...'`, justamente porque curinga à esquerda não usa índice.
+   * Se mexer nesta expressão, mexa no índice também — senão volta a ser scan.
+   */
+  async findByPhoneWithEventDate(phoneSuffix: string): Promise<RegistrationWithEventDate[]> {
+    return this.prisma.$queryRaw<RegistrationWithEventDate[]>`
+      SELECT r.id            AS "id",
+             r.phone         AS "phone",
+             r.event_id      AS "eventId",
+             e.title         AS "eventTitle",
+             e.slug          AS "eventSlug",
+             e.event_date    AS "eventDate"
+        FROM "SED".registrations r
+        JOIN "SED".events e ON e.id = r.event_id
+       WHERE e.event_date IS NOT NULL
+         AND right(regexp_replace(r.phone, '[^0-9]', '', 'g'), 8) = ${phoneSuffix}
+    `;
   }
 
   countByEvent(eventId: string): Promise<number> {

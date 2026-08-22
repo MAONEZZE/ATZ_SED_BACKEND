@@ -8,6 +8,7 @@ import { BullQueuesModule } from '@infra/queue/bull-queues.module';
 import { OutboxModule } from '@shared/modules/outbox.module';
 import { IcsGeneratorService } from '@application/shared/ics-generator.service';
 import { RedisMaintenanceService } from '@application/workers/redis-maintenance.service';
+import { OutboxMaintenanceService } from '@application/workers/outbox-maintenance.service';
 
 @Module({
   imports: [
@@ -18,6 +19,11 @@ import { RedisMaintenanceService } from '@application/workers/redis-maintenance.
     AdaptersModule,
     OutboxModule,
   ],
-  providers: [MessageDispatchWorker, IcsGeneratorService, RedisMaintenanceService],
+  providers: [
+    MessageDispatchWorker,
+    IcsGeneratorService,
+    RedisMaintenanceService,
+    OutboxMaintenanceService,
+  ],
 })
 export class WorkersModule {}

@@ -11,6 +11,7 @@ import {
   CreatedDuplicateEvent,
   PublicEventSummary,
   EventAutomationContext,
+  EventWithMyRole,
 } from '@domain/event_module/i-repository-event';
 
 const PUBLIC_EVENT_SELECT = {
@@ -23,38 +24,43 @@ const PUBLIC_EVENT_SELECT = {
   dressCode: true,
   eventDate: true,
   endDate: true,
-  sendToPipedrive: true,
   status: true,
 } as const;
 import { EventEntity, EventStatus } from '@domain/event_module/event.entity';
+import { EventRole } from '@domain/collaborator_module/event-role.type';
+import { resequence } from '@domain/shared/resequence';
+import { writesFor } from '@infra/repositories/shared/order-writes';
+
+interface EventRow {
+  id: string;
+  ownerId: string;
+  title: string;
+  slug: string;
+  status: string;
+  coverUrl: string | null;
+  location: string | null;
+  capacity: number | null;
+  dressCode: string | null;
+  groupLink: string | null;
+  eventDate: Date | null;
+  endDate: Date | null;
+  whatsappInstanceId: string | null;
+  whatsappToken: string | null;
+  lastEditedById: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  recurrenceFreq: string | null;
+  recurrenceInterval: number | null;
+  recurrenceUntil: Date | null;
+  folderId: string | null;
+  order: number;
+}
 
 @Injectable()
 export class PrismaEventRepository implements EventRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
 
-  private map(row: {
-    id: string;
-    ownerId: string;
-    title: string;
-    slug: string;
-    status: string;
-    coverUrl: string | null;
-    location: string | null;
-    capacity: number | null;
-    dressCode: string | null;
-    groupLink: string | null;
-    eventDate: Date | null;
-    endDate: Date | null;
-    sendToPipedrive: boolean;
-    whatsappInstanceId: string | null;
-    whatsappToken: string | null;
-    lastEditedById: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-    recurrenceFreq: string | null;
-    recurrenceInterval: number | null;
-    recurrenceUntil: Date | null;
-  }): EventEntity {
+  private map(row: EventRow): EventEntity {
     return new EventEntity(
       row.id,
       row.ownerId,
@@ -73,10 +79,11 @@ export class PrismaEventRepository implements EventRepositoryPort {
       row.updatedAt,
       row.endDate ?? undefined,
       row.lastEditedById ?? undefined,
-      row.sendToPipedrive,
       row.recurrenceFreq ?? undefined,
       row.recurrenceInterval ?? undefined,
       row.recurrenceUntil ?? undefined,
+      row.folderId,
+      row.order,
     );
   }
 
@@ -107,18 +114,78 @@ export class PrismaEventRepository implements EventRepositoryPort {
   async findAllByOwnerPaginated(
     ownerId: string,
     pagination: { skip: number; take: number },
-  ): Promise<{ data: EventEntity[]; total: number }> {
-    const where = this.accessibleWhere(ownerId);
+    folderId?: string | null,
+  ): Promise<{ data: EventWithMyRole[]; total: number }> {
+    const where = {
+      ...this.accessibleWhere(ownerId),
+      ...(folderId !== undefined && { folderId }),
+    };
     const [rows, total] = await Promise.all([
       this.prisma.event.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        // O vínculo do próprio usuário vem no mesmo join que já filtra a lista:
+        // é o que dá o `myRole` de cada card sem uma consulta por evento.
+        include: { collaborators: { where: { profileId: ownerId }, select: { role: true } } },
+        // `order` é a posição manual do drag & drop; createdAt desempata e
+        // mantém o comportamento antigo para quem nunca reordenou (tudo em 0).
+        orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
         skip: pagination.skip,
         take: pagination.take,
       }),
       this.prisma.event.count({ where }),
     ]);
-    return { data: rows.map((r) => this.map(r)), total };
+    return { data: rows.map((r) => this.withMyRole(r, ownerId)), total };
+  }
+
+  /** Mesma regra do findOwnershipById: dono é admin implícito. */
+  private withMyRole(
+    row: EventRow & { collaborators?: Array<{ role: EventRole }> },
+    userId: string,
+  ): EventWithMyRole {
+    const role: EventRole =
+      row.ownerId === userId ? 'admin' : (row.collaborators?.[0]?.role ?? 'read');
+    return Object.assign(this.map(row), { myRole: role });
+  }
+
+  async reorder(ownerId: string, folderId: string | null, ids: string[]): Promise<void> {
+    await this.prisma.$transaction(
+      ids.map((id, index) =>
+        this.prisma.event.updateMany({
+          where: { id, folderId, ...this.accessibleWhere(ownerId) },
+          data: { order: index },
+        }),
+      ),
+    );
+  }
+
+  // O front arrasta com a página que tem na mão e manda só dois ids; a
+  // sequência do escopo inteiro é lida aqui, e só as linhas cujo `order` mudou
+  // são escritas.
+  async move(ownerId: string, id: string, beforeId?: string): Promise<boolean> {
+    const item = await this.prisma.event.findFirst({
+      where: { id, ...this.accessibleWhere(ownerId) },
+      select: { folderId: true },
+    });
+    if (!item) return false;
+
+    const rows = await this.prisma.event.findMany({
+      where: { folderId: item.folderId, ...this.accessibleWhere(ownerId) },
+      orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
+      select: { id: true, order: true },
+    });
+    if (beforeId && !rows.some((r) => r.id === beforeId)) return false;
+
+    const sequence = resequence(
+      rows.map((r) => r.id),
+      id,
+      beforeId,
+    );
+    await this.prisma.$transaction(
+      writesFor(rows, sequence).map(({ id: rowId, order }) =>
+        this.prisma.event.update({ where: { id: rowId }, data: { order } }),
+      ),
+    );
+    return true;
   }
 
   async create(data: CreateEventData): Promise<EventEntity> {
@@ -142,7 +209,11 @@ export class PrismaEventRepository implements EventRepositoryPort {
     return this.map(row);
   }
 
-  async updateStatus(id: string, status: EventStatus, editorId?: string): Promise<EventEntity> {
+  async updateStatus(
+    id: string,
+    status: EventStatus,
+    editorId?: string,
+  ): Promise<EventEntity> {
     const row = await this.prisma.event.update({
       where: { id },
       data: { status, ...(editorId ? { lastEditedById: editorId } : {}) },
@@ -159,11 +230,17 @@ export class PrismaEventRepository implements EventRepositoryPort {
       where: { id },
       select: {
         ownerId: true,
-        collaborators: { where: { profileId }, select: { id: true }, take: 1 },
+        collaborators: { where: { profileId }, select: { id: true, role: true }, take: 1 },
       },
     });
     if (!event) return null;
-    return { ownerId: event.ownerId, isCollaborator: event.collaborators.length > 0 };
+    const collaborator = event.collaborators[0];
+    return {
+      ownerId: event.ownerId,
+      isCollaborator: collaborator !== undefined,
+      // O dono é admin implícito; quem não tem vínculo nenhum não tem papel.
+      role: event.ownerId === profileId ? 'admin' : collaborator ? collaborator.role : null,
+    };
   }
 
   async findWhatsappInstanceToken(id: string): Promise<string | null> {
@@ -177,7 +254,10 @@ export class PrismaEventRepository implements EventRepositoryPort {
   async findDuplicationSource(id: string): Promise<EventDuplicationSource | null> {
     const row = await this.prisma.event.findUnique({
       where: { id },
-      include: { forms: { include: { fields: true } }, automationRules: true },
+      include: {
+        forms: { include: { fields: true } },
+        automationRules: { include: { forms: { include: { form: { select: { slug: true } } } } } },
+      },
     });
     if (!row) return null;
     return {
@@ -188,12 +268,14 @@ export class PrismaEventRepository implements EventRepositoryPort {
       groupLink: row.groupLink,
       eventDate: row.eventDate,
       endDate: row.endDate,
-      sendToPipedrive: row.sendToPipedrive,
       forms: row.forms.map((form) => ({
-        kind: form.kind,
+        name: form.name,
+        slug: form.slug,
+        order: form.order,
         description: form.description,
         postRegistrationMessage: form.postRegistrationMessage,
         linkPostSubscription: form.linkPostSubscription,
+        sendToPipedrive: form.sendToPipedrive,
         fields: form.fields.map((f) => ({
           label: f.label,
           type: f.type,
@@ -207,7 +289,14 @@ export class PrismaEventRepository implements EventRepositoryPort {
         templateId: a.templateId,
         trigger: a.trigger,
         delayMinutes: a.delayMinutes,
+        cron: a.cron,
+        timezone: a.timezone,
+        sendAt: a.sendAt,
+        sendTime: a.sendTime,
+        name: a.name,
         active: a.active,
+        order: a.order,
+        formSlugs: a.forms.map((f) => f.form.slug),
       })),
     };
   }
@@ -223,10 +312,6 @@ export class PrismaEventRepository implements EventRepositoryPort {
     return this.prisma.event.findUnique({ where: { slug }, select: PUBLIC_EVENT_SELECT });
   }
 
-  findStatusBySlug(slug: string): Promise<{ id: string; status: EventStatus } | null> {
-    return this.prisma.event.findUnique({ where: { slug }, select: { id: true, status: true } });
-  }
-
   async findAutomationContext(id: string): Promise<EventAutomationContext | null> {
     const row = await this.prisma.event.findUnique({
       where: { id },
@@ -237,6 +322,7 @@ export class PrismaEventRepository implements EventRepositoryPort {
       id: row.id,
       ownerId: row.ownerId,
       title: row.title,
+      status: row.status,
       eventDate: row.eventDate,
       location: row.location,
       capacity: row.capacity,

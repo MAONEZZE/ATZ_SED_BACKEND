@@ -11,6 +11,7 @@ const ROW = {
   photoUrl: null,
   createdAt: new Date('2026-01-01'),
   updatedAt: new Date('2026-01-02'),
+  role: 'team',
 };
 
 async function makeRepo(profile: Record<string, jest.Mock>) {
@@ -45,6 +46,7 @@ describe('PrismaProfileRepository mapping', () => {
     expect(profile!.id).toBe('p-1');
     expect(profile!.userId).toBe('user-1');
     expect(profile!.hasPhoto()).toBe(false);
+    expect(profile!.isTeam()).toBe(true);
   });
 
   it('maps findByEmail through the same entity', async () => {
@@ -56,6 +58,16 @@ describe('PrismaProfileRepository mapping', () => {
 
     expect(profile).toBeInstanceOf(ProfileEntity);
     expect(profile!.hasPhoto()).toBe(true);
+  });
+
+  it('maps role user to a non-team entity', async () => {
+    const repo = await makeRepo({
+      findUnique: jest.fn().mockResolvedValue({ ...ROW, role: 'user' }),
+    });
+
+    const profile = await repo.findByUserId('user-1');
+
+    expect(profile!.isTeam()).toBe(false);
   });
 });
 
@@ -92,5 +104,16 @@ describe('PrismaProfileRepository.update', () => {
     await repo.update('user-1', {});
 
     expect(update).toHaveBeenCalledWith({ where: { userId: 'user-1' }, data: {} });
+  });
+
+  // role isn't a key of UpdateProfileData, but the filter guards against a
+  // caller that bypasses the type — no path may promote a profile via PATCH.
+  it('never forwards role even when the input carries it', async () => {
+    const update = jest.fn().mockResolvedValue(ROW);
+    const repo = await makeRepo({ update });
+
+    await repo.update('user-1', { name: 'Bob', role: 'team' } as unknown as { name: string });
+
+    expect(update).toHaveBeenCalledWith({ where: { userId: 'user-1' }, data: { name: 'Bob' } });
   });
 });

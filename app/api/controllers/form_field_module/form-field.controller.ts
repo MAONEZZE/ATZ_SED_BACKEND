@@ -39,7 +39,7 @@ export class FormFieldController {
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'kind', required: false, enum: ['registration', 'post_event', 'nps'] })
+  @ApiQuery({ name: 'formId', required: false, description: 'Filtra por formulário do evento' })
   @ApiResponse({ status: 200, description: 'Lista paginada de campos' })
   async findAll(
     @Param('eventId') eventId: string,
@@ -47,7 +47,7 @@ export class FormFieldController {
   ): Promise<Paginated<object>> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
-    const { data, total } = await this.formFields.listPaginated(eventId, query.kind, page, limit);
+    const { data, total } = await this.formFields.listPaginated(eventId, query.formId, page, limit);
     return { data, total, page, limit };
   }
 

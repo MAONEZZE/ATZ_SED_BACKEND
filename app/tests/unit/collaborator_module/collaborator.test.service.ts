@@ -6,6 +6,7 @@ function makeService() {
   const collaborators = {
     list: jest.fn(),
     upsert: jest.fn(),
+    updateRole: jest.fn(),
     remove: jest.fn(),
   };
   const profiles = { findByEmail: jest.fn() };
@@ -42,7 +43,7 @@ describe('CollaboratorService', () => {
       collaborators.upsert.mockResolvedValue({ id: 'c1', eventId: 'e1', profileId: 'p2' });
       const result = await service.add('e1', 'bob@x.com');
       expect(result).toEqual(expect.objectContaining({ profileId: 'p2' }));
-      expect(collaborators.upsert).toHaveBeenCalledWith('e1', 'p2');
+      expect(collaborators.upsert).toHaveBeenCalledWith('e1', 'p2', 'invited');
     });
 
     it('throws NotFound when no registered user has that email', async () => {
@@ -90,5 +91,33 @@ describe('CollaboratorService', () => {
       collaborators.remove.mockResolvedValue(0);
       await expect(service.remove('e1', 'ghost')).rejects.toThrow(NotFoundException);
     });
+  });
+});
+
+describe('CollaboratorService roles', () => {
+  it('adds with the given role', async () => {
+    const { service, eventRepo, profiles, collaborators } = makeService();
+    eventRepo.findById.mockResolvedValue({ id: 'e1', ownerId: 'owner-1' });
+    profiles.findByEmail.mockResolvedValue({ id: 'p2', email: 'bob@x.com' });
+    collaborators.upsert.mockResolvedValue({ id: 'c1', eventId: 'e1', profileId: 'p2' });
+
+    await service.add('e1', 'bob@x.com', 'read');
+
+    expect(collaborators.upsert).toHaveBeenCalledWith('e1', 'p2', 'read');
+  });
+
+  it('updates the role of an existing collaborator', async () => {
+    const { service, collaborators } = makeService();
+    collaborators.updateRole.mockResolvedValue({ id: 'c1', role: 'admin' });
+
+    await expect(service.updateRole('e1', 'p2', 'admin')).resolves.toMatchObject({ role: 'admin' });
+    expect(collaborators.updateRole).toHaveBeenCalledWith('e1', 'p2', 'admin');
+  });
+
+  it('404s when changing the role of someone who is not a collaborator', async () => {
+    const { service, collaborators } = makeService();
+    collaborators.updateRole.mockResolvedValue(null);
+
+    await expect(service.updateRole('e1', 'p2', 'admin')).rejects.toThrow(NotFoundException);
   });
 });

@@ -1,12 +1,23 @@
-import { Inject, Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { FieldType, FormFieldEntity } from '@domain/form_field_module/form-field.entity';
 import {
   FORM_FIELD_REPOSITORY_PORT,
   FormFieldRepositoryPort,
 } from '@domain/form_field_module/i-repository-form-field';
-import { FormKind } from '@domain/shared/form-kind.type';
 import { FormService } from '@application/form_module/form.service';
 import { EventService } from '@application/event_module/event.service';
+import {
+  AUTOMATION_REPOSITORY_PORT,
+  AutomationRepositoryPort,
+} from '@domain/automation_module/i-repository-automation';
 
 export interface CreateFormFieldInput {
   label: string;
@@ -14,7 +25,8 @@ export interface CreateFormFieldInput {
   required?: boolean;
   options?: unknown;
   order?: number;
-  kind?: FormKind;
+  /** Formulário do evento onde o campo entra. */
+  formId: string;
 }
 
 export interface UpdateFormFieldInput {
@@ -34,28 +46,38 @@ export class FormFieldService {
     private readonly repo: FormFieldRepositoryPort,
     private readonly eventsService: EventService,
     private readonly formsService: FormService,
+    @Inject(AUTOMATION_REPOSITORY_PORT)
+    private readonly automations: AutomationRepositoryPort,
   ) {}
 
-  listPaginated(eventId: string, kind: FormKind | undefined, page: number, limit: number) {
-    return this.repo.findAllByEventPaginated(eventId, kind, {
+  listPaginated(eventId: string, formId: string | undefined, page: number, limit: number) {
+    return this.repo.findAllByEventPaginated(eventId, formId, {
       skip: (page - 1) * limit,
       take: limit,
     });
   }
 
-  /** Ordered labels for CSV export headers (optionally only dynamic fields). */
-  exportLabels(eventId: string, kind: FormKind, onlyDynamic = false) {
-    return this.repo.listLabels(eventId, kind, onlyDynamic);
+  /** Rótulos na ordem de exibição — cabeçalho de coluna no CSV. */
+  exportLabels(formId: string, onlyDynamic = false) {
+    return this.repo.listLabels(formId, onlyDynamic);
   }
 
-  /** Field metadata for validating submitted answers. */
-  validationFields(eventId: string, kind: FormKind) {
-    return this.repo.listValidationFields(eventId, kind);
+  /** Metadados para validar as respostas enviadas. */
+  validationFields(formId: string) {
+    return this.repo.listValidationFields(formId);
+  }
+
+  /** Campos como o formulário público os renderiza. */
+  publicFields(formId: string) {
+    return this.repo.listPublicByForm(formId);
   }
 
   async create(eventId: string, editorId: string, input: CreateFormFieldInput) {
     await this.assertEventEditable(eventId);
-    const form = await this.formsService.getOrCreate(eventId, input.kind ?? 'registration');
+    // O formulário é escolhido explicitamente: sem os 3 tipos fixos não existe
+    // mais "o form padrão" para materializar na hora.
+    const form = await this.formsService.findOne(input.formId, eventId);
+    await this.assertSingleAutomationDateField(eventId, input.type);
     const field = await this.repo.create({
       formId: form.id,
       label: input.label,
@@ -76,6 +98,7 @@ export class FormFieldService {
     if (input.type !== undefined && input.type !== field.type) {
       this.warnIfTypeChangeIncoherent(field, input);
     }
+    await this.assertSingleAutomationDateField(eventId, input.type, id);
 
     const updated = await this.repo.update(id, {
       ...(input.label !== undefined && { label: input.label }),
@@ -117,7 +140,15 @@ export class FormFieldService {
 
   async delete(eventId: string, id: string, editorId: string): Promise<void> {
     await this.assertEventEditable(eventId);
-    await this.assertExists(eventId, id);
+    const field = await this.assertExists(eventId, id);
+    if (field.type === 'on_date_automation_field') {
+      const rules = await this.automations.findActiveTriggerRules(eventId, 'on_date_form_field');
+      if (rules.length > 0) {
+        throw new ConflictException(
+          'Este campo alimenta uma regra on_date_form_field ativa. Desative a regra antes de apagar o campo.',
+        );
+      }
+    }
     await this.repo.delete(id);
     await this.repo.touchEvent(eventId, editorId);
   }
@@ -129,6 +160,28 @@ export class FormFieldService {
     const field = await this.repo.findByEvent(eventId, id);
     if (!field) throw new NotFoundException('Form field not found');
     return field;
+  }
+
+  /**
+   * O sweeper de `on_date_form_field` lê um campo fixo por evento — mais de um
+   * não teria como escolher qual dia usar. Corrida aceita e documentada: dois
+   * POSTs simultâneos podem criar 2 campos (não é fechável no banco, `form_fields`
+   * não tem `event_id` — chega por join com `forms`). Ação de painel
+   * administrativo; o `orderBy: createdAt asc` do repo garante que o sweeper
+   * sempre escolha o mesmo campo se a corrida vazar.
+   */
+  private async assertSingleAutomationDateField(
+    eventId: string,
+    type?: string,
+    excludeId?: string,
+  ): Promise<void> {
+    if (type !== 'on_date_automation_field') return; // custo zero nos outros tipos
+    const existing = await this.repo.findByEventAndType(eventId, type, excludeId);
+    if (existing) {
+      throw new BadRequestException(
+        `Este evento já tem um campo de data para automação ("${existing.label}"). Só é permitido um por evento.`,
+      );
+    }
   }
 
   private async assertEventEditable(eventId: string): Promise<void> {

@@ -4,7 +4,6 @@ import { AuthenticatedUser } from '@domain/shared/authenticated-user.entity';
 
 const mockAuth = {
   verifyToken: jest.fn(),
-  getUser: jest.fn(),
 };
 
 const guard = new JwtAuthGuard(mockAuth);

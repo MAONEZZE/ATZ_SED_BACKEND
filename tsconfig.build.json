@@ -1,4 +1,7 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "test", "dist", "app/tests/**"]
+  // `scripts/**` fora do build: script one-off roda por ts-node. Incluí-lo faz o
+  // tsc inferir a raiz do projeto em vez de `app/`, e o dist sai como
+  // `dist/app/main.js` — o que quebra o `npm run prod` (`node dist/main`).
+  "exclude": ["node_modules", "test", "dist", "app/tests/**", "scripts/**"]
 }

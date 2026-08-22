@@ -16,6 +16,7 @@ import { OutboxService } from '@application/outbox_module/outbox.service';
 import { TemplateRenderer } from '@application/shared/template-renderer.service';
 import { RegistrationStatusChanged } from '@domain/registration_module/registration-status-changed.event';
 import { FormSubmitted } from '@domain/registration_module/form-submitted.event';
+import { AutomationRuleEntity } from '@domain/automation_module/automation-rule.entity';
 
 const TRIGGER_MAP: Partial<Record<string, string>> = {
   pending: 'on_registration',
@@ -43,7 +44,14 @@ export class AutomationEngine {
     if (!trigger) return;
 
     try {
-      await this.fireAutomations(ev.registrationId, ev.eventId, trigger);
+      // Regra com formulários só vale para quem entrou por um deles; regra sem
+      // (lista vazia) vale para qualquer origem.
+      const rules = await this.automations.findActiveTriggerRules(ev.eventId, trigger);
+      const ruleIds = rules
+        .filter((r) => AutomationRuleEntity.matchesForm(r.formIds, ev.formId))
+        .map((r) => r.id);
+      if (!ruleIds.length) return;
+      await this.fireAutomations(ev.registrationId, ev.eventId, trigger, ruleIds);
     } catch (err) {
       this.logger.error(
         { err, registrationId: ev.registrationId, trigger },
@@ -55,13 +63,30 @@ export class AutomationEngine {
   @OnEvent('form.submitted')
   async handleFormSubmitted(ev: FormSubmitted): Promise<void> {
     try {
-      await this.fireForContact(ev.eventId, ev.trigger, ev.contact);
+      await this.fireForForm(ev.eventId, ev.formId, ev.contact);
     } catch (err) {
       this.logger.error(
-        { err, eventId: ev.eventId, trigger: ev.trigger },
+        { err, eventId: ev.eventId, formId: ev.formId },
         'AutomationEngine form.submitted error',
       );
     }
+  }
+
+  /**
+   * Gatilho `on_form_submitted`: as regras do evento são filtradas pelo
+   * formulário respondido, então cada formulário dispara só as suas.
+   */
+  async fireForForm(
+    eventId: string,
+    formId: string,
+    contact: { name: string; email: string; phone: string },
+  ): Promise<void> {
+    const rules = await this.automations.findActiveTriggerRules(eventId, 'on_form_submitted');
+    const ruleIds = rules
+      .filter((r) => AutomationRuleEntity.matchesForm(r.formIds, formId))
+      .map((r) => r.id);
+    if (!ruleIds.length) return;
+    await this.dispatchTrigger(eventId, 'on_form_submitted', contact, ruleIds);
   }
 
   async fireAutomations(
@@ -69,6 +94,9 @@ export class AutomationEngine {
     eventId: string,
     trigger: string,
     ruleIds?: string[],
+    occurrenceKey?: string,
+    /** Variáveis extra pro template — hoje só `on_date_form_field` usa (`dia_automacao`). */
+    extra?: Record<string, string>,
   ): Promise<void> {
     const registration = await this.registrations.findById(registrationId);
     if (!registration) {
@@ -86,20 +114,9 @@ export class AutomationEngine {
         phone: registration.phone,
       },
       ruleIds,
+      occurrenceKey,
+      extra,
     );
-  }
-
-  /**
-   * Fires automations for a contact that may not have a Registration row
-   * (post-event / NPS submissions). Cross-form triggers use this path.
-   */
-  async fireForContact(
-    eventId: string,
-    trigger: string,
-    contact: { name: string; email: string; phone: string },
-    ruleIds?: string[],
-  ): Promise<void> {
-    await this.dispatchTrigger(eventId, trigger, contact, ruleIds);
   }
 
   private async dispatchTrigger(
@@ -107,6 +124,8 @@ export class AutomationEngine {
     trigger: string,
     contact: { registrationId?: string; name: string; email: string; phone: string },
     ruleIds?: string[],
+    occurrenceKey?: string,
+    extra?: Record<string, string>,
   ): Promise<void> {
     const rules = await this.automations.findActiveTriggerRules(eventId, trigger, ruleIds);
 
@@ -116,6 +135,19 @@ export class AutomationEngine {
 
     if (!event) {
       this.logger.warn({ eventId }, 'Event not found for automation');
+      return;
+    }
+
+    // Rascunho ainda está sendo montado; cancelado já avisou o inscrito pelo
+    // aviso de cancelamento (que não passa por aqui — vai direto ao outbox).
+    // `ended` continua disparando: evento encerrado ainda aceita resposta pública
+    // de formulário e inscrição (public-event.service / registration.service), e
+    // barrar aqui deixaria a resposta aceita sem a mensagem de confirmação.
+    if (event.status === 'draft' || event.status === 'cancelled') {
+      this.logger.warn(
+        { eventId, trigger, status: event.status },
+        'Automation skipped: event is not in a sendable status',
+      );
       return;
     }
 
@@ -137,6 +169,7 @@ export class AutomationEngine {
           dressCode: event.dressCode,
           groupLink: event.groupLink,
         },
+        extra,
       });
 
       const renderedBody = this.renderer.render(rule.template.body, vars);
@@ -148,9 +181,18 @@ export class AutomationEngine {
       // marcador {{invite}} (ICS_MARKER) — ele regenera a partir do evento (com endDate).
       // Não geramos ics aqui para não duplicar a lógica.
       const recipient = rule.template.channel === 'email' ? contact.email : contact.phone;
+      // O formulário entra na chave: o mesmo template em dois formulários são
+      // dois envios, não um repetido.
+      // `formIds` não entra na chave: com N formulários por regra, duas regras
+      // com o mesmo template não coexistem mais (trava única event+trigger+
+      // template) — o motivo de precisar do formulário na chave desapareceu.
+      // occurrenceKey vem do job.timestamp do scheduler (fixado na criação do
+      // job): retry da mesma ocorrência reusa o mesmo timestamp e cai no
+      // mesmo dedupKey; a ocorrência seguinte tem timestamp novo.
+      const occurrence = occurrenceKey ? `:${occurrenceKey}` : '';
       const dedupKey = contact.registrationId
-        ? undefined
-        : `${eventId}:${(contact.email || contact.phone).toLowerCase()}:${rule.templateId}:${trigger}`;
+        ? `${contact.registrationId}:${rule.templateId}:${trigger}${occurrence}`
+        : `${eventId}:${(contact.email || contact.phone).toLowerCase()}:${rule.templateId}:${trigger}${occurrence}`;
 
       await this.outbox.enqueue(
         {

@@ -1,40 +1,62 @@
-import { Controller, Get, Patch, Param, Body, UseGuards, ParseEnumPipe } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
 import { FormService } from '@application/form_module/form.service';
-import { UpdateFormDto } from '@api/dto/form_module/form.dto';
-import { FORM_KINDS, FormKind } from '@domain/shared/form-kind.type';
+import { CreateFormDto, ReorderFormsDto, UpdateFormDto } from '@api/dto/form_module/form.dto';
 
 @ApiTags('Forms')
 @ApiBearerAuth()
-@Controller('events/:eventId/forms/:kind')
+@Controller('events/:eventId/forms')
 @UseGuards(JwtAuthGuard, OwnershipGuard)
 export class FormController {
   constructor(private readonly forms: FormService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Buscar metadados do formulário (description/postRegistrationMessage)' })
+  @ApiOperation({ summary: 'Listar formulários do evento (ordenados por order)' })
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
-  @ApiParam({ name: 'kind', enum: FORM_KINDS })
-  @ApiResponse({ status: 200, description: 'Metadados do formulário' })
-  get(
-    @Param('eventId') eventId: string,
-    @Param('kind', new ParseEnumPipe(FORM_KINDS)) kind: FormKind,
-  ) {
-    return this.forms.getOrCreate(eventId, kind);
+  list(@Param('eventId') eventId: string) {
+    return this.forms.list(eventId);
   }
 
-  @Patch()
-  @ApiOperation({ summary: 'Atualizar metadados do formulário' })
-  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
-  @ApiParam({ name: 'kind', enum: FORM_KINDS })
-  @ApiResponse({ status: 200, description: 'Metadados atualizados' })
+  @Post()
+  @ApiOperation({ summary: 'Criar formulário (o slug público vem do nome)' })
+  @ApiResponse({ status: 201, description: 'Formulário criado' })
+  @ApiResponse({ status: 409, description: 'Já existe formulário com esse slug no evento' })
+  create(@Param('eventId') eventId: string, @Body() dto: CreateFormDto) {
+    return this.forms.create(eventId, dto);
+  }
+
+  // Antes do :formId — declarada depois, 'reorder' cairia no parâmetro.
+  @Patch('reorder')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Reordenar formulários do evento' })
+  reorder(@Param('eventId') eventId: string, @Body() dto: ReorderFormsDto) {
+    return this.forms.reorder(eventId, dto.ids);
+  }
+
+  @Get(':formId')
+  @ApiOperation({ summary: 'Buscar formulário do evento' })
+  @ApiResponse({ status: 404, description: 'Formulário não encontrado' })
+  findOne(@Param('eventId') eventId: string, @Param('formId') formId: string) {
+    return this.forms.findOne(formId, eventId);
+  }
+
+  @Patch(':formId')
+  @ApiOperation({ summary: 'Atualizar formulário (renomear troca o slug público)' })
+  @ApiResponse({ status: 409, description: 'Slug em uso por outro formulário do evento' })
   update(
     @Param('eventId') eventId: string,
-    @Param('kind', new ParseEnumPipe(FORM_KINDS)) kind: FormKind,
+    @Param('formId') formId: string,
     @Body() dto: UpdateFormDto,
   ) {
-    return this.forms.update(eventId, kind, dto);
+    return this.forms.update(formId, eventId, dto);
+  }
+
+  @Delete(':formId')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Deletar formulário (leva campos e respostas por cascata)' })
+  delete(@Param('eventId') eventId: string, @Param('formId') formId: string) {
+    return this.forms.delete(formId, eventId);
   }
 }

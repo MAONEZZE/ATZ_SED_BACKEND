@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-repository.base';
-import { FormKind } from '@domain/shared/form-kind.type';
 import { FieldType, FormFieldEntity } from '@domain/form_field_module/form-field.entity';
 import {
   CreateFormFieldData,
@@ -9,7 +8,6 @@ import {
   FormFieldRepositoryPort,
   FormFieldValidationRule,
   PublicFormField,
-  PublicFormFieldValidationRule,
   UpdateFormFieldData,
 } from '@domain/form_field_module/i-repository-form-field';
 
@@ -51,10 +49,10 @@ export class PrismaFormFieldRepository
 
   async findAllByEventPaginated(
     eventId: string,
-    kind: FormKind | undefined,
+    formId: string | undefined,
     pagination: { skip: number; take: number },
   ): Promise<{ data: FormFieldEntity[]; total: number }> {
-    const where = { form: { eventId, ...(kind ? { kind } : {}) } };
+    const where = { form: { eventId }, ...(formId ? { formId } : {}) };
     const [rows, total] = await Promise.all([
       this.prisma.formField.findMany({
         where,
@@ -72,20 +70,36 @@ export class PrismaFormFieldRepository
     return row ? this.toEntity(row) : null;
   }
 
-  /** Ordered labels of a kind, optionally only the dynamic (non-fixed) ones — used for CSV headers. */
-  listLabels(eventId: string, kind: FormKind, onlyDynamic = false): Promise<FormFieldLabel[]> {
-    return this.prisma.formField.findMany({
-      where: { form: { eventId, kind }, ...(onlyDynamic ? { isFixed: false } : {}) },
-      orderBy: { order: 'asc' },
-      select: { label: true },
+  findByEventAndType(
+    eventId: string,
+    type: string,
+    excludeId?: string,
+  ): Promise<{ id: string; formId: string; label: string } | null> {
+    return this.prisma.formField.findFirst({
+      where: {
+        form: { eventId },
+        type: type as FieldType,
+        ...(excludeId && { id: { not: excludeId } }),
+      },
+      select: { id: true, formId: true, label: true },
+      orderBy: { createdAt: 'asc' },
     });
   }
 
-  /** Field metadata used to validate submitted answers. */
-  listValidationFields(eventId: string, kind: FormKind): Promise<FormFieldValidationRule[]> {
+  /** Rótulos do formulário na ordem, opcionalmente só os dinâmicos — cabeçalho do CSV. */
+  listLabels(formId: string, onlyDynamic = false): Promise<FormFieldLabel[]> {
     return this.prisma.formField.findMany({
-      where: { form: { eventId, kind } },
-      select: { label: true, type: true, required: true, isFixed: true, options: true },
+      where: { formId, ...(onlyDynamic ? { isFixed: false } : {}) },
+      orderBy: { order: 'asc' },
+      select: { id: true, label: true },
+    });
+  }
+
+  /** Metadados para validar as respostas enviadas. */
+  listValidationFields(formId: string): Promise<FormFieldValidationRule[]> {
+    return this.prisma.formField.findMany({
+      where: { formId },
+      select: { id: true, label: true, type: true, required: true, isFixed: true, options: true },
     });
   }
 
@@ -125,23 +139,12 @@ export class PrismaFormFieldRepository
     await this.prisma.event.update({ where: { id: eventId }, data: { lastEditedById: userId } });
   }
 
-  /** Public (unauthenticated) field list for a form kind, ordered for rendering. */
-  listPublicByEventAndKind(eventId: string, kind: FormKind): Promise<PublicFormField[]> {
+  /** Lista pública (sem auth) dos campos do formulário, na ordem de renderização. */
+  listPublicByForm(formId: string): Promise<PublicFormField[]> {
     return this.prisma.formField.findMany({
-      where: { form: { eventId, kind } },
+      where: { formId },
       orderBy: { order: 'asc' },
       select: { id: true, label: true, type: true, required: true, options: true, order: true },
-    });
-  }
-
-  /** Field metadata used to validate a public submission, resolved directly by event slug. */
-  listValidationFieldsBySlug(
-    slug: string,
-    kind: FormKind,
-  ): Promise<PublicFormFieldValidationRule[]> {
-    return this.prisma.formField.findMany({
-      where: { form: { event: { slug }, kind } },
-      select: { label: true, type: true, required: true, options: true },
     });
   }
 }

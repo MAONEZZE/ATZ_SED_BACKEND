@@ -39,7 +39,7 @@ describe('PrismaMessageTemplateRepository mapping', () => {
   it('returns a MessageTemplateEntity', async () => {
     const { repo } = await makeRepo({ findFirst: jest.fn().mockResolvedValue(ROW) });
 
-    const template = await repo.findByIdForOwner('tpl-1', 'owner-1');
+    const template = await repo.findByIdForUser('tpl-1', 'owner-1');
 
     expect(template).toBeInstanceOf(MessageTemplateEntity);
     expect(template!.isGlobal()).toBe(true);
@@ -50,7 +50,7 @@ describe('PrismaMessageTemplateRepository mapping', () => {
       findFirst: jest.fn().mockResolvedValue({ ...ROW, layoutConfig: null }),
     });
 
-    const template = await repo.findByIdForOwner('tpl-1', 'owner-1');
+    const template = await repo.findByIdForUser('tpl-1', 'owner-1');
 
     expect(template!.layoutConfig).toBeNull();
   });
@@ -87,8 +87,38 @@ describe('PrismaMessageTemplateRepository.findAllForOwnerPaginated filter', () =
     expect(await listWith({ eventId: null })).toEqual({ ownerId: 'owner-1', eventId: null });
   });
 
-  it('a string eventId filters to that event', async () => {
-    expect(await listWith({ eventId: 'evt-1' })).toEqual({ ownerId: 'owner-1', eventId: 'evt-1' });
+  // Dentro do evento a lista é "os do evento + os globais do dono": o template do
+  // evento pode ser de outro dono (colaborador), e o global segue reutilizável.
+  it('a string eventId returns the event templates plus the owner globals', async () => {
+    expect(await listWith({ eventId: 'evt-1' })).toEqual({
+      OR: [{ eventId: 'evt-1' }, { ownerId: 'owner-1', eventId: null }],
+    });
+  });
+
+  it('keeps the channel filter alongside the event scope', async () => {
+    const where = await listWith({ eventId: 'evt-1', channel: 'whatsapp' });
+    expect(where.channel).toBe('whatsapp');
+    expect(where.OR).toHaveLength(2);
+  });
+});
+
+describe('PrismaMessageTemplateRepository.findByIdForUser', () => {
+  it('accepts the template owner or anyone with access to its event', async () => {
+    const findFirst = jest.fn().mockResolvedValue(ROW);
+    const { repo } = await makeRepo({ findFirst });
+
+    await repo.findByIdForUser('tpl-1', 'user-1');
+
+    const [{ where }] = findFirst.mock.calls[0] as [{ where: { id: string; OR: unknown[] } }];
+    expect(where.id).toBe('tpl-1');
+    expect(where.OR).toEqual([
+      { ownerId: 'user-1' },
+      {
+        event: {
+          OR: [{ ownerId: 'user-1' }, { collaborators: { some: { profileId: 'user-1' } } }],
+        },
+      },
+    ]);
   });
 });
 

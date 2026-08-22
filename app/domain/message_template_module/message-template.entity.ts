@@ -20,6 +20,10 @@ export class MessageTemplateEntity extends EntityBase {
     public readonly layoutConfig: Record<string, unknown> | null,
     public readonly styleKey: string | null,
     public readonly eventId: string | null,
+    /** Pasta que organiza o template. Tem que ter o mesmo `eventId` dele. */
+    public readonly folderId: string | null,
+    /** Posição manual dentro da pasta (ou da raiz). */
+    public readonly order: number,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
   ) {

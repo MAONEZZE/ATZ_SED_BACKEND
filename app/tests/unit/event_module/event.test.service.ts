@@ -23,10 +23,20 @@ function makeService() {
     update: jest.fn().mockImplementation((_id, data) => Promise.resolve(data)),
     updateStatus: jest.fn().mockImplementation((_id, status) => Promise.resolve({ status })),
   };
+  const folders = { findByIdForOwner: jest.fn().mockResolvedValue({ id: 'fld-1' }) };
   const storage = { upload: jest.fn(), delete: jest.fn(), getPublicUrl: jest.fn() };
   const config = { get: jest.fn().mockReturnValue(undefined) };
-  const service = new EventService(eventRepo as any, storage, config as any);
-  return { service, eventRepo, storage, config };
+  const whatsappInstances = { isAllowedForProfile: jest.fn().mockResolvedValue(true) };
+  const collaborators = { remove: jest.fn().mockResolvedValue(1) };
+  const service = new EventService(
+    eventRepo as any,
+    collaborators as any,
+    folders as any,
+    whatsappInstances as any,
+    storage,
+    config as any,
+  );
+  return { service, collaborators, eventRepo, folders, whatsappInstances, storage, config };
 }
 
 describe('EventService endDate validation', () => {

@@ -9,6 +9,8 @@ export interface CreateRegistrationData {
   email: string;
   phone: string;
   imageAuthorization?: boolean;
+  /** Formulário que criou a inscrição. Ausente/null = origem desconhecida (import sem form, painel). */
+  originFormId?: string | null;
 }
 
 export interface UpdateAnswersData {
@@ -18,10 +20,14 @@ export interface UpdateAnswersData {
   phone?: string;
 }
 
-export interface PostEventResponseData {
+/** Candidata do check-in público: a inscrição e a data do evento dela. */
+export interface RegistrationWithEventDate {
+  id: string;
+  phone: string;
   eventId: string;
-  registrationId: string;
-  answers: Record<string, unknown>;
+  eventTitle: string;
+  eventSlug: string;
+  eventDate: Date;
 }
 
 export interface RegistrationRepositoryPort {
@@ -30,13 +36,19 @@ export interface RegistrationRepositoryPort {
     eventId: string,
     status?: FunnelStatus,
     search?: string,
+    attended?: boolean,
   ): Promise<RegistrationEntity[]>;
   findAllByEventPaginated(
     eventId: string,
     pagination: { skip: number; take: number },
     status?: FunnelStatus,
     search?: string,
+    attended?: boolean,
   ): Promise<{ data: RegistrationEntity[]; total: number }>;
+  /** Apaga de vez. Cascateia as mensagens (outbox + logs) e a resposta de pós-evento do inscrito. */
+  deleteMany(ids: string[], eventId: string): Promise<number>;
+  /** Marca presença em lote. Retorna quantas inscrições do evento foram afetadas. */
+  setAttendance(ids: string[], eventId: string, attended: boolean): Promise<number>;
   create(data: CreateRegistrationData): Promise<RegistrationEntity>;
   updateStatus(id: string, status: FunnelStatus): Promise<RegistrationEntity>;
   updateAnswers(id: string, data: UpdateAnswersData): Promise<RegistrationEntity>;
@@ -44,7 +56,13 @@ export interface RegistrationRepositoryPort {
     eventId: string,
     contact: { email?: string; phone?: string },
   ): Promise<RegistrationEntity | null>;
-  upsertPostEventResponse(data: PostEventResponseData): Promise<void>;
+  /**
+   * Check-in público sem evento no caminho: busca por telefone em todos os
+   * eventos, já com a data do evento para escolher o mais próximo de hoje.
+   * `phoneSuffix` são os 8 dígitos finais (pré-filtro grosso; o casamento fino é
+   * por `phoneMatchKey`). Evento sem data fica fora — não há como medir distância.
+   */
+  findByPhoneWithEventDate(phoneSuffix: string): Promise<RegistrationWithEventDate[]>;
   countByEvent(eventId: string): Promise<number>;
   /** Registrations still in the funnel (approved/pending) — used for cancellation notices. */
   findActiveByEvent(eventId: string): Promise<RegistrationEntity[]>;

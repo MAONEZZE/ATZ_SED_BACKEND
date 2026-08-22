@@ -1,9 +1,6 @@
 import { EntityBase } from '@domain/shared/entity.base';
 import { MessageChannel } from '@domain/shared/message-channel.type';
 
-/** Estados por que uma mensagem registrada passa, do envio ao retorno do fornecedor. */
-export type MessageLogStatus = 'sent' | 'delivered' | 'read' | 'failed';
-
 /**
  * Histórico do que já foi enviado. Diferente do `OutboxMessage`, que é a fila:
  * o log só existe depois da tentativa de envio e nunca é reprocessado.

@@ -28,13 +28,21 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { OwnershipGuard } from '@api/config/guards/ownership.guard';
+import { RequireEventRole } from '@api/config/decorators/require-event-role.decorator';
 import { CurrentUser } from '@api/config/decorators/current-user.decorator';
+import { CurrentEventRole } from '@api/config/decorators/current-event-role.decorator';
 import { AuthenticatedUser } from '@domain/shared/authenticated-user.entity';
 import { EventService } from '@application/event_module/event.service';
 import { EventLifecycleService } from '@application/event_module/event-lifecycle.service';
 import { CreateEventDto } from '@api/dto/event_module/create-event.dto';
-import { UpdateEventDto, UpdateEventStatusDto } from '@api/dto/event_module/update-event.dto';
+import {
+  ReorderEventsDto,
+  UpdateEventDto,
+  UpdateEventStatusDto,
+} from '@api/dto/event_module/update-event.dto';
 import { PaginationQueryDto, Paginated } from '@api/dto/shared/pagination';
+import { MoveItemDto } from '@api/dto/shared/move-item.dto';
+import { EventRole } from '@domain/collaborator_module/event-role.type';
 
 @ApiTags('Events')
 @ApiBearerAuth()
@@ -62,25 +70,74 @@ export class EventController {
   @ApiOperation({ summary: 'Listar eventos do usuário' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({ status: 200, description: 'Lista paginada de eventos' })
+  @ApiQuery({
+    name: 'folderId',
+    required: false,
+    description: "Filtra por pasta. 'null' retorna só os eventos fora de pasta.",
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Lista paginada de eventos. Cada item traz `myRole` (admin | invited | read): papel do ' +
+      'usuário logado naquele evento, para o painel decidir o que renderizar por card.',
+  })
   async findAll(
     @CurrentUser() user: AuthenticatedUser,
     @Query() pagination: PaginationQueryDto,
+    @Query('folderId') folderId?: string,
   ): Promise<Paginated<object>> {
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 20;
-    const { data, total } = await this.eventsService.findAllPaginated(user.id, page, limit);
+    // A query string não carrega null: a literal 'null' pede a raiz, como no
+    // filtro de templates. Ausente = sem filtro de pasta.
+    const scope = folderId === 'null' ? null : folderId;
+    const { data, total } = await this.eventsService.findAllPaginated(
+      user.id,
+      page,
+      limit,
+      scope,
+    );
     return { data, total, page, limit };
+  }
+
+  // Antes do PATCH /:id — declarada depois, a rota 'reorder' cairia no :id.
+  @Patch('reorder')
+  @HttpCode(204)
+  @ApiOperation({
+    summary:
+      'Reordenar eventos dentro de uma pasta (drag & drop): order = índice na lista de ids',
+  })
+  @ApiResponse({ status: 204, description: 'Ordem reescrita' })
+  reorder(@CurrentUser() user: AuthenticatedUser, @Body() dto: ReorderEventsDto) {
+    return this.eventsService.reorder(user.id, dto.folderId ?? null, dto.ids);
+  }
+
+  // Arrasto item a item: o front manda só a âncora, não a lista da página.
+  @Patch(':id/move')
+  @UseGuards(OwnershipGuard)
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Mover o evento para antes de outro (drag & drop) dentro da pasta' })
+  @ApiParam({ name: 'id', description: 'UUID do evento arrastado' })
+  @ApiResponse({ status: 204, description: 'Ordem ajustada' })
+  @ApiResponse({ status: 404, description: 'Evento ou âncora fora do escopo' })
+  move(@Param('id') id: string, @Body() dto: MoveItemDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.eventsService.move(user.id, id, dto.beforeId);
   }
 
   @Get(':id')
   @UseGuards(OwnershipGuard)
   @ApiOperation({ summary: 'Buscar evento por ID' })
   @ApiParam({ name: 'id', description: 'UUID do evento' })
-  @ApiResponse({ status: 200, description: 'Evento encontrado' })
+  @ApiResponse({
+    status: 200,
+    description: 'Evento encontrado, com `myRole` (admin | invited | read) do usuário logado',
+  })
   @ApiResponse({ status: 404, description: 'Evento não encontrado' })
-  findOne(@Param('id') id: string) {
-    return this.eventsService.findById(id);
+  // `myRole` é dica de UI: o papel já veio do banco no OwnershipGuard, e é ele
+  // que barra a ação de verdade — o valor devolvido aqui não autoriza nada.
+  async findOne(@Param('id') id: string, @CurrentEventRole() myRole: EventRole) {
+    const event = await this.eventsService.findById(id);
+    return Object.assign(event, { myRole });
   }
 
   @Patch(':id')
@@ -160,14 +217,22 @@ export class EventController {
     return this.eventsService.deleteCover(id, user.id);
   }
 
+  // Qualquer papel pode chamar: para invited/read isto desvincula em vez de
+  // apagar, então o guard não pode barrar pelo verbo.
   @Delete(':id')
   @UseGuards(OwnershipGuard)
+  @RequireEventRole('read')
   @HttpCode(204)
-  @ApiOperation({ summary: 'Deletar evento' })
+  @ApiOperation({
+    summary: 'Deletar evento (dono/admin) ou sair do evento compartilhada (invited/read)',
+  })
   @ApiParam({ name: 'id', description: 'UUID do evento' })
-  @ApiResponse({ status: 204, description: 'Evento deletado' })
-  delete(@Param('id') id: string) {
-    return this.eventsService.delete(id);
+  @ApiResponse({
+    status: 204,
+    description: 'Evento deletado, ou o usuário desvinculado quando o papel não é dono/admin',
+  })
+  async delete(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    await this.eventsService.delete(id, user.id);
   }
 
   @Post(':id/duplicate')

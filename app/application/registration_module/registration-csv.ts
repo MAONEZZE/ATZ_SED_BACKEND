@@ -9,9 +9,11 @@ export interface CsvRegistration {
   createdAt?: Date;
   answers: Record<string, unknown>;
   imageAuthorization: boolean;
+  attended: boolean;
 }
 
 export interface CsvFormField {
+  id: string;
   label: string;
 }
 
@@ -26,10 +28,11 @@ export function buildRegistrationsCsv(
     { header: 'status', value: (r) => r.status },
     { header: 'data_inscricao', value: (r) => (r.createdAt ? r.createdAt.toISOString() : '') },
     { header: 'autorizacao_imagem', value: (r) => (r.imageAuthorization ? 'sim' : 'não') },
+    { header: 'compareceu', value: (r) => (r.attended ? 'sim' : 'não') },
     ...formFields.map(
       (f): CsvColumn<CsvRegistration> => ({
         header: f.label,
-        value: (r) => answerToString(r.answers?.[f.label]),
+        value: (r) => answerToString(r.answers?.[f.id]),
       }),
     ),
   ];

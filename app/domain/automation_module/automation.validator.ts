@@ -5,6 +5,8 @@ export interface AutomationScheduleInput {
   trigger: string;
   cron?: string | null;
   timezone?: string | null;
+  formIds?: string[];
+  sendAt?: Date | null;
 }
 
 /**
@@ -20,6 +22,17 @@ export class AutomationValidator extends ValidatorBase<AutomationScheduleInput> 
     if (AutomationRuleEntity.isRecurring(input.trigger)) {
       if (!input.cron) errors.push('cron é obrigatório para trigger "recurring"');
       if (!input.timezone) errors.push('timezone é obrigatório para trigger "recurring"');
+    }
+
+    // `on_date` é o disparo único: precisa do instante. O fuso não entra aqui —
+    // ausente, o service assume o fuso da aplicação.
+    if (AutomationRuleEntity.requiresSendAt(input.trigger, input.sendAt)) {
+      errors.push('sendAt é obrigatório para trigger "on_date"');
+    }
+
+    // O gatilho por formulário precisa saber QUAIS formulários disparam.
+    if (AutomationRuleEntity.requiresForm(input.trigger) && !input.formIds?.length) {
+      errors.push('formIds é obrigatório para trigger "on_form_submitted"');
     }
 
     return errors;

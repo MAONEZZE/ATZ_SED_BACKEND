@@ -3,23 +3,22 @@ import {
   IsIn,
   IsOptional,
   IsInt,
+  IsArray,
   IsBoolean,
   Min,
   Max,
+  MaxLength,
+  Matches,
   registerDecorator,
   ValidationOptions,
+  ValidateIf,
+  IsUUID,
+  IsISO8601,
 } from 'class-validator';
-import { PartialType, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { OmitType, PartialType, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IANAZone } from 'luxon';
-
-const AUTOMATION_TRIGGERS = [
-  'on_registration',
-  'on_post_event',
-  'on_nps',
-  'on_approval',
-  'on_rejection',
-  'recurring',
-] as const;
+import { AUTOMATION_TRIGGERS } from '@domain/automation_module/automation-rule.entity';
+import { PaginationQueryDto } from '@api/dto/shared/pagination';
 
 // 5-field cron: minute hour day-of-month month day-of-week.
 const CRON_RE = /^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/;
@@ -71,11 +70,26 @@ export class CreateAutomationDto {
   @IsIn(AUTOMATION_TRIGGERS)
   trigger!: string;
 
-  @ApiPropertyOptional({ example: 0, description: 'Minutos de delay após o trigger' })
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['uuid-do-formulario-1', 'uuid-do-formulario-2'],
+    description:
+      'Obrigatório (não-vazio) em trigger="on_form_submitted". Opcional em "on_registration": com formulários, a regra só vale para quem se inscreveu por um deles; ausente/vazio vale para qualquer formulário (inclusive os criados depois). Ignorado nos outros gatilhos.',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID('all', { each: true })
+  formIds?: string[];
+
+  @ApiPropertyOptional({
+    example: 0,
+    description:
+      'Minutos de delay após o trigger. Só 0/ausente (disparo imediato) é aceito hoje — não há worker agendado para delay > 0.',
+  })
   @IsOptional()
   @IsInt()
   @Min(0)
-  @Max(2147483647)
+  @Max(0)
   delayMinutes?: number;
 
   @ApiPropertyOptional({
@@ -89,17 +103,97 @@ export class CreateAutomationDto {
 
   @ApiPropertyOptional({
     example: 'America/Sao_Paulo',
-    description: 'IANA timezone — obrigatório quando trigger="recurring"',
+    description:
+      'IANA timezone — obrigatório quando trigger="recurring"; opcional em "on_date" (default America/Sao_Paulo)',
   })
   @IsOptional()
   @IsString()
   @IsIanaTimezone()
   timezone?: string;
 
+  @ApiPropertyOptional({
+    example: '2026-02-12T09:00:00',
+    description:
+      'Instante do disparo único — obrigatório quando trigger="on_date". Lido no `timezone` da regra (default America/Sao_Paulo). Data no passado → 400.',
+  })
+  @IsOptional()
+  @IsISO8601()
+  sendAt?: string;
+
+  @ApiPropertyOptional({
+    example: '09:00',
+    description:
+      'Hora do disparo mensal — obrigatório só quando trigger="on_date_form_field" (default 09:00 se ausente). Lida no `timezone` da regra.',
+  })
+  @IsOptional()
+  @IsString()
+  // Mais estrita que a de send-message.dto.ts de propósito: "25:99" tem que
+  // morrer no DTO, ninguém revalida depois.
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, { message: 'sendTime deve ser HH:mm (00:00–23:59)' })
+  sendTime?: string;
+
+  @ApiPropertyOptional({ example: 'Cobrança mensal' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  name?: string;
+
   @ApiPropertyOptional({ example: true })
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @ApiPropertyOptional({
+    example: 'uuid-da-pasta',
+    description: 'Pasta que organiza a regra. Tem que ser pasta de automação do mesmo evento.',
+  })
+  @IsOptional()
+  @IsUUID()
+  folderId?: string;
 }
 
-export class UpdateAutomationDto extends PartialType(CreateAutomationDto) {}
+// `folderId` sai da base e volta redeclarado porque aqui ele aceita `null`
+// explícito (tirar da pasta), o que o tipo da criação não permite.
+export class UpdateAutomationDto extends PartialType(
+  OmitType(CreateAutomationDto, ['folderId'] as const),
+) {
+  @ApiPropertyOptional({
+    example: 'uuid-da-pasta',
+    description: 'Move a regra de pasta. `null` tira da pasta.',
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateIf((o: UpdateAutomationDto) => o.folderId !== null)
+  @IsUUID()
+  folderId?: string | null;
+}
+
+export class ListAutomationsQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({
+    type: String,
+    description: "Filtra por pasta. 'null' retorna só as regras fora de pasta.",
+  })
+  @IsOptional()
+  @IsString()
+  folderId?: string;
+}
+
+export class ReorderAutomationsDto {
+  @ApiPropertyOptional({
+    example: 'uuid-da-pasta',
+    description: 'Pasta onde reordenar. Ausente ou `null` reordena as regras fora de pasta.',
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateIf((o: ReorderAutomationsDto) => o.folderId !== null)
+  @IsUUID()
+  folderId?: string | null;
+
+  @ApiProperty({
+    example: ['uuid-regra-2', 'uuid-regra-1'],
+    description: 'Ids na ordem desejada. `order` é reescrito como o índice na lista.',
+  })
+  @IsArray()
+  @IsUUID('all', { each: true })
+  ids!: string[];
+}

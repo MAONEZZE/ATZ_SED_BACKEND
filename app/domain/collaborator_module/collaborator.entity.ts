@@ -1,4 +1,5 @@
 import { EntityBase } from '@domain/shared/entity.base';
+import { EventRole } from './event-role.type';
 
 /**
  * Vínculo entre um perfil já cadastrado e um evento do qual ele não é dono.
@@ -11,12 +12,8 @@ export class CollaboratorEntity extends EntityBase {
     public readonly eventId: string,
     public readonly profileId: string,
     public readonly createdAt: Date,
+    public readonly role: EventRole = 'invited',
   ) {
     super(id);
-  }
-
-  /** O dono do evento já tem acesso total; colaborador é sempre outra pessoa. */
-  isOwner(ownerId: string): boolean {
-    return this.profileId === ownerId;
   }
 }

@@ -124,7 +124,7 @@ backend/
 **Objetivo:** identidade e permissões 100% controladas pelo backend, com Supabase Auth como provedor trocável.
 - Port `AuthPort` no `domain` (métodos: `verifyToken(jwt)`, `getUser(id)`); adapter `SupabaseAuthAdapter` no `database` que valida o JWT do Supabase (via JWKS/secret).
 - `JwtAuthGuard` que injeta o usuário autenticado no request.
-- **RBAC** próprio: enum de papéis (`admin` | `organizer`), `RolesGuard` + decorator `@Roles()`.
+- **RBAC** próprio: enum de papéis (`admin` | `organizer`), `RolesGuard` + decorator `@Roles()`. **[SUPERADO 20/08/2026]** Não implementado assim. RBAC real hoje é `EventRole` por evento (`event_collaborators`) + `profiles.role` (`ProfileRole`: `team|user`) para o gate do RAG — ver `docs/plans/2026-08-20-profile-role.md`.
 - `OwnershipGuard` genérico: garante que o organizador só acessa recursos dos próprios eventos (substitui a RLS de "organizer").
 - Migrar a lógica do trigger `handle_new_user`: no primeiro login/registro, criar `profile` + role `organizer` (idempotente).
 - **Entregável:** endpoints protegidos rejeitam sem token; organizer não acessa evento alheio; admin tem leitura ampla.
@@ -145,7 +145,7 @@ backend/
   }
   ```
 - Cada model leva `@@schema("ATZ_SED")`. Garantir que o schema exista (a migration cria via `CREATE SCHEMA IF NOT EXISTS "ATZ_SED"`, ou criá-lo manualmente no Supabase antes do primeiro `migrate`). Como o acesso é via Prisma (Postgres direto), **não** é preciso expor o schema na API REST do Supabase.
-- Models Prisma (em `app/database/prisma/schema.prisma`): `profiles`, `user_roles`, `events`, `form_fields`, `registrations`, `message_templates`, `automation_rules`, `message_logs`, `landing_pages`, `landing_sections`, e a **nova** `outbox_messages`.
+- Models Prisma (em `app/database/prisma/schema.prisma`): `profiles`, `user_roles`, `events`, `form_fields`, `registrations`, `message_templates`, `automation_rules`, `message_logs`, `landing_pages`, `landing_sections`, e a **nova** `outbox_messages`. **[SUPERADO 20/08/2026]** `user_roles` foi dropada em 05/06/2026 (`20260605150000_drop_user_roles`); o papel voltou em 20/08/2026 como coluna `profiles.role`, não tabela própria.
 - **Separação domínio × persistência:** os models Prisma são detalhe de persistência (camada `database`). As **entidades de negócio puras** vivem em `app/domain/<módulo>/entities` e são mapeadas de/para os models nos repositórios. `services` nunca importam o Prisma Client.
 - Enums (status de evento, status do funil, canal, trigger, status da outbox) — todos no schema `ATZ_SED`.
 - Constraint única na `outbox_messages`: `@@unique([registrationId, templateId, trigger])`.

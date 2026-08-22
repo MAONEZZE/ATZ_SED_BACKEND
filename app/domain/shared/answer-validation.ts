@@ -1,10 +1,18 @@
 import { BadRequestException } from '@nestjs/common';
+import { DateTime } from 'luxon';
 
 export interface AnswerFieldMeta {
+  id: string;
   label: string;
   type?: string;
   required: boolean;
   options?: unknown;
+}
+
+/** O mínimo para converter entre label e id — dispensa `required`/`type`. */
+export interface AnswerFieldKey {
+  id: string;
+  label: string;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -32,12 +40,18 @@ export function buildAnswerLookup(answers: Record<string, unknown>): Map<string,
   return map;
 }
 
-/** Resolves an answer by field label, tolerant of case/whitespace mismatch with the submitted key. */
+/**
+ * @deprecated Chave canônica de `answers` é `FormField.id`. Só para dado
+ * legado/importado que nunca passou por `mapAnswersToFieldIds`.
+ */
 export function resolveAnswer(answers: Record<string, unknown>, label: string): unknown {
   return buildAnswerLookup(answers).get(normalizeAnswerKey(label));
 }
 
-/** Resolves an answer trying each candidate key in order, case/whitespace-tolerant. */
+/**
+ * @deprecated Chave canônica de `answers` é `FormField.id`. Só para dado
+ * legado/importado que nunca passou por `mapAnswersToFieldIds`.
+ */
 export function resolveAnswerByKeys(answers: Record<string, unknown>, keys: string[]): unknown {
   const lookup = buildAnswerLookup(answers);
   for (const key of keys) {
@@ -45,6 +59,59 @@ export function resolveAnswerByKeys(answers: Record<string, unknown>, keys: stri
     if (val !== undefined) return val;
   }
   return undefined;
+}
+
+/**
+ * Resolve o valor de um campo em `answers` já convertido por id (chave
+ * canônica); cai para o label normalizado se a chave ainda não foi convertida
+ * (submissão pública crua, ainda chaveada por label).
+ */
+function resolveFieldAnswer(
+  answers: Record<string, unknown>,
+  field: { id: string; label: string },
+): unknown {
+  if (Object.prototype.hasOwnProperty.call(answers, field.id)) {
+    return answers[field.id];
+  }
+  return buildAnswerLookup(answers).get(normalizeAnswerKey(field.label));
+}
+
+/**
+ * Converte `answers` chaveado por label (o que o front manda) para chaveado
+ * por `field.id` — a chave canônica no banco. Chave que não casa com campo
+ * nenhum é descartada (caller deve logar quantas, comparando o tamanho dos
+ * dois objetos).
+ */
+export function mapAnswersToFieldIds(
+  fields: AnswerFieldKey[],
+  answers: Record<string, unknown>,
+): Record<string, unknown> {
+  const lookup = buildAnswerLookup(answers);
+  const result: Record<string, unknown> = {};
+  for (const field of fields) {
+    const key = normalizeAnswerKey(field.label);
+    if (lookup.has(key)) {
+      result[field.id] = lookup.get(key);
+    }
+  }
+  return result;
+}
+
+/**
+ * Inverso de `mapAnswersToFieldIds`: para as bordas de leitura (API, CSV,
+ * Pipedrive). Chave que não casa com nenhum campo (campo apagado depois)
+ * passa reto sob a própria chave, para o dado não desaparecer da tela.
+ */
+export function hydrateAnswerLabels(
+  fields: AnswerFieldKey[],
+  answers: Record<string, unknown>,
+): Record<string, unknown> {
+  const labelById = new Map(fields.map((f) => [f.id, f.label]));
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(answers)) {
+    result[labelById.get(key) ?? key] = value;
+  }
+  return result;
 }
 
 /**
@@ -56,9 +123,8 @@ export function validateAnswers(
   fields: AnswerFieldMeta[],
   answers: Record<string, unknown>,
 ): void {
-  const lookup = buildAnswerLookup(answers);
   for (const field of fields) {
-    const val = lookup.get(normalizeAnswerKey(field.label));
+    const val = resolveFieldAnswer(answers, field);
     const isEmpty = val === undefined || val === null || String(val).trim() === '';
 
     if (field.required && isEmpty) {
@@ -75,6 +141,18 @@ export function validateAnswers(
       case 'date':
         if (typeof val !== 'string' || Number.isNaN(Date.parse(val))) {
           throw new BadRequestException(`Campo "${field.label}" deve ser uma data válida`);
+        }
+        break;
+      // Estrito de propósito: nunca reusar o branch 'date' acima, que aceita
+      // "2026" e "09/01/2026" via Date.parse. O sweeper mensal só sabe extrair
+      // o dia de um AAAA-MM-DD real.
+      case 'on_date_automation_field':
+        if (
+          typeof val !== 'string' ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(val) ||
+          !DateTime.fromISO(val).isValid
+        ) {
+          throw new BadRequestException(`Campo "${field.label}" deve ser uma data no formato AAAA-MM-DD`);
         }
         break;
       case 'linkedin':

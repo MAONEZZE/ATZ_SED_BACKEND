@@ -7,7 +7,11 @@ function makeService(
 ) {
   // A porta devolve entidades; o service pergunta hasToken() a elas.
   const instances = rows.map((r) => new WhatsappInstanceEntity(r.id, r.nickname, r.token));
-  const repo = { list: jest.fn().mockResolvedValue(instances) };
+  const repo = {
+    list: jest.fn().mockResolvedValue(instances),
+    listForProfile: jest.fn().mockResolvedValue(instances),
+    isAllowedForProfile: jest.fn().mockResolvedValue(true),
+  };
   const whatsapp = { getInstanceStatus };
   return {
     service: new WhatsappInstanceService(repo as any, {} as any, whatsapp as any),
@@ -24,7 +28,7 @@ describe('WhatsappInstanceService — list (active = conexão real via /instance
       getStatus,
     );
 
-    const result = await service.list();
+    const result = await service.list('user-1');
 
     expect(getStatus).toHaveBeenCalledWith('550e8400-e29b-41d4-a716-446655440000');
     expect(result).toEqual([{ id: 'a', nickname: 'Alpha', active: true }]);
@@ -37,7 +41,7 @@ describe('WhatsappInstanceService — list (active = conexão real via /instance
       jest.fn().mockResolvedValue('connecting'),
     );
 
-    const result = await service.list();
+    const result = await service.list('user-1');
 
     expect(result).toEqual([{ id: 'a', nickname: 'Alpha', active: false }]);
   });
@@ -48,7 +52,7 @@ describe('WhatsappInstanceService — list (active = conexão real via /instance
       jest.fn().mockResolvedValue(null),
     );
 
-    const result = await service.list();
+    const result = await service.list('user-1');
 
     expect(result).toEqual([{ id: 'a', nickname: 'Alpha', active: false }]);
   });
@@ -59,7 +63,7 @@ describe('WhatsappInstanceService — list (active = conexão real via /instance
       jest.fn().mockRejectedValue(new Error('network down')),
     );
 
-    const result = await service.list();
+    const result = await service.list('user-1');
 
     expect(result).toEqual([{ id: 'a', nickname: 'Alpha', active: false }]);
   });
@@ -74,7 +78,7 @@ describe('WhatsappInstanceService — list (active = conexão real via /instance
       getStatus,
     );
 
-    const result = await service.list();
+    const result = await service.list('user-1');
 
     expect(getStatus).not.toHaveBeenCalled();
     expect(result).toEqual([
@@ -96,7 +100,7 @@ describe('WhatsappInstanceService — list (active = conexão real via /instance
       getStatus,
     );
 
-    const result = await service.list();
+    const result = await service.list('user-1');
 
     expect(result).toEqual([
       { id: 'a', nickname: 'Alpha', active: true },

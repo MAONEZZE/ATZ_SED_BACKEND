@@ -10,7 +10,7 @@ export interface CsvColumn<T> {
  * Generic CSV builder. Prepends a UTF-8 BOM (Excel-friendly), escapes every cell,
  * and joins rows with newlines. Callers describe their output purely as columns —
  * fixed and dynamic columns are just entries in the same array, so the three
- * domain CSVs (registrations, post-event, user-subscriptions) share this code.
+ * domain CSVs (registrations, form responses) share this code.
  */
 export function buildCsv<T>(rows: T[], columns: CsvColumn<T>[]): string {
   const header = columns.map((c) => escapeCell(c.header)).join(',');

@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards, Query, Res } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  Query,
+  Res,
+  HttpCode,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import {
   ApiTags,
@@ -14,11 +26,16 @@ import { CurrentUser } from '@api/config/decorators/current-user.decorator';
 import { AuthenticatedUser } from '@domain/shared/authenticated-user.entity';
 import { RegistrationService } from '@application/registration_module/registration.service';
 import { FormFieldService } from '@application/form_field_module/form-field.service';
+import { FormService } from '@application/form_module/form.service';
 import { buildRegistrationsCsv } from '@application/registration_module/registration-csv';
 import { UpdateRegistrationStatusDto } from '@api/dto/registration_module/update-registration-status.dto';
 import { UpdateRegistrationAnswersDto } from '@api/dto/registration_module/update-registration-answers.dto';
 import { ListRegistrationsQueryDto } from '@api/dto/registration_module/list-registrations-query.dto';
 import { ImportRegistrationsDto } from '@api/dto/registration_module/import-registrations.dto';
+import {
+  DeleteRegistrationsDto,
+  SetAttendanceDto,
+} from '@api/dto/registration_module/registration-batch.dto';
 import { Paginated } from '@api/dto/shared/pagination';
 
 @ApiTags('Registrations')
@@ -29,6 +46,7 @@ export class RegistrationController {
   constructor(
     private readonly registrations: RegistrationService,
     private readonly formFields: FormFieldService,
+    private readonly forms: FormService,
   ) {}
 
   @Get()
@@ -38,6 +56,7 @@ export class RegistrationController {
   @ApiQuery({ name: 'search', required: false, description: 'Busca por nome ou email' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'attended', required: false, type: Boolean, description: 'Filtra por presença' })
   @ApiQuery({ name: 'format', required: false, enum: ['json', 'csv'] })
   @ApiResponse({ status: 200, description: 'Lista paginada (JSON) ou arquivo CSV' })
   async findAll(
@@ -45,11 +64,15 @@ export class RegistrationController {
     @Query() query: ListRegistrationsQueryDto,
     @Res({ passthrough: true }) res?: Response,
   ): Promise<Paginated<object> | string> {
-    const { status, search, format } = query;
+    const { status, search, format, attended } = query;
     if (format === 'csv') {
+      // As colunas dinâmicas do CSV são os campos do formulário principal do
+      // evento (o de menor `order`) — sem os 3 tipos fixos, é ele que faz o papel
+      // do antigo kind=registration.
+      const primary = await this.forms.primary(eventId);
       const [regs, formFields] = await Promise.all([
-        this.registrations.findAll(eventId, status, search),
-        this.formFields.exportLabels(eventId, 'registration', true),
+        this.registrations.findAll(eventId, status, search, attended),
+        primary ? this.formFields.exportLabels(primary.id, true) : Promise.resolve([]),
       ]);
       const date = new Date().toISOString().slice(0, 10);
       res!.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -68,6 +91,7 @@ export class RegistrationController {
       limit,
       status,
       search,
+      attended,
     );
     return { data, total, page, limit };
   }
@@ -79,8 +103,35 @@ export class RegistrationController {
   importMany(
     @Param('eventId') eventId: string,
     @Body() dto: ImportRegistrationsDto,
-  ): Promise<{ created: number; skipped: number }> {
-    return this.registrations.importMany(eventId, dto.registrations);
+  ): Promise<{ created: number; skipped: number; rejected: Array<{ linha: number; motivo: string }> }> {
+    return this.registrations.importMany(eventId, dto.formId, dto.registrations);
+  }
+
+  @Delete()
+  @ApiOperation({ summary: 'Deletar inscrições em massa (por ids explícitos, máx. 500)' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiResponse({ status: 200, description: '{ deleted: n } — apaga também mensagens e logs' })
+  deleteMany(
+    @Param('eventId') eventId: string,
+    @Body() dto: DeleteRegistrationsDto,
+  ): Promise<{ deleted: number }> {
+    return this.registrations
+      .deleteMany(dto.ids, eventId)
+      .then((deleted) => ({ deleted }));
+  }
+
+  // Antes do PATCH /:id — declarada depois, 'attendance' cairia no :id.
+  @Patch('attendance')
+  @ApiOperation({ summary: 'Marcar/desmarcar presença em lote (check-in pelo painel)' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiResponse({ status: 200, description: '{ updated: n }' })
+  setAttendance(
+    @Param('eventId') eventId: string,
+    @Body() dto: SetAttendanceDto,
+  ): Promise<{ updated: number }> {
+    return this.registrations
+      .setAttendance(dto.ids, eventId, dto.attended)
+      .then((updated) => ({ updated }));
   }
 
   @Get(':id')
@@ -105,8 +156,20 @@ export class RegistrationController {
     @Param('id') id: string,
     @Body() dto: UpdateRegistrationAnswersDto,
   ) {
-    const formFields = await this.formFields.validationFields(eventId, 'registration');
-    return this.registrations.updateAnswers(id, eventId, dto.answers, formFields);
+    const primary = await this.forms.primary(eventId);
+    const formFields = primary ? await this.formFields.validationFields(primary.id) : [];
+    return this.registrations.updateAnswers(id, eventId, dto.answers, formFields, primary?.id);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Deletar inscrição' })
+  @ApiParam({ name: 'eventId', description: 'UUID do evento' })
+  @ApiParam({ name: 'id', description: 'UUID da inscrição' })
+  @ApiResponse({ status: 204, description: 'Inscrição apagada (com mensagens e logs dela)' })
+  @ApiResponse({ status: 404, description: 'Inscrição não encontrada' })
+  delete(@Param('eventId') eventId: string, @Param('id') id: string) {
+    return this.registrations.delete(id, eventId);
   }
 
   @Patch(':id/status')

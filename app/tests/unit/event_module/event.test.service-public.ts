@@ -3,13 +3,11 @@ import { PublicEventService } from '@application/event_module/public-event.servi
 
 function makeService(event: any) {
   const eventRepo = { findPublicBySlug: jest.fn().mockResolvedValue(event) };
-  const forms = { findByEventAndKind: jest.fn().mockResolvedValue(null) };
-  const formFields = { listPublicByEventAndKind: jest.fn().mockResolvedValue([]) };
+  const forms = { listByEvent: jest.fn().mockResolvedValue([]) };
   return {
-    service: new PublicEventService(eventRepo as any, forms as any, formFields as any),
+    service: new PublicEventService(eventRepo as any, forms as any),
     eventRepo,
     forms,
-    formFields,
   };
 }
 

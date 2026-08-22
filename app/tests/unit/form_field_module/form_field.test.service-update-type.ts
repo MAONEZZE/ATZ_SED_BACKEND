@@ -22,8 +22,14 @@ function makeService(
   const formsService = {
     getOrCreate: jest.fn().mockResolvedValue({ id: 'form-1' }),
   };
+  const automations = { findActiveTriggerRules: jest.fn().mockResolvedValue([]) };
   return {
-    service: new FormFieldService(repo as any, eventsService as any, formsService as any),
+    service: new FormFieldService(
+      repo as any,
+      eventsService as any,
+      formsService as any,
+      automations as any,
+    ),
     repo,
     eventsService,
     formsService,

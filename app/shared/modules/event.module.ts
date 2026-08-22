@@ -12,6 +12,9 @@ import { AutomationDbModule } from '@infra/repositories/automation_module/automa
 import { RegistrationDbModule } from '@infra/repositories/registration_module/registration-db.module';
 import { MessageTemplateDbModule } from '@infra/repositories/message_template_module/message-template-db.module';
 import { ProfileDbModule } from '@infra/repositories/profile_module/profile-db.module';
+// A duplicação de evento precisa registrar o scheduler das regras `recurring`
+// copiadas; o AutomationModule é quem provê (e exporta) o RecurringSchedulerService.
+import { AutomationModule } from '@shared/modules/automation.module';
 
 @Module({
   imports: [
@@ -23,6 +26,7 @@ import { ProfileDbModule } from '@infra/repositories/profile_module/profile-db.m
     RegistrationDbModule,
     MessageTemplateDbModule,
     ProfileDbModule,
+    AutomationModule,
   ],
   controllers: [EventController, PublicEventController],
   providers: [EventService, EventLifecycleService, PublicEventService],

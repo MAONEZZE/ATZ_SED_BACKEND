@@ -27,6 +27,8 @@ import {
   UpdateGlobalTemplateDto,
 } from '@api/dto/message_template_module/global-template.dto';
 import { ListTemplatesQueryDto } from '@api/dto/message_template_module/list-templates-query.dto';
+import { ReorderTemplatesDto } from '@api/dto/message_template_module/reorder-templates.dto';
+import { MoveItemDto } from '@api/dto/shared/move-item.dto';
 import { Paginated } from '@api/dto/shared/pagination';
 
 @ApiTags('Messaging (global)')
@@ -55,6 +57,12 @@ export class MessageTemplateController {
     description: "Filtra por evento vinculado. 'null' retorna só os templates globais.",
   })
   @ApiQuery({
+    name: 'folderId',
+    required: false,
+    type: String,
+    description: "Filtra por pasta. 'null' retorna só os templates fora de pasta.",
+  })
+  @ApiQuery({
     name: 'channel',
     required: false,
     enum: ['whatsapp', 'email'],
@@ -73,8 +81,37 @@ export class MessageTemplateController {
       page,
       limit,
       query.channel,
+      query.folderId,
     );
     return { data, total, page, limit };
+  }
+
+  // Antes do PATCH templates/:id — declarada depois, 'reorder' cairia no :id.
+  @Patch('templates/reorder')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Reordenar templates dentro de uma pasta (drag & drop)' })
+  @ApiResponse({ status: 204, description: 'Ordem reescrita' })
+  @ApiResponse({ status: 404, description: 'Pasta não encontrada' })
+  reorderTemplates(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ReorderTemplatesDto,
+  ) {
+    return this.templates.reorder(user.id, dto.folderId ?? null, dto.ids);
+  }
+
+  // Arrasto item a item: o front manda só a âncora, não a lista da página.
+  @Patch('templates/:id/move')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Mover o template para antes de outro (drag & drop) dentro da pasta' })
+  @ApiParam({ name: 'id', description: 'UUID do template arrastado' })
+  @ApiResponse({ status: 204, description: 'Ordem ajustada' })
+  @ApiResponse({ status: 404, description: 'Template ou âncora fora do escopo' })
+  moveTemplate(
+    @Param('id') id: string,
+    @Body() dto: MoveItemDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.templates.move(user.id, id, dto.beforeId);
   }
 
   @Get('templates/:id')

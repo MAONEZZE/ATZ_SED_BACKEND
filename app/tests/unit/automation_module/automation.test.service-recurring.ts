@@ -18,10 +18,13 @@ function rule(overrides: {
     'evt-1',
     'tpl-1',
     overrides.trigger,
+    [],
     null,
     overrides.cron ?? null,
     overrides.timezone ?? null,
     overrides.active ?? true,
+    null,
+    0,
     new Date('2026-01-01'),
   );
 }
@@ -29,7 +32,7 @@ function rule(overrides: {
 function make() {
   const repo = {
     templateById: jest.fn().mockResolvedValue({ id: 'tpl-1' }),
-    findActiveByEventAndTrigger: jest.fn().mockResolvedValue(null),
+    findActiveByEventTriggerAndTemplate: jest.fn().mockResolvedValue(null),
     findByEvent: jest.fn(),
     create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 'rule-1', ...data })),
     update: jest.fn().mockImplementation((id, data) => Promise.resolve({ id, ...data })),
@@ -40,8 +43,10 @@ function make() {
     remove: jest.fn().mockResolvedValue(undefined),
     syncAll: jest.fn().mockResolvedValue(undefined),
   };
-  const svc = new AutomationService(repo as any, scheduler as any);
-  return { svc, repo, scheduler };
+  const forms = { findByIdAndEvent: jest.fn().mockResolvedValue({ id: 'form-1' }) };
+  const folders = { findById: jest.fn().mockResolvedValue(null) };
+  const svc = new AutomationService(repo as any, scheduler as any, forms as any, folders as any);
+  return { svc, repo, scheduler, forms, folders };
 }
 
 describe('AutomationService — recurring trigger', () => {
@@ -85,7 +90,9 @@ describe('AutomationService — recurring trigger', () => {
     expect(rule).toMatchObject({ id: 'rule-1' });
   });
 
-  it('does not check for active duplicates when creating a recurring rule', async () => {
+  // A duplicata barrada é (gatilho + template) ativo no evento, inclusive no
+  // recurring: duas regras iguais colidiriam no dedupKey.
+  it('checks the narrow duplicate when creating a recurring rule', async () => {
     const { svc, repo } = make();
     await svc.create('evt-1', {
       templateId: 'tpl-1',
@@ -93,25 +100,41 @@ describe('AutomationService — recurring trigger', () => {
       cron: '0 9 * * 1',
       timezone: 'America/Sao_Paulo',
     });
-    expect(repo.findActiveByEventAndTrigger).not.toHaveBeenCalled();
-  });
-
-  it('still checks for active duplicates on non-recurring triggers', async () => {
-    const { svc, repo } = make();
-    await svc.create('evt-1', { templateId: 'tpl-1', trigger: 'on_registration' });
-    expect(repo.findActiveByEventAndTrigger).toHaveBeenCalledWith(
+    expect(repo.findActiveByEventTriggerAndTemplate).toHaveBeenCalledWith(
       'evt-1',
-      'on_registration',
+      'recurring',
+      'tpl-1',
+      undefined,
       undefined,
     );
   });
 
-  it('rejects an active duplicate for a non-recurring trigger', async () => {
+  it('checks the duplicate by trigger AND template on immediate triggers', async () => {
     const { svc, repo } = make();
-    repo.findActiveByEventAndTrigger.mockResolvedValue({ id: 'existing' });
+    await svc.create('evt-1', { templateId: 'tpl-1', trigger: 'on_approval' });
+    expect(repo.findActiveByEventTriggerAndTemplate).toHaveBeenCalledWith(
+      'evt-1',
+      'on_approval',
+      'tpl-1',
+      undefined,
+      undefined,
+    );
+  });
+
+  it('rejects the same template twice on the same trigger', async () => {
+    const { svc, repo } = make();
+    repo.findActiveByEventTriggerAndTemplate.mockResolvedValue({ id: 'existing' });
     await expect(
-      svc.create('evt-1', { templateId: 'tpl-1', trigger: 'on_registration' }),
+      svc.create('evt-1', { templateId: 'tpl-1', trigger: 'on_approval' }),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  // O caso de uso que motivou a mudança: aprovar dispara e-mail E WhatsApp.
+  it('allows a second rule on the same trigger with another template', async () => {
+    const { svc, repo } = make();
+    await svc.create('evt-1', { templateId: 'tpl-email', trigger: 'on_approval' });
+    await svc.create('evt-1', { templateId: 'tpl-whatsapp', trigger: 'on_approval' });
+    expect(repo.create).toHaveBeenCalledTimes(2);
   });
 
   it('does not register a scheduler for an inactive recurring rule', async () => {
@@ -226,5 +249,93 @@ describe('AutomationService — recurring trigger', () => {
     await svc.delete('evt-1', 'rule-1');
 
     expect(scheduler.remove).not.toHaveBeenCalled();
+  });
+});
+
+// Gatilho por formulário (2026-08-17): substituiu on_post_event/on_nps.
+describe('AutomationService — gatilho on_form_submitted', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('rejects the rule without formIds', async () => {
+    const { svc, repo } = make();
+
+    await expect(
+      svc.create('evt-1', { templateId: 'tpl-1', trigger: 'on_form_submitted' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  it('stores the formIds when given', async () => {
+    const { svc, repo } = make();
+
+    await svc.create('evt-1', {
+      templateId: 'tpl-1',
+      trigger: 'on_form_submitted',
+      formIds: ['form-1'],
+    });
+
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ formIds: ['form-1'] }));
+  });
+
+  // O formulário do gatilho tem que ser do próprio evento.
+  it('404s a form from another event', async () => {
+    const { svc, repo, forms } = make();
+    forms.findByIdAndEvent.mockResolvedValue(null);
+
+    await expect(
+      svc.create('evt-1', {
+        templateId: 'tpl-1',
+        trigger: 'on_form_submitted',
+        formIds: ['form-x'],
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  // Nos outros gatilhos formIds não faz sentido e é descartado.
+  it('empties formIds on a trigger that is not form-scoped', async () => {
+    const { svc, repo } = make();
+
+    await svc.create('evt-1', {
+      templateId: 'tpl-1',
+      trigger: 'on_approval',
+      formIds: ['form-1'],
+    });
+
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ formIds: [] }));
+  });
+
+  // O mesmo agradecimento em dois formulários é UMA regra com dois formIds —
+  // a duplicata não é mais procurada por formulário, só por trigger+template.
+  it('does not scope the duplicate check by form', async () => {
+    const { svc, repo } = make();
+
+    await svc.create('evt-1', {
+      templateId: 'tpl-1',
+      trigger: 'on_form_submitted',
+      formIds: ['form-2'],
+    });
+
+    expect(repo.findActiveByEventTriggerAndTemplate).toHaveBeenCalledWith(
+      'evt-1',
+      'on_form_submitted',
+      'tpl-1',
+      undefined,
+      undefined,
+    );
+  });
+
+  // on_registration aceita formulário como escopo opcional: "boas-vindas de quem
+  // entrou por este formulário".
+  it('keeps the formIds on on_registration', async () => {
+    const { svc, repo } = make();
+
+    await svc.create('evt-1', {
+      templateId: 'tpl-1',
+      trigger: 'on_registration',
+      formIds: ['form-1'],
+    });
+
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ formIds: ['form-1'] }));
   });
 });
