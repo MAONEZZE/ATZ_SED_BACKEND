@@ -54,6 +54,7 @@ export class RegistrationController {
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiQuery({ name: 'status', required: false, enum: ['pending', 'approved', 'rejected'] })
   @ApiQuery({ name: 'search', required: false, description: 'Busca por nome ou email' })
+  @ApiQuery({ name: 'formId', required: false, description: 'Filtra por formulário de origem' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'attended', required: false, type: Boolean, description: 'Filtra por presença' })
@@ -64,14 +65,14 @@ export class RegistrationController {
     @Query() query: ListRegistrationsQueryDto,
     @Res({ passthrough: true }) res?: Response,
   ): Promise<Paginated<object> | string> {
-    const { status, search, format, attended } = query;
+    const { status, search, format, attended, formId } = query;
     if (format === 'csv') {
       // As colunas dinâmicas do CSV são os campos do formulário principal do
       // evento (o de menor `order`) — sem os 3 tipos fixos, é ele que faz o papel
       // do antigo kind=registration.
       const primary = await this.forms.primary(eventId);
       const [regs, formFields] = await Promise.all([
-        this.registrations.findAll(eventId, status, search, attended),
+        this.registrations.findAll(eventId, status, search, attended, formId),
         primary ? this.formFields.exportLabels(primary.id, true) : Promise.resolve([]),
       ]);
       const date = new Date().toISOString().slice(0, 10);
@@ -92,6 +93,7 @@ export class RegistrationController {
       status,
       search,
       attended,
+      formId,
     );
     return { data, total, page, limit };
   }

@@ -343,8 +343,9 @@ export class RegistrationService {
     status?: FunnelStatus,
     search?: string,
     attended?: boolean,
+    formId?: string,
   ): Promise<RegistrationEntity[]> {
-    return this.regRepo.findAllByEvent(eventId, status, search, attended);
+    return this.regRepo.findAllByEvent(eventId, status, search, attended, formId);
   }
 
   async findAllPaginated(
@@ -354,6 +355,7 @@ export class RegistrationService {
     status?: FunnelStatus,
     search?: string,
     attended?: boolean,
+    formId?: string,
   ): Promise<{ data: RegistrationEntity[]; total: number }> {
     const { data, total } = await this.regRepo.findAllByEventPaginated(
       eventId,
@@ -361,6 +363,7 @@ export class RegistrationService {
       status,
       search,
       attended,
+      formId,
     );
     return { data: await this.hydrateRegistrations(data), total };
   }

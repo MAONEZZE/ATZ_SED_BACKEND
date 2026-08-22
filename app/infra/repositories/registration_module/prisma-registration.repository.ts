@@ -28,6 +28,7 @@ export class PrismaRegistrationRepository
     imageAuthorization: boolean;
     attended: boolean;
     originFormId: string | null;
+    originForm?: { name: string } | null;
   }): RegistrationEntity {
     return new RegistrationEntity(
       row.id,
@@ -42,6 +43,7 @@ export class PrismaRegistrationRepository
       row.imageAuthorization,
       row.attended,
       row.originFormId,
+      row.originForm?.name ?? null,
     );
   }
 
@@ -55,14 +57,17 @@ export class PrismaRegistrationRepository
     status?: FunnelStatus,
     search?: string,
     attended?: boolean,
+    formId?: string,
   ): Promise<RegistrationEntity[]> {
     const rows = await this.prisma.registration.findMany({
       where: {
         eventId,
         ...(status ? { status } : {}),
         ...(attended !== undefined ? { attended } : {}),
+        ...(formId ? { originFormId: formId } : {}),
         ...this.containsSearch(['name', 'email', 'phone'], search),
       },
+      include: { originForm: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
     });
     return rows.map((r) => this.map(r));
@@ -74,16 +79,19 @@ export class PrismaRegistrationRepository
     status?: FunnelStatus,
     search?: string,
     attended?: boolean,
+    formId?: string,
   ): Promise<{ data: RegistrationEntity[]; total: number }> {
     const where = {
       eventId,
       ...(status ? { status } : {}),
       ...(attended !== undefined ? { attended } : {}),
+      ...(formId ? { originFormId: formId } : {}),
       ...this.containsSearch(['name', 'email', 'phone'], search),
     };
     const [rows, total] = await Promise.all([
       this.prisma.registration.findMany({
         where,
+        include: { originForm: { select: { name: true } } },
         orderBy: { createdAt: 'desc' },
         skip: pagination.skip,
         take: pagination.take,
