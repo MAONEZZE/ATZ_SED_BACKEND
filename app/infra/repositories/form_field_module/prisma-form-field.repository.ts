@@ -86,6 +86,22 @@ export class PrismaFormFieldRepository
     });
   }
 
+  findByFormAndType(
+    formId: string,
+    type: string,
+    excludeId?: string,
+  ): Promise<{ id: string; formId: string; label: string } | null> {
+    return this.prisma.formField.findFirst({
+      where: {
+        formId,
+        type: type as FieldType,
+        ...(excludeId && { id: { not: excludeId } }),
+      },
+      select: { id: true, formId: true, label: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   /** Rótulos do formulário na ordem, opcionalmente só os dinâmicos — cabeçalho do CSV. */
   listLabels(formId: string, onlyDynamic = false): Promise<FormFieldLabel[]> {
     return this.prisma.formField.findMany({

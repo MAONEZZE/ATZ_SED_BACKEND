@@ -42,7 +42,14 @@ function make(folder: unknown = FOLDER) {
   };
   const forms = { findByIdAndEvent: jest.fn().mockResolvedValue({ id: 'form-1' }) };
   const folders = { findById: jest.fn().mockResolvedValue(folder) };
-  const svc = new AutomationService(repo as any, scheduler as any, forms as any, folders as any);
+  const formFields = { findByFormAndType: jest.fn().mockResolvedValue(null) };
+  const svc = new AutomationService(
+    repo as any,
+    scheduler as any,
+    forms as any,
+    folders as any,
+    formFields as any,
+  );
   return { svc, repo, folders };
 }
 

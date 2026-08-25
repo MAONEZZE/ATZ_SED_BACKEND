@@ -33,11 +33,13 @@ function makeEngine() {
   const automations = { findActiveTriggerRules: jest.fn().mockResolvedValue([recurringRule()]) };
   const eventRepo = { findAutomationContext: jest.fn().mockResolvedValue(eventContext) };
   const registrations = { findById: jest.fn().mockResolvedValue(registration) };
+  const formResponses = { findFormIdsByRegistration: jest.fn().mockResolvedValue([]) };
   const outbox = { enqueue: jest.fn().mockResolvedValue(undefined) };
   const engine = new AutomationEngine(
     automations as any,
     eventRepo as any,
     registrations as any,
+    formResponses as any,
     outbox as any,
     new TemplateRenderer(),
   );
@@ -93,16 +95,47 @@ describe('AutomationEngine — occurrenceKey no dedupKey da recorrência', () =>
     expect(data.dedupKey).toBe('reg-1:tpl-recurring:on_date_form_field:2026-10');
   });
 
+  // Regra escopada em 2 formulários dispara 2 ocorrências no mesmo mês — o
+  // formId no occurrenceKey (montado pelo sweeper) é o que separa as duas.
+  it('builds distinct dedupKeys for the same month when the occurrenceKey carries different formIds', async () => {
+    const { engine, outbox } = makeEngine();
+
+    await engine.fireAutomations(
+      'reg-1',
+      'evt-1',
+      'on_date_form_field',
+      ['rule-recurring'],
+      '2026-10:form-a',
+    );
+    await engine.fireAutomations(
+      'reg-1',
+      'evt-1',
+      'on_date_form_field',
+      ['rule-recurring'],
+      '2026-10:form-b',
+    );
+
+    const dedupKeys = outbox.enqueue.mock.calls.map(([data]) => data.dedupKey);
+    expect(dedupKeys[0]).toBe('reg-1:tpl-recurring:on_date_form_field:2026-10:form-a');
+    expect(dedupKeys[1]).toBe('reg-1:tpl-recurring:on_date_form_field:2026-10:form-b');
+  });
+
   it('repasses extra vars (dia_automacao) pro renderer', async () => {
     const { engine, outbox } = makeEngine();
     const monthlyRule = {
       id: 'rule-monthly',
       templateId: 'tpl-monthly',
       trigger: 'on_date_form_field',
-      template: { id: 'tpl-monthly', channel: 'whatsapp', subject: null, body: 'Dia {{dia_automacao}}' },
+      template: {
+        id: 'tpl-monthly',
+        channel: 'whatsapp',
+        subject: null,
+        body: 'Dia {{dia_automacao}}',
+      },
     };
-    (engine as unknown as { automations: { findActiveTriggerRules: jest.Mock } }).automations.findActiveTriggerRules =
-      jest.fn().mockResolvedValue([monthlyRule]);
+    (
+      engine as unknown as { automations: { findActiveTriggerRules: jest.Mock } }
+    ).automations.findActiveTriggerRules = jest.fn().mockResolvedValue([monthlyRule]);
 
     await engine.fireAutomations(
       'reg-1',

@@ -124,6 +124,25 @@ describe('RecurringAutomationsWorker', () => {
     expect(engine.fireAutomations).not.toHaveBeenCalled();
   });
 
+  it('process passes the rule formIds down to findWithApprovedRegistrationIds', async () => {
+    const { worker, automations, eventRepo } = make();
+    automations.findById.mockResolvedValue({
+      id: 'rule-1',
+      eventId: 'evt-1',
+      active: true,
+      trigger: 'recurring',
+      formIds: ['form-b'],
+    });
+    eventRepo.findWithApprovedRegistrationIds.mockResolvedValue({
+      id: 'evt-1',
+      registrationIds: [],
+    });
+
+    await worker.process({ data: { ruleId: 'rule-1' }, timestamp: 1000 } as any);
+
+    expect(eventRepo.findWithApprovedRegistrationIds).toHaveBeenCalledWith('evt-1', ['form-b']);
+  });
+
   it('process continues to the next registration when one fireAutomations call throws', async () => {
     const { worker, automations, eventRepo, engine } = make();
     automations.findById.mockResolvedValue({
@@ -136,7 +155,9 @@ describe('RecurringAutomationsWorker', () => {
       id: 'evt-1',
       registrationIds: ['reg-1', 'reg-2'],
     });
-    engine.fireAutomations.mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce(undefined);
+    engine.fireAutomations
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce(undefined);
 
     await worker.process({ data: { ruleId: 'rule-1' } } as any);
 

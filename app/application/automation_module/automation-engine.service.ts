@@ -17,6 +17,10 @@ import { TemplateRenderer } from '@application/shared/template-renderer.service'
 import { RegistrationStatusChanged } from '@domain/registration_module/registration-status-changed.event';
 import { FormSubmitted } from '@domain/registration_module/form-submitted.event';
 import { AutomationRuleEntity } from '@domain/automation_module/automation-rule.entity';
+import {
+  FORM_RESPONSE_REPOSITORY_PORT,
+  FormResponseRepositoryPort,
+} from '@domain/form_response_module/i-repository-form-response';
 
 const TRIGGER_MAP: Partial<Record<string, string>> = {
   pending: 'on_registration',
@@ -34,6 +38,8 @@ export class AutomationEngine {
     @Inject(EVENT_REPOSITORY_PORT) private readonly eventRepo: EventRepositoryPort,
     @Inject(REGISTRATION_REPOSITORY_PORT)
     private readonly registrations: RegistrationRepositoryPort,
+    @Inject(FORM_RESPONSE_REPOSITORY_PORT)
+    private readonly formResponses: FormResponseRepositoryPort,
     private readonly outbox: OutboxService,
     private readonly renderer: TemplateRenderer,
   ) {}
@@ -44,12 +50,8 @@ export class AutomationEngine {
     if (!trigger) return;
 
     try {
-      // Regra com formulários só vale para quem entrou por um deles; regra sem
-      // (lista vazia) vale para qualquer origem.
       const rules = await this.automations.findActiveTriggerRules(ev.eventId, trigger);
-      const ruleIds = rules
-        .filter((r) => AutomationRuleEntity.matchesForm(r.formIds, ev.formId))
-        .map((r) => r.id);
+      const ruleIds = await this.filterRulesByForm(rules, trigger, ev);
       if (!ruleIds.length) return;
       await this.fireAutomations(ev.registrationId, ev.eventId, trigger, ruleIds);
     } catch (err) {
@@ -58,6 +60,37 @@ export class AutomationEngine {
         'AutomationEngine error',
       );
     }
+  }
+
+  /**
+   * `on_registration` casa pelo formulário da submissão que criou a inscrição
+   * (`matchesForm`). `on_approval`/`on_rejection` não nascem de uma submissão —
+   * o critério é participação: o inscrito respondeu algum dos formulários da
+   * regra. Sem regra escopada (todas com `formIds` vazio), nenhuma consulta
+   * extra ao FormResponse.
+   */
+  private async filterRulesByForm(
+    rules: Array<{ id: string; formIds: string[] }>,
+    trigger: string,
+    ev: RegistrationStatusChanged,
+  ): Promise<string[]> {
+    if (!AutomationRuleEntity.scopedByResponse(trigger)) {
+      return rules
+        .filter((r) => AutomationRuleEntity.matchesForm(r.formIds, ev.formId))
+        .map((r) => r.id);
+    }
+
+    if (!rules.some((r) => r.formIds.length > 0)) {
+      return rules.map((r) => r.id);
+    }
+
+    const respondedFormIds = await this.formResponses.findFormIdsByRegistration(ev.registrationId);
+    return rules
+      .filter(
+        (r) =>
+          r.formIds.length === 0 || r.formIds.some((formId) => respondedFormIds.includes(formId)),
+      )
+      .map((r) => r.id);
   }
 
   @OnEvent('form.submitted')

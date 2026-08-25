@@ -45,7 +45,14 @@ function make() {
   };
   const forms = { findByIdAndEvent: jest.fn().mockResolvedValue({ id: 'form-1' }) };
   const folders = { findById: jest.fn().mockResolvedValue(null) };
-  const svc = new AutomationService(repo as any, scheduler as any, forms as any, folders as any);
+  const formFields = { findByFormAndType: jest.fn().mockResolvedValue(null) };
+  const svc = new AutomationService(
+    repo as any,
+    scheduler as any,
+    forms as any,
+    folders as any,
+    formFields as any,
+  );
   return { svc, repo, scheduler, forms, folders };
 }
 
@@ -292,8 +299,9 @@ describe('AutomationService — gatilho on_form_submitted', () => {
     expect(repo.create).not.toHaveBeenCalled();
   });
 
-  // Nos outros gatilhos formIds não faz sentido e é descartado.
-  it('empties formIds on a trigger that is not form-scoped', async () => {
+  // Os 7 gatilhos aceitam formIds — em on_approval é escopo opcional
+  // (participação: só quem respondeu o formulário).
+  it('keeps formIds on a trigger where it is an optional scope', async () => {
     const { svc, repo } = make();
 
     await svc.create('evt-1', {
@@ -302,7 +310,7 @@ describe('AutomationService — gatilho on_form_submitted', () => {
       formIds: ['form-1'],
     });
 
-    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ formIds: [] }));
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ formIds: ['form-1'] }));
   });
 
   // O mesmo agradecimento em dois formulários é UMA regra com dois formIds —

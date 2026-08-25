@@ -209,11 +209,7 @@ export class PrismaEventRepository implements EventRepositoryPort {
     return this.map(row);
   }
 
-  async updateStatus(
-    id: string,
-    status: EventStatus,
-    editorId?: string,
-  ): Promise<EventEntity> {
+  async updateStatus(id: string, status: EventStatus, editorId?: string): Promise<EventEntity> {
     const row = await this.prisma.event.update({
       where: { id },
       data: { status, ...(editorId ? { lastEditedById: editorId } : {}) },
@@ -334,10 +330,19 @@ export class PrismaEventRepository implements EventRepositoryPort {
 
   async findWithApprovedRegistrationIds(
     id: string,
+    formIds?: string[],
   ): Promise<{ id: string; registrationIds: string[] } | null> {
     const row = await this.prisma.event.findUnique({
       where: { id },
-      include: { registrations: { where: { status: 'approved' }, select: { id: true } } },
+      include: {
+        registrations: {
+          where: {
+            status: 'approved',
+            ...(formIds?.length && { formResponses: { some: { formId: { in: formIds } } } }),
+          },
+          select: { id: true },
+        },
+      },
     });
     if (!row) return null;
     return { id: row.id, registrationIds: row.registrations.map((r) => r.id) };

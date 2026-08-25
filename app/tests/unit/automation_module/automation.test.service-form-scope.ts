@@ -34,9 +34,24 @@ function make(existing = rule('on_form_submitted', ['form-1'])) {
     upsert: jest.fn().mockResolvedValue(undefined),
     remove: jest.fn().mockResolvedValue(undefined),
   };
-  const forms = { findByIdAndEvent: jest.fn().mockResolvedValue({ id: 'form-2' }) };
+  const forms = {
+    findByIdAndEvent: jest
+      .fn()
+      .mockResolvedValue({ id: 'form-2', name: 'Form 2', anonymous: false }),
+  };
   const folders = { findById: jest.fn().mockResolvedValue(null) };
-  const svc = new AutomationService(repo as any, scheduler as any, forms as any, folders as any);
+  const formFields = {
+    findByFormAndType: jest
+      .fn()
+      .mockResolvedValue({ id: 'field-1', formId: 'form-2', label: 'Dia' }),
+  };
+  const svc = new AutomationService(
+    repo as any,
+    scheduler as any,
+    forms as any,
+    folders as any,
+    formFields as any,
+  );
   return { svc, repo, forms };
 }
 
@@ -53,8 +68,9 @@ describe('AutomationService.create formIds', () => {
     expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ formIds: ['form-2'] }));
   });
 
-  // `on_registration` aceita formulário como escopo opcional; os outros ignoram.
-  it('empties formIds for a trigger that does not accept one', async () => {
+  // Os 7 gatilhos aceitam formIds — só on_form_submitted/on_date_form_field o
+  // exigem não-vazio; nos outros é escopo opcional.
+  it('keeps formIds on a trigger where it is an optional scope (on_approval)', async () => {
     const { svc, repo } = make();
 
     await svc.create('evt-1', {
@@ -63,7 +79,7 @@ describe('AutomationService.create formIds', () => {
       formIds: ['form-2'],
     });
 
-    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ formIds: [] }));
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ formIds: ['form-2'] }));
   });
 
   it('validates every formId belongs to the event', async () => {
@@ -92,16 +108,17 @@ describe('AutomationService.update formIds', () => {
     );
   });
 
-  // Sem isso a junção ficava com o formulário antigo sob um gatilho que o
-  // ignora, sujando a regra.
-  it('clears the formIds when moving to a trigger that ignores it', async () => {
+  // Nenhum dos 7 gatilhos ignora formIds mais — trocar de gatilho num patch
+  // que não menciona formIds preserva a junção como está.
+  it('keeps the formIds when moving to a trigger that only accepts it as optional scope', async () => {
     const { svc, repo } = make(rule('on_form_submitted', ['form-1']));
 
     await svc.update('evt-1', 'rule-1', { trigger: 'on_approval' });
 
+    expect(repo.update.mock.calls[0][1]).not.toHaveProperty('formIds');
     expect(repo.update).toHaveBeenCalledWith(
       'rule-1',
-      expect.objectContaining({ trigger: 'on_approval', formIds: [] }),
+      expect.objectContaining({ trigger: 'on_approval' }),
     );
   });
 
@@ -131,14 +148,15 @@ describe('AutomationService.update formIds', () => {
   });
 });
 
-// Formulário anônimo nunca dispara form.submitted (submitForm nem emite o
-// evento nesse caminho) — a regra tem que ser recusada na origem.
+// Formulário anônimo não tem inscrito: nenhum dos 7 gatilhos tem como
+// disparar pra ele — a regra tem que ser recusada na origem, não só em
+// on_form_submitted.
 describe('AutomationService — formulário anônimo', () => {
-  function makeWithAnonymousForm() {
+  function makeWithAnonymousForm(existing = rule('on_form_submitted', ['form-1'])) {
     const repo = {
       templateById: jest.fn().mockResolvedValue({ id: 'tpl-1' }),
       findActiveByEventTriggerAndTemplate: jest.fn().mockResolvedValue(null),
-      findByEvent: jest.fn().mockResolvedValue(rule('on_form_submitted', ['form-1'])),
+      findByEvent: jest.fn().mockResolvedValue(existing),
       create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 'rule-1', ...data })),
       update: jest.fn().mockImplementation((id, data) => Promise.resolve({ id, ...data })),
     };
@@ -149,7 +167,14 @@ describe('AutomationService — formulário anônimo', () => {
         .mockResolvedValue({ id: 'form-2', name: 'Voto', anonymous: true }),
     };
     const folders = { findById: jest.fn().mockResolvedValue(null) };
-    const svc = new AutomationService(repo as any, scheduler as any, forms as any, folders as any);
+    const formFields = { findByFormAndType: jest.fn().mockResolvedValue(null) };
+    const svc = new AutomationService(
+      repo as any,
+      scheduler as any,
+      forms as any,
+      folders as any,
+      formFields as any,
+    );
     return { svc, repo };
   }
 
@@ -173,5 +198,20 @@ describe('AutomationService — formulário anônimo', () => {
       BadRequestException,
     );
     expect(repo.update).not.toHaveBeenCalled();
+  });
+
+  // Antes só on_form_submitted recusava; agora vale para qualquer um dos 7
+  // gatilhos, mesmo os que só usam formIds como escopo opcional.
+  it('400s creating an on_approval rule scoped to an anonymous form', async () => {
+    const { svc, repo } = makeWithAnonymousForm();
+
+    await expect(
+      svc.create('evt-1', {
+        templateId: 'tpl-1',
+        trigger: 'on_approval',
+        formIds: ['form-2'],
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(repo.create).not.toHaveBeenCalled();
   });
 });

@@ -74,7 +74,7 @@ export class CreateAutomationDto {
     type: [String],
     example: ['uuid-do-formulario-1', 'uuid-do-formulario-2'],
     description:
-      'Obrigatório (não-vazio) em trigger="on_form_submitted". Opcional em "on_registration": com formulários, a regra só vale para quem se inscreveu por um deles; ausente/vazio vale para qualquer formulário (inclusive os criados depois). Ignorado nos outros gatilhos.',
+      'Vale nos 7 gatilhos. Ausente/vazio = todos os formulários do evento, inclusive os criados depois. Obrigatório (não-vazio) em "on_form_submitted" e "on_date_form_field". Em "on_registration"/"on_form_submitted" o critério é o formulário da submissão; nos outros (on_approval, on_rejection, recurring, on_date, on_date_form_field) é participação — o inscrito respondeu algum dos formulários da regra; inscrito criado pelo painel (sem FormResponse) não é alcançado por regra escopada. Formulário anônimo é sempre recusado (400). "on_date_form_field" também exige que o formulário tenha um campo on_date_automation_field.',
   })
   @IsOptional()
   @IsArray()

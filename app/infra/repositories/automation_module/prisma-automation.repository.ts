@@ -268,8 +268,9 @@ export class PrismaAutomationRepository
           name: data.name ?? null,
           folderId: data.folderId ?? null,
           ...(data.active !== undefined && { active: data.active }),
-          // O service já normaliza: lista vazia quando o gatilho não aceita formulário.
-          ...(data.formIds?.length && { forms: { create: data.formIds.map((formId) => ({ formId })) } }),
+          ...(data.formIds?.length && {
+            forms: { create: data.formIds.map((formId) => ({ formId })) },
+          }),
         },
         include: { ...TEMPLATE_SUMMARY, ...WITH_FORMS },
       });
@@ -365,7 +366,9 @@ export class PrismaAutomationRepository
     return true;
   }
 
-  async findDueDateRules(): Promise<Array<{ id: string; eventId: string; sendAt: Date }>> {
+  async findDueDateRules(): Promise<
+    Array<{ id: string; eventId: string; sendAt: Date; formIds: string[] }>
+  > {
     const rows = await this.prisma.automationRule.findMany({
       where: {
         trigger: 'on_date',
@@ -373,11 +376,16 @@ export class PrismaAutomationRepository
         firedAt: null,
         sendAt: { lte: new Date() },
       },
-      select: { id: true, eventId: true, sendAt: true },
+      select: { id: true, eventId: true, sendAt: true, forms: { select: { formId: true } } },
       orderBy: { sendAt: 'asc' },
     });
     // `sendAt` é non-null pelo filtro; o select não sabe disso.
-    return rows.map((r) => ({ id: r.id, eventId: r.eventId, sendAt: r.sendAt as Date }));
+    return rows.map((r) => ({
+      id: r.id,
+      eventId: r.eventId,
+      sendAt: r.sendAt as Date,
+      formIds: r.forms.map((f) => f.formId),
+    }));
   }
 
   async markDateRuleFired(id: string): Promise<void> {
@@ -393,19 +401,35 @@ export class PrismaAutomationRepository
     take: number;
     eventDateCutoff: Date;
   }): Promise<FormFieldDateRule[]> {
-    return this.prisma.automationRule.findMany({
-      where: {
-        trigger: 'on_date_form_field',
-        active: true,
-        event: {
-          status: 'published',
-          OR: [{ eventDate: null }, { eventDate: { gte: eventDateCutoff } }],
+    return this.prisma.automationRule
+      .findMany({
+        where: {
+          trigger: 'on_date_form_field',
+          active: true,
+          event: {
+            status: 'published',
+            OR: [{ eventDate: null }, { eventDate: { gte: eventDateCutoff } }],
+          },
         },
-      },
-      select: { id: true, eventId: true, sendTime: true, timezone: true },
-      orderBy: { createdAt: 'asc' },
-      take,
-    });
+        select: {
+          id: true,
+          eventId: true,
+          sendTime: true,
+          timezone: true,
+          forms: { select: { formId: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+        take,
+      })
+      .then((rows) =>
+        rows.map((r) => ({
+          id: r.id,
+          eventId: r.eventId,
+          sendTime: r.sendTime,
+          timezone: r.timezone,
+          formIds: r.forms.map((f) => f.formId),
+        })),
+      );
   }
 
   findActiveRuleByTemplate(
@@ -448,7 +472,13 @@ export class PrismaAutomationRepository
     eventId: string,
     rules: Array<Omit<EventDuplicationAutomationRule, 'formSlugs'> & { formIds: string[] }>,
   ): Promise<
-    Array<{ id: string; trigger: string; cron: string | null; timezone: string | null; active: boolean }>
+    Array<{
+      id: string;
+      trigger: string;
+      cron: string | null;
+      timezone: string | null;
+      active: boolean;
+    }>
   > {
     const created = await this.prisma.$transaction(
       rules.map((a) =>

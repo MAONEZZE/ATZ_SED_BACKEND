@@ -38,14 +38,16 @@ describe('parseDay', () => {
 describe('FormFieldDateAutomationsService.sweep — comportamento do lote', () => {
   const FIXED_NOW = DateTime.fromISO('2027-06-15T09:00:00Z');
 
-  function makeService(responsesPage: Array<{ registrationId: string; answers: Record<string, unknown> }>) {
+  function makeService(
+    responsesPage: Array<{ registrationId: string; answers: Record<string, unknown> }>,
+  ) {
     const rules = [
-      { id: 'rule-A', eventId: 'evt-1', sendTime: '09:00', timezone: 'UTC' },
-      { id: 'rule-B', eventId: 'evt-1', sendTime: '09:00', timezone: 'UTC' },
+      { id: 'rule-A', eventId: 'evt-1', sendTime: '09:00', timezone: 'UTC', formIds: ['form-1'] },
+      { id: 'rule-B', eventId: 'evt-1', sendTime: '09:00', timezone: 'UTC', formIds: ['form-1'] },
     ];
     const automations = { findActiveFormFieldDateRules: jest.fn().mockResolvedValue(rules) };
     const formFields = {
-      findByEventAndType: jest
+      findByFormAndType: jest
         .fn()
         .mockResolvedValue({ id: 'field-1', formId: 'form-1', label: 'Dia' }),
     };
@@ -84,7 +86,7 @@ describe('FormFieldDateAutomationsService.sweep — comportamento do lote', () =
       'evt-1',
       'on_date_form_field',
       expect.arrayContaining([expect.stringMatching(/^rule-/)]),
-      '2027-06',
+      '2027-06:form-1',
       { dia_automacao: '15' },
     );
   });
@@ -106,14 +108,14 @@ describe('FormFieldDateAutomationsService.sweep — comportamento do lote', () =
     expect(okCalls.length).toBeGreaterThan(0);
   });
 
-  it('duas regras do mesmo evento buscam campo e respostas uma única vez', async () => {
+  it('duas regras do mesmo formulário buscam campo e respostas uma única vez', async () => {
     const { svc, formFields, formResponses } = makeService([
       { registrationId: 'reg-1', answers: { 'field-1': '2027-06-15' } },
     ]);
 
     await svc.sweep();
 
-    expect(formFields.findByEventAndType).toHaveBeenCalledTimes(1);
+    expect(formFields.findByFormAndType).toHaveBeenCalledTimes(1);
     expect(formResponses.findApprovedByForm).toHaveBeenCalledTimes(1);
   });
 });

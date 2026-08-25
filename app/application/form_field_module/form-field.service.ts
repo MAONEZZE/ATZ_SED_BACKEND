@@ -77,7 +77,7 @@ export class FormFieldService {
     // O formulário é escolhido explicitamente: sem os 3 tipos fixos não existe
     // mais "o form padrão" para materializar na hora.
     const form = await this.formsService.findOne(input.formId, eventId);
-    await this.assertSingleAutomationDateField(eventId, input.type);
+    await this.assertSingleAutomationDateField(form.id, input.type);
     const field = await this.repo.create({
       formId: form.id,
       label: input.label,
@@ -98,7 +98,7 @@ export class FormFieldService {
     if (input.type !== undefined && input.type !== field.type) {
       this.warnIfTypeChangeIncoherent(field, input);
     }
-    await this.assertSingleAutomationDateField(eventId, input.type, id);
+    await this.assertSingleAutomationDateField(field.formId, input.type, id);
 
     const updated = await this.repo.update(id, {
       ...(input.label !== undefined && { label: input.label }),
@@ -143,7 +143,8 @@ export class FormFieldService {
     const field = await this.assertExists(eventId, id);
     if (field.type === 'on_date_automation_field') {
       const rules = await this.automations.findActiveTriggerRules(eventId, 'on_date_form_field');
-      if (rules.length > 0) {
+      const blocking = rules.some((r) => r.formIds.includes(field.formId));
+      if (blocking) {
         throw new ConflictException(
           'Este campo alimenta uma regra on_date_form_field ativa. Desative a regra antes de apagar o campo.',
         );
@@ -156,30 +157,29 @@ export class FormFieldService {
   private async assertExists(
     eventId: string,
     id: string,
-  ): Promise<{ label: string; type: string; options: unknown }> {
+  ): Promise<{ formId: string; label: string; type: string; options: unknown }> {
     const field = await this.repo.findByEvent(eventId, id);
     if (!field) throw new NotFoundException('Form field not found');
     return field;
   }
 
   /**
-   * O sweeper de `on_date_form_field` lê um campo fixo por evento — mais de um
-   * não teria como escolher qual dia usar. Corrida aceita e documentada: dois
-   * POSTs simultâneos podem criar 2 campos (não é fechável no banco, `form_fields`
-   * não tem `event_id` — chega por join com `forms`). Ação de painel
-   * administrativo; o `orderBy: createdAt asc` do repo garante que o sweeper
-   * sempre escolha o mesmo campo se a corrida vazar.
+   * O sweeper de `on_date_form_field` lê um campo fixo por formulário — mais
+   * de um não teria como escolher qual dia usar. Corrida aceita e
+   * documentada: dois POSTs simultâneos no mesmo formulário podem criar 2
+   * campos. Ação de painel administrativo; o `orderBy: createdAt asc` do repo
+   * garante que o sweeper sempre escolha o mesmo campo se a corrida vazar.
    */
   private async assertSingleAutomationDateField(
-    eventId: string,
+    formId: string,
     type?: string,
     excludeId?: string,
   ): Promise<void> {
     if (type !== 'on_date_automation_field') return; // custo zero nos outros tipos
-    const existing = await this.repo.findByEventAndType(eventId, type, excludeId);
+    const existing = await this.repo.findByFormAndType(formId, type, excludeId);
     if (existing) {
       throw new BadRequestException(
-        `Este evento já tem um campo de data para automação ("${existing.label}"). Só é permitido um por evento.`,
+        `Este formulário já tem um campo de data para automação ("${existing.label}"). Só é permitido um por formulário.`,
       );
     }
   }

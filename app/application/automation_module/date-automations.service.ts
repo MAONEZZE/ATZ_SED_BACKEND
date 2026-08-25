@@ -41,7 +41,10 @@ export class DateAutomationsService {
     if (!due.length) return;
 
     for (const rule of due) {
-      const event = await this.eventRepo.findWithApprovedRegistrationIds(rule.eventId);
+      const event = await this.eventRepo.findWithApprovedRegistrationIds(
+        rule.eventId,
+        rule.formIds,
+      );
       if (!event) {
         // Evento apagado leva a regra em cascata, então isto é quase impossível;
         // marcar evita revarrer a mesma linha a cada 5 min se acontecer.

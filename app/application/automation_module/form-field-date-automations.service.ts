@@ -29,6 +29,7 @@ const ESTIMATED_PACE_GAP_MS = 50_000;
 
 interface RuleWindow {
   rule: FormFieldDateRule;
+  formId: string;
   anchor: DateTime;
   occurrenceKey: string;
 }
@@ -98,9 +99,18 @@ export class FormFieldDateAutomationsService {
     if (rules.length === 0) return;
 
     // Pré-filtro de janela antes de tocar em campo/respostas — é o que segura
-    // o custo: fora da janela, o tick custa 1 SELECT numa tabela pequena.
+    // o custo: fora da janela, o tick custa 1 SELECT numa tabela pequena. Uma
+    // entrada por (regra, formulário): regra com 2 formIds gera 2 janelas, uma
+    // pra cada — cada uma com seu próprio occurrenceKey.
     const windows: RuleWindow[] = [];
     for (const rule of rules) {
+      if (rule.formIds.length === 0) {
+        this.logger.warn(
+          { ruleId: rule.id, eventId: rule.eventId },
+          'regra on_date_form_field sem formulário vinculado — estado legado, não dispara',
+        );
+        continue;
+      }
       const zone = rule.timezone?.trim() || APP_TIMEZONE;
       const sendTime = rule.sendTime?.trim() || DEFAULT_SEND_TIME;
       const resolved = resolveWindow(now, zone, sendTime);
@@ -113,46 +123,59 @@ export class FormFieldDateAutomationsService {
         }
         continue;
       }
-      windows.push({ rule, anchor: resolved.anchor, occurrenceKey: resolved.occurrenceKey });
+      for (const formId of rule.formIds) {
+        windows.push({
+          rule,
+          formId,
+          anchor: resolved.anchor,
+          // O formulário entra na chave: a chave antiga (`AAAA-MM`) não distinguia
+          // dois formulários da mesma regra disparando no mesmo mês.
+          occurrenceKey: `${resolved.anchor.toFormat('yyyy-MM')}:${formId}`,
+        });
+      }
     }
     if (windows.length === 0) return;
 
-    // Agrupar por evento (normalmente 1 regra por evento) pra não repetir
-    // campo+respostas quando duas regras do mesmo evento estão na janela.
-    const byEvent = new Map<string, RuleWindow[]>();
+    // Agrupar por (evento, formulário) — normalmente 1 regra por par — pra não
+    // repetir campo+respostas quando duas regras do mesmo formulário estão na
+    // janela.
+    const byEventForm = new Map<string, RuleWindow[]>();
     for (const w of windows) {
-      const list = byEvent.get(w.rule.eventId) ?? [];
+      const key = `${w.rule.eventId}:${w.formId}`;
+      const list = byEventForm.get(key) ?? [];
       list.push(w);
-      byEvent.set(w.rule.eventId, list);
+      byEventForm.set(key, list);
     }
 
-    for (const [eventId, ruleWindows] of byEvent) {
+    for (const [key, ruleWindows] of byEventForm) {
+      const [eventId, formId] = key.split(':');
       try {
-        await this.sweepEvent(eventId, ruleWindows);
+        await this.sweepEventForm(eventId, formId, ruleWindows);
       } catch (err) {
         this.logger.error(
-          { err, eventId, ruleIds: ruleWindows.map((w) => w.rule.id) },
-          'sweep on_date_form_field falhou pro evento',
+          { err, eventId, formId, ruleIds: ruleWindows.map((w) => w.rule.id) },
+          'sweep on_date_form_field falhou pro evento/formulário',
         );
       }
     }
   }
 
-  private async sweepEvent(eventId: string, ruleWindows: RuleWindow[]): Promise<void> {
-    const field = await this.formFields.findByEventAndType(eventId, 'on_date_automation_field');
+  private async sweepEventForm(
+    eventId: string,
+    formId: string,
+    ruleWindows: RuleWindow[],
+  ): Promise<void> {
+    const field = await this.formFields.findByFormAndType(formId, 'on_date_automation_field');
     if (!field) {
       this.logger.warn(
-        { eventId, ruleIds: ruleWindows.map((w) => w.rule.id) },
-        'regra on_date_form_field sem campo no evento',
+        { eventId, formId, ruleIds: ruleWindows.map((w) => w.rule.id) },
+        'regra on_date_form_field escopada num formulário sem campo de data',
       );
       return;
     }
 
     const stats = new Map(
-      ruleWindows.map((w) => [
-        w.rule.id,
-        { candidates: 0, enqueued: 0, unparseable: 0, empty: 0 },
-      ]),
+      ruleWindows.map((w) => [w.rule.id, { candidates: 0, enqueued: 0, unparseable: 0, empty: 0 }]),
     );
 
     let skip = 0;
@@ -164,7 +187,10 @@ export class FormFieldDateAutomationsService {
           take: RESPONSES_PER_PAGE,
         });
       } catch (err) {
-        this.logger.error({ err, eventId, formId: field.formId, skip }, 'falha lendo página de respostas');
+        this.logger.error(
+          { err, eventId, formId: field.formId, skip },
+          'falha lendo página de respostas',
+        );
         break;
       }
       if (page.length === 0) break;
@@ -218,6 +244,7 @@ export class FormFieldDateAutomationsService {
       this.logger.log({
         ruleId: w.rule.id,
         eventId,
+        formId,
         occurrenceKey: w.occurrenceKey,
         targetDay: w.anchor.day,
         timezone: w.anchor.zoneName,
@@ -254,10 +281,7 @@ export function resolveWindow(
   if (!m) return null;
   const nowZ = now.setZone(zone);
   for (const off of [0, -1]) {
-    const anchor = nowZ
-      .plus({ days: off })
-      .startOf('day')
-      .set({ hour: +m[1], minute: +m[2] });
+    const anchor = nowZ.plus({ days: off }).startOf('day').set({ hour: +m[1], minute: +m[2] });
     if (nowZ >= anchor && nowZ < anchor.plus({ minutes: TOLERANCE_MINUTES })) {
       return { anchor, occurrenceKey: anchor.toFormat('yyyy-MM') };
     }
@@ -273,7 +297,8 @@ export function resolveWindow(
  */
 export function clampMatches(answerDay: number, anchor: DateTime): boolean {
   return (
-    answerDay === anchor.day || (anchor.day === anchor.daysInMonth && answerDay > anchor.daysInMonth)
+    answerDay === anchor.day ||
+    (anchor.day === anchor.daysInMonth && answerDay > anchor.daysInMonth)
   );
 }
 
