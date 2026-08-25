@@ -186,7 +186,13 @@ export interface EventRepositoryPort {
   createDuplicate(data: CreateDuplicateEventData): Promise<CreatedDuplicateEvent>;
   findPublicBySlug(slug: string): Promise<PublicEventSummary | null>;
   findAutomationContext(id: string): Promise<EventAutomationContext | null>;
+  /**
+   * Inscritos aprovados do evento — usado pelos sweepers de `on_date` e
+   * `recurring`. `formIds` (vazio/ausente = todos) escopa por participação:
+   * só quem tem `FormResponse` num daqueles formulários.
+   */
   findWithApprovedRegistrationIds(
     id: string,
+    formIds?: string[],
   ): Promise<{ id: string; registrationIds: string[] } | null>;
 }

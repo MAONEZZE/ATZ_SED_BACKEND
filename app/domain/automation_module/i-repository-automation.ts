@@ -8,7 +8,7 @@ export const AUTOMATION_REPOSITORY_PORT = Symbol('AUTOMATION_REPOSITORY_PORT');
 export interface CreateAutomationRuleData {
   eventId: string;
   templateId: string;
-  /** Obrigatório (não-vazio) no gatilho on_form_submitted; ignorado nos outros. */
+  /** Obrigatório (não-vazio) em on_form_submitted e on_date_form_field; opcional nos outros 5. */
   formIds?: string[];
   trigger: AutomationTrigger;
   delayMinutes?: number | null;
@@ -63,12 +63,14 @@ export type AutomationRuleWithFullTemplate = AutomationRuleEntity & {
   template: MessageTemplateEntity;
 };
 
-/** Só o necessário para o sweeper mensal decidir a janela — sem template, sem forms. */
+/** Só o necessário para o sweeper mensal decidir a janela — sem template, sem corpo. */
 export interface FormFieldDateRule {
   id: string;
   eventId: string;
   sendTime: string | null;
   timezone: string | null;
+  /** Vazio = regra legada sem formulário vinculado; o sweeper loga e não dispara. */
+  formIds: string[];
 }
 
 /** Só o necessário para (re)agendar: o scheduler não lê corpo de mensagem. */
@@ -98,7 +100,9 @@ export interface AutomationRepositoryPort {
   findAllRecurringActive(): Promise<RecurringSchedule[]>;
 
   /** Regras `on_date` ativas cuja data já venceu e que ainda não foram marcadas. */
-  findDueDateRules(): Promise<Array<{ id: string; eventId: string; sendAt: Date }>>;
+  findDueDateRules(): Promise<
+    Array<{ id: string; eventId: string; sendAt: Date; formIds: string[] }>
+  >;
 
   /**
    * Marca a regra como disparada. Chamado **depois** do envio: se o processo
@@ -135,8 +139,8 @@ export interface AutomationRepositoryPort {
    * `templateId`, então as duas linhas colidiriam no @unique e a segunda nunca
    * sairia. Gatilho repetido com templates **diferentes** é liberado — é o caso
    * de mandar a mesma etapa por e-mail e por WhatsApp. `formIds` não entra na
-   * chave: o mesmo template em formulários diferentes é UMA regra com dois
-   * formIds, não duas regras.
+   * chave em nenhum dos 7 gatilhos: o mesmo template em formulários diferentes
+   * é UMA regra com dois formIds, não duas regras.
    */
   findActiveByEventTriggerAndTemplate(
     eventId: string,
@@ -191,5 +195,13 @@ export interface AutomationRepositoryPort {
   createManyForDuplication(
     eventId: string,
     rules: Array<Omit<EventDuplicationAutomationRule, 'formSlugs'> & { formIds: string[] }>,
-  ): Promise<Array<{ id: string; trigger: string; cron: string | null; timezone: string | null; active: boolean }>>;
+  ): Promise<
+    Array<{
+      id: string;
+      trigger: string;
+      cron: string | null;
+      timezone: string | null;
+      active: boolean;
+    }>
+  >;
 }

@@ -74,6 +74,18 @@ export interface FormFieldRepositoryPort {
     excludeId?: string,
   ): Promise<{ id: string; formId: string; label: string } | null>;
 
+  /**
+   * Igual a `findByEventAndType`, mas escopado ao formulário — não ao evento
+   * inteiro. A trava de campo único de `on_date_automation_field` desceu de
+   * evento para formulário: dois formulários do mesmo evento podem ter, cada
+   * um, o seu próprio campo de data.
+   */
+  findByFormAndType(
+    formId: string,
+    type: string,
+    excludeId?: string,
+  ): Promise<{ id: string; formId: string; label: string } | null>;
+
   listLabels(formId: string, onlyDynamic?: boolean): Promise<FormFieldLabel[]>;
 
   listValidationFields(formId: string): Promise<FormFieldValidationRule[]>;

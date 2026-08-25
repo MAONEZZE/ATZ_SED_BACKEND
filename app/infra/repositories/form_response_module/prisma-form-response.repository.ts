@@ -7,10 +7,7 @@ import {
   FormResponseWithContext,
   UpsertFormResponseData,
 } from '@domain/form_response_module/i-repository-form-response';
-import {
-  FunnelStatus,
-  PipedriveStatus,
-} from '@domain/registration_module/registration.entity';
+import { FunnelStatus, PipedriveStatus } from '@domain/registration_module/registration.entity';
 
 type ResponseRow = {
   id: string;
@@ -160,6 +157,14 @@ export class PrismaFormResponseRepository
       registrationId: row.registrationId as string,
       answers: (row.answers ?? {}) as Record<string, unknown>,
     }));
+  }
+
+  async findFormIdsByRegistration(registrationId: string): Promise<string[]> {
+    const rows = await this.prisma.formResponse.findMany({
+      where: { registrationId },
+      select: { formId: true },
+    });
+    return rows.map((row) => row.formId);
   }
 
   async mergeAnswers(

@@ -27,7 +27,12 @@ function rule(id: string, templateId: string, channel: 'email' | 'whatsapp') {
     templateId,
     trigger: 'on_approval',
     formIds: [],
-    template: { id: templateId, channel, subject: channel === 'email' ? 'Aprovado' : null, body: 'Oi {{nome}}' },
+    template: {
+      id: templateId,
+      channel,
+      subject: channel === 'email' ? 'Aprovado' : null,
+      body: 'Oi {{nome}}',
+    },
   };
 }
 
@@ -35,11 +40,13 @@ function makeEngine(rules: unknown[]) {
   const automations = { findActiveTriggerRules: jest.fn().mockResolvedValue(rules) };
   const eventRepo = { findAutomationContext: jest.fn().mockResolvedValue(eventContext) };
   const registrations = { findById: jest.fn().mockResolvedValue(registration) };
+  const formResponses = { findFormIdsByRegistration: jest.fn().mockResolvedValue([]) };
   const outbox = { enqueue: jest.fn().mockResolvedValue(undefined) };
   const engine = new AutomationEngine(
     automations as any,
     eventRepo as any,
     registrations as any,
+    formResponses as any,
     outbox as any,
     new TemplateRenderer(),
   );
@@ -90,10 +97,7 @@ describe('AutomationEngine — múltiplas regras no mesmo gatilho', () => {
     const templateIds = outbox.enqueue.mock.calls.map(([data]) => data.templateId);
     expect(templateIds).toEqual(['tpl-email', 'tpl-whats']);
     const dedupKeys = outbox.enqueue.mock.calls.map(([data]) => data.dedupKey);
-    expect(dedupKeys).toEqual([
-      'reg-1:tpl-email:on_approval',
-      'reg-1:tpl-whats:on_approval',
-    ]);
+    expect(dedupKeys).toEqual(['reg-1:tpl-email:on_approval', 'reg-1:tpl-whats:on_approval']);
   });
 
   // Contato sem Registration (resposta de formulário de quem não é inscrito): o
@@ -142,9 +146,11 @@ describe('AutomationEngine — gatilho por formulário', () => {
     });
 
     // A segunda chamada (dentro do dispatch) recebe os ruleIds já filtrados.
-    expect(automations.findActiveTriggerRules).toHaveBeenLastCalledWith('evt-1', 'on_form_submitted', [
-      'rule-nps',
-    ]);
+    expect(automations.findActiveTriggerRules).toHaveBeenLastCalledWith(
+      'evt-1',
+      'on_form_submitted',
+      ['rule-nps'],
+    );
     expect(outbox.enqueue).toHaveBeenCalled();
   });
 

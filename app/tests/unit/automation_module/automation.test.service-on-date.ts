@@ -40,7 +40,14 @@ function make() {
   const scheduler = { upsert: jest.fn(), remove: jest.fn().mockResolvedValue(undefined) };
   const forms = { findByIdAndEvent: jest.fn().mockResolvedValue({ id: 'form-1' }) };
   const folders = { findById: jest.fn().mockResolvedValue(null) };
-  const svc = new AutomationService(repo as any, scheduler as any, forms as any, folders as any);
+  const formFields = { findByFormAndType: jest.fn().mockResolvedValue(null) };
+  const svc = new AutomationService(
+    repo as any,
+    scheduler as any,
+    forms as any,
+    folders as any,
+    formFields as any,
+  );
   return { svc, repo, scheduler };
 }
 
@@ -170,9 +177,9 @@ describe('AutomationService — on_date trigger', () => {
       existingDateRule(new Date('2027-02-12T12:00:00Z'), new Date('2027-02-12T12:00:05Z')),
     );
 
-    await expect(
-      svc.update('evt-1', 'rule-1', { sendAt: '2027-03-20T09:00:00' }),
-    ).rejects.toThrow(BadRequestException);
+    await expect(svc.update('evt-1', 'rule-1', { sendAt: '2027-03-20T09:00:00' })).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   // Fecha o bypass de 2 hops: desativar + remarcar não pode zerar firedAt por
@@ -210,9 +217,7 @@ describe('AutomationService — on_date trigger', () => {
       existingDateRule(new Date('2027-02-12T12:00:00Z'), new Date('2027-02-12T12:00:05Z')),
     );
 
-    await expect(
-      svc.update('evt-1', 'rule-1', { trigger: 'on_approval' }),
-    ).resolves.toBeDefined();
+    await expect(svc.update('evt-1', 'rule-1', { trigger: 'on_approval' })).resolves.toBeDefined();
   });
 
   // Regra que nunca disparou pode ter a data remarcada livremente — a trava só

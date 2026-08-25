@@ -1,8 +1,5 @@
 import { FormResponseEntity } from './form-response.entity';
-import {
-  FunnelStatus,
-  PipedriveStatus,
-} from '@domain/registration_module/registration.entity';
+import { FunnelStatus, PipedriveStatus } from '@domain/registration_module/registration.entity';
 
 export const FORM_RESPONSE_REPOSITORY_PORT = Symbol('FORM_RESPONSE_REPOSITORY_PORT');
 
@@ -57,6 +54,13 @@ export interface FormResponseRepositoryPort {
     formId: string,
     pagination: { skip: number; take: number },
   ): Promise<Array<{ registrationId: string; answers: Record<string, unknown> }>>;
+
+  /**
+   * Formulários que o inscrito respondeu — usado pelo `AutomationEngine` pra
+   * escopar `on_approval`/`on_rejection` por participação (não pela submissão
+   * que criou a inscrição). `@@index([registrationId])` cobre a busca.
+   */
+  findFormIdsByRegistration(registrationId: string): Promise<string[]>;
 
   /**
    * Merge raso (jsonb ||) das chaves editadas dentro do FormResponse existente.

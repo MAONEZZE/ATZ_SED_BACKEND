@@ -66,7 +66,7 @@ describe('FormFieldDateAutomationsService.sweep — pré-filtro de janela', () =
     const automations = {
       findActiveFormFieldDateRules: jest.fn().mockResolvedValue(rules),
     };
-    const formFields = { findByEventAndType: jest.fn() };
+    const formFields = { findByFormAndType: jest.fn() };
     const formResponses = { findApprovedByForm: jest.fn() };
     const engine = { fireAutomations: jest.fn() };
     const svc = new FormFieldDateAutomationsService(
@@ -78,7 +78,7 @@ describe('FormFieldDateAutomationsService.sweep — pré-filtro de janela', () =
     return { svc, formFields };
   }
 
-  it('custo de 1 SELECT quando nenhuma regra cai na janela: findByEventAndType nunca é chamado', async () => {
+  it('custo de 1 SELECT quando nenhuma regra cai na janela: findByFormAndType nunca é chamado', async () => {
     // Relógio travado ao meio-dia UTC; regra em UTC 00:00 fica bem fora da
     // janela de 30min tanto pro âncora de hoje quanto pro de ontem.
     const nowSpy = jest
@@ -86,12 +86,12 @@ describe('FormFieldDateAutomationsService.sweep — pré-filtro de janela', () =
       .mockReturnValue(DateTime.fromISO('2027-06-15T12:00:00Z') as any);
     try {
       const { svc, formFields } = makeService([
-        { id: 'rule-1', eventId: 'evt-1', sendTime: '00:00', timezone: 'UTC' },
+        { id: 'rule-1', eventId: 'evt-1', sendTime: '00:00', timezone: 'UTC', formIds: ['form-1'] },
       ]);
 
       await svc.sweep();
 
-      expect(formFields.findByEventAndType).not.toHaveBeenCalled();
+      expect(formFields.findByFormAndType).not.toHaveBeenCalled();
     } finally {
       nowSpy.mockRestore();
     }
@@ -100,6 +100,16 @@ describe('FormFieldDateAutomationsService.sweep — pré-filtro de janela', () =
   it('não faz nada quando não há regras ativas', async () => {
     const { svc, formFields } = makeService([]);
     await svc.sweep();
-    expect(formFields.findByEventAndType).not.toHaveBeenCalled();
+    expect(formFields.findByFormAndType).not.toHaveBeenCalled();
+  });
+
+  it('regra legada sem formIds nunca chega no cálculo de janela', async () => {
+    const { svc, formFields } = makeService([
+      { id: 'rule-legacy', eventId: 'evt-1', sendTime: '09:00', timezone: 'UTC', formIds: [] },
+    ]);
+
+    await expect(svc.sweep()).resolves.not.toThrow();
+
+    expect(formFields.findByFormAndType).not.toHaveBeenCalled();
   });
 });

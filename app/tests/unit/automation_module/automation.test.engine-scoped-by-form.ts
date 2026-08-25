@@ -31,29 +31,31 @@ function rule(id: string, formIds: string[]) {
   };
 }
 
-function makeEngine(rules: unknown[]) {
+function makeEngine(rules: unknown[], respondedFormIds: string[] = []) {
   const automations = {
     findActiveTriggerRules: jest
       .fn()
       .mockImplementation((_eventId: string, _trigger: string, ruleIds?: string[]) =>
         Promise.resolve(
-          ruleIds
-            ? (rules as { id: string }[]).filter((r) => ruleIds.includes(r.id))
-            : rules,
+          ruleIds ? (rules as { id: string }[]).filter((r) => ruleIds.includes(r.id)) : rules,
         ),
       ),
   };
   const eventRepo = { findAutomationContext: jest.fn().mockResolvedValue(eventContext) };
   const registrations = { findById: jest.fn().mockResolvedValue(registration) };
+  const formResponses = {
+    findFormIdsByRegistration: jest.fn().mockResolvedValue(respondedFormIds),
+  };
   const outbox = { enqueue: jest.fn().mockResolvedValue(undefined) };
   const engine = new AutomationEngine(
     automations as any,
     eventRepo as any,
     registrations as any,
+    formResponses as any,
     outbox as any,
     new TemplateRenderer(),
   );
-  return { engine, outbox };
+  return { engine, outbox, formResponses };
 }
 
 function created(formId: string | null) {
@@ -109,5 +111,61 @@ describe('AutomationEngine — on_registration escopado por formulário', () => 
     await engine.handleStatusChanged(created('form-a'));
 
     expect(outbox.enqueue.mock.calls[0][0].dedupKey).toBe('reg-1:tpl-rule-a:on_registration');
+  });
+});
+
+function approvalRule(id: string, formIds: string[]) {
+  return {
+    id,
+    templateId: `tpl-${id}`,
+    trigger: 'on_approval',
+    formIds,
+    template: { id: `tpl-${id}`, channel: 'email', subject: 'Aprovado', body: 'Oi {{nome}}' },
+  };
+}
+
+function approved(formId: string | null) {
+  return new RegistrationStatusChanged('reg-1', 'evt-1', 'pending', 'approved', 'owner-1', formId);
+}
+
+// on_approval/on_rejection não nascem de uma submissão — o critério não é o
+// formulário que criou a inscrição, é participação: o inscrito respondeu
+// algum dos formulários da regra (FormResponse), consultado só quando existe
+// regra escopada.
+describe('AutomationEngine — on_approval escopado por participação (FormResponse)', () => {
+  it('fires a rule scoped to a form the registrant responded to', async () => {
+    const { engine, outbox, formResponses } = makeEngine(
+      [approvalRule('rule-a', ['form-a'])],
+      ['form-a'],
+    );
+
+    await engine.handleStatusChanged(approved(null));
+
+    expect(outbox.enqueue).toHaveBeenCalledTimes(1);
+    expect(formResponses.findFormIdsByRegistration).toHaveBeenCalledWith('reg-1');
+  });
+
+  it('skips a rule scoped to a form the registrant never answered', async () => {
+    const { engine, outbox } = makeEngine([approvalRule('rule-a', ['form-a'])], ['form-b']);
+
+    await engine.handleStatusChanged(approved(null));
+
+    expect(outbox.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('fires a rule without form for anyone, regardless of participation', async () => {
+    const { engine, outbox } = makeEngine([approvalRule('rule-any', [])], []);
+
+    await engine.handleStatusChanged(approved(null));
+
+    expect(outbox.enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it('never queries FormResponse when no active rule is scoped', async () => {
+    const { engine, formResponses } = makeEngine([approvalRule('rule-any', [])], []);
+
+    await engine.handleStatusChanged(approved(null));
+
+    expect(formResponses.findFormIdsByRegistration).not.toHaveBeenCalled();
   });
 });

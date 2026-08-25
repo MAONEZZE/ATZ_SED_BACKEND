@@ -14,7 +14,12 @@ export interface AutomationScheduleInput {
  * aqui: precisa consultar as outras regras do evento, então fica no service.
  */
 export class AutomationValidator extends ValidatorBase<AutomationScheduleInput> {
-  validate(input: AutomationScheduleInput): string[] {
+  /**
+   * `enforceFormRequirement` separa a checagem de `formIds` do resto: na
+   * criação sempre vale, mas num PATCH que não menciona `formIds` a
+   * obrigatoriedade não se aplica (o service decide quando chamar com `true`).
+   */
+  validate(input: AutomationScheduleInput, enforceFormRequirement = true): string[] {
     const errors: string[] = [];
 
     // Só `recurring` roda por agenda; os outros gatilhos reagem a um
@@ -31,8 +36,12 @@ export class AutomationValidator extends ValidatorBase<AutomationScheduleInput> 
     }
 
     // O gatilho por formulário precisa saber QUAIS formulários disparam.
-    if (AutomationRuleEntity.requiresForm(input.trigger) && !input.formIds?.length) {
-      errors.push('formIds é obrigatório para trigger "on_form_submitted"');
+    if (
+      enforceFormRequirement &&
+      AutomationRuleEntity.requiresForm(input.trigger) &&
+      !input.formIds?.length
+    ) {
+      errors.push(`formIds é obrigatório para trigger "${input.trigger}"`);
     }
 
     return errors;

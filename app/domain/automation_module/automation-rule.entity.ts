@@ -42,8 +42,9 @@ export class AutomationRuleEntity extends EntityBase {
     public readonly trigger: AutomationTrigger,
     /**
      * Formulários que disparam a regra. Vazio = todos os formulários do evento,
-     * dinamicamente (formulário criado depois já dispara). Só relevante quando
-     * `acceptsForm(trigger)`; obrigatório e não-vazio em `on_form_submitted`.
+     * dinamicamente (formulário criado depois já dispara). Os 7 gatilhos aceitam
+     * `formIds`; obrigatório e não-vazio em `on_form_submitted` e `on_date_form_field`
+     * (`requiresForm`).
      */
     public readonly formIds: string[],
     public readonly delayMinutes: number | null,
@@ -71,19 +72,32 @@ export class AutomationRuleEntity extends EntityBase {
     return AutomationRuleEntity.isRecurring(this.trigger);
   }
 
-  /** `on_form_submitted` é escopado por formulário, então exige `formIds` não-vazio. */
+  /**
+   * `on_form_submitted` e `on_date_form_field` não fazem sentido sem saber QUAL
+   * formulário: o primeiro é o próprio evento que dispara a regra; o segundo
+   * precisa do formulário pra resolver o campo de data. Os outros 5 gatilhos
+   * aceitam `formIds` como escopo opcional (vazio = todos).
+   */
   static requiresForm(trigger: string): boolean {
-    return trigger === 'on_form_submitted';
+    return trigger === 'on_form_submitted' || trigger === 'on_date_form_field';
   }
 
   /**
-   * Gatilhos que guardam `formIds`. Em `on_form_submitted` é obrigatório; em
-   * `on_registration` é escopo opcional — com formulários, a regra só vale para
-   * quem se inscreveu por um deles; sem (lista vazia), vale para qualquer
-   * formulário.
+   * Critério de escopo por formulário quando o gatilho não nasce de uma
+   * submissão: em vez do formulário que originou a inscrição (`matchesForm`),
+   * vale a participação — o inscrito respondeu (tem `FormResponse`) algum dos
+   * formulários da regra. `on_registration` e `on_form_submitted` ficam de
+   * fora: para eles o formulário da submissão já resolve, no mesmo instante do
+   * disparo.
    */
-  static acceptsForm(trigger: string): boolean {
-    return trigger === 'on_form_submitted' || trigger === 'on_registration';
+  static scopedByResponse(trigger: string): boolean {
+    return (
+      trigger === 'on_approval' ||
+      trigger === 'on_rejection' ||
+      trigger === 'recurring' ||
+      trigger === 'on_date' ||
+      trigger === 'on_date_form_field'
+    );
   }
 
   /** Lista vazia = todos; caso contrário só quem entrou por um dos formulários. */

@@ -28,11 +28,13 @@ function makeEngine(status: string) {
     }),
   };
   const registrations = { findById: jest.fn().mockResolvedValue(registration) };
+  const formResponses = { findFormIdsByRegistration: jest.fn().mockResolvedValue([]) };
   const outbox = { enqueue: jest.fn().mockResolvedValue(undefined) };
   const engine = new AutomationEngine(
     automations as any,
     eventRepo as any,
     registrations as any,
+    formResponses as any,
     outbox as any,
     new TemplateRenderer(),
   );

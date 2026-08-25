@@ -2,7 +2,7 @@ import { DateAutomationsService } from '@application/automation_module/date-auto
 
 const SEND_AT = new Date('2027-02-12T12:00:00Z');
 
-function make(due: Array<{ id: string; eventId: string; sendAt: Date }>) {
+function make(due: Array<{ id: string; eventId: string; sendAt: Date; formIds?: string[] }>) {
   const automations = {
     findDueDateRules: jest.fn().mockResolvedValue(due),
     markDateRuleFired: jest.fn().mockResolvedValue(undefined),
@@ -41,6 +41,18 @@ describe('DateAutomationsService.sweep', () => {
       ['rule-1'],
       '2027-02-12T12:00:00.000Z',
     );
+  });
+
+  // Escopo por formulário: a regra passa o próprio formIds pro repositório
+  // filtrar quem participou de qual formulário.
+  it('passes the rule formIds down to findWithApprovedRegistrationIds', async () => {
+    const { svc, eventRepo } = make([
+      { id: 'rule-1', eventId: 'evt-1', sendAt: SEND_AT, formIds: ['form-b'] },
+    ]);
+
+    await svc.sweep();
+
+    expect(eventRepo.findWithApprovedRegistrationIds).toHaveBeenCalledWith('evt-1', ['form-b']);
   });
 
   it('does nothing when no rule is due', async () => {

@@ -37,4 +37,32 @@ describe('PrismaAutomationRepository.findActiveFormFieldDateRules', () => {
       }),
     );
   });
+
+  it('mapeia a junção de formulários de volta como formIds', async () => {
+    const findMany = jest.fn().mockResolvedValue([
+      {
+        id: 'rule-1',
+        eventId: 'evt-1',
+        sendTime: '09:00',
+        timezone: 'UTC',
+        forms: [{ formId: 'form-1' }, { formId: 'form-2' }],
+      },
+    ]);
+    const { repo } = await makeRepo({ findMany });
+
+    const rules = await repo.findActiveFormFieldDateRules({
+      take: 200,
+      eventDateCutoff: new Date('2026-07-22T00:00:00Z'),
+    });
+
+    expect(rules).toEqual([
+      {
+        id: 'rule-1',
+        eventId: 'evt-1',
+        sendTime: '09:00',
+        timezone: 'UTC',
+        formIds: ['form-1', 'form-2'],
+      },
+    ]);
+  });
 });

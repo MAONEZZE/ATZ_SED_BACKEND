@@ -23,6 +23,10 @@ import {
   FOLDER_REPOSITORY_PORT,
   FolderRepositoryPort,
 } from '@domain/folder_module/i-repository-folder';
+import {
+  FORM_FIELD_REPOSITORY_PORT,
+  FormFieldRepositoryPort,
+} from '@domain/form_field_module/i-repository-form-field';
 
 export interface CreateAutomationInput {
   templateId: string;
@@ -71,6 +75,7 @@ export class AutomationService {
     private readonly scheduler: RecurringSchedulerService,
     @Inject(FORM_REPOSITORY_PORT) private readonly forms: FormRepositoryPort,
     @Inject(FOLDER_REPOSITORY_PORT) private readonly folders: FolderRepositoryPort,
+    @Inject(FORM_FIELD_REPOSITORY_PORT) private readonly formFields: FormFieldRepositoryPort,
   ) {}
 
   listPaginated(eventId: string, page: number, limit: number, folderId?: string | null) {
@@ -106,11 +111,13 @@ export class AutomationService {
   async create(eventId: string, input: CreateAutomationInput) {
     await this.assertTemplateExists(input.templateId, eventId);
     const sendAt = this.resolveSendAt(input.trigger, input.sendAt, input.timezone);
+    // Na criação a obrigatoriedade de formIds vale sempre (enforceFormRequirement default).
     this.assertRuleValid(input.trigger, input.cron, input.timezone, input.formIds, sendAt);
     this.assertSendAtFuture(input.trigger, sendAt, input.active ?? true, null);
-    if (input.formIds?.length) await this.assertFormsBelongToEvent(input.formIds, eventId, input.trigger);
+    if (input.formIds?.length)
+      await this.assertFormsBelongToEvent(input.formIds, eventId, input.trigger);
     if (input.folderId) await this.assertFolderBelongsToEvent(input.folderId, eventId);
-    const formIds = AutomationRuleEntity.acceptsForm(input.trigger) ? (input.formIds ?? []) : [];
+    const formIds = input.formIds ?? [];
     // Gatilho repetido é permitido (e-mail + WhatsApp na mesma etapa, por
     // exemplo). Só a repetição do mesmo template no mesmo gatilho é barrada —
     // o mesmo template em formulários diferentes vira uma regra com dois
@@ -168,14 +175,24 @@ export class AutomationService {
       trigger,
       input.sendTime !== undefined ? input.sendTime : existing.sendTime,
     );
-    this.assertRuleValid(trigger, cron, timezone, mergedFormIds, sendAt);
+    // A obrigatoriedade de formIds só se aplica quando o corpo do PATCH manda
+    // `formIds` explicitamente — senão uma regra `on_date_form_field` legada
+    // (sem formulário) tomaria 400 em qualquer patch que nem toca nisso.
+    this.assertRuleValid(
+      trigger,
+      cron,
+      timezone,
+      mergedFormIds,
+      sendAt,
+      input.formIds !== undefined,
+    );
     // Remarcar a data reabre o disparo, então a regra volta a valer como nova:
     // o `firedAt` gravado não a isenta da checagem de data futura.
     const sendAtChanged = sendAt?.getTime() !== existing.sendAt?.getTime();
     this.assertSendAtFuture(trigger, sendAt, willBeActive, sendAtChanged ? null : existing.firedAt);
     this.assertDateNotRearmed(existing, trigger, sendAt, input.sendAt);
     if (input.formIds?.length) await this.assertFormsBelongToEvent(input.formIds, eventId, trigger);
-    const formIds = AutomationRuleEntity.acceptsForm(trigger) ? mergedFormIds : [];
+    const formIds = mergedFormIds;
 
     // A regra vale sobre o resultado da mesclagem: trocar só o template também
     // pode colidir com outra regra ativa do mesmo gatilho.
@@ -191,10 +208,9 @@ export class AutomationService {
     const updated = await this.repo.update(id, {
       ...(input.templateId && { templateId: input.templateId }),
       ...(input.trigger && { trigger: input.trigger as AutomationTrigger }),
-      // Comparar com o valor atual em vez de olhar só o corpo: trocar para um
-      // gatilho que não aceita formulário tem que limpar os `formIds` antigos, e
-      // esse patch não menciona `formIds`. Deixar a junção suja bagunçaria a
-      // trava de duplicata (agora só trigger + template, mas ainda incoerente).
+      // Comparar com o valor mesclado em vez de olhar só a presença de
+      // `formIds` no corpo: um patch que não menciona `formIds` não deve
+      // reescrever a junção à toa.
       ...(this.formIdsChanged(formIds, existing.formIds) && { formIds }),
       ...(input.delayMinutes !== undefined && { delayMinutes: input.delayMinutes || null }),
       ...(input.cron !== undefined && { cron: input.cron }),
@@ -233,14 +249,18 @@ export class AutomationService {
     timezone?: string | null,
     formIds?: string[],
     sendAt?: Date | null,
+    enforceFormRequirement = true,
   ): void {
-    const errors = new AutomationValidator().validate({
-      trigger,
-      cron,
-      timezone,
-      formIds,
-      sendAt,
-    });
+    const errors = new AutomationValidator().validate(
+      {
+        trigger,
+        cron,
+        timezone,
+        formIds,
+        sendAt,
+      },
+      enforceFormRequirement,
+    );
     if (errors.length > 0) throw new BadRequestException(errors[0]);
   }
 
@@ -328,9 +348,12 @@ export class AutomationService {
   }
 
   /**
-   * Cada formulário do gatilho tem que ser do próprio evento. `on_form_submitted`
-   * também recusa formulário anônimo: sem inscrito, o evento `form.submitted`
-   * nunca dispara pra ele (ver submitForm no registration.service).
+   * Cada formulário do gatilho tem que ser do próprio evento. Formulário
+   * anônimo é recusado nos 7 gatilhos: sem inscrito, nenhum deles tem como
+   * disparar pra ele (submissão anônima nem emite `form.submitted` — ver
+   * `submitForm` em `registration.service`; os outros gatilhos dependem de
+   * `Registration`/`FormResponse` vinculados a um inscrito). `on_date_form_field`
+   * também exige que o formulário tenha o campo de data que o sweeper lê.
    */
   private async assertFormsBelongToEvent(
     formIds: string[],
@@ -340,10 +363,18 @@ export class AutomationService {
     for (const formId of formIds) {
       const form = await this.forms.findByIdAndEvent(formId, eventId);
       if (!form) throw new NotFoundException('Form not found');
-      if (trigger === 'on_form_submitted' && form.anonymous) {
+      if (form.anonymous) {
         throw new BadRequestException(
-          `Formulário '${form.name}' é anônimo e nunca dispara o gatilho on_form_submitted`,
+          `Formulário '${form.name}' é anônimo e não pode escopar uma automação`,
         );
+      }
+      if (trigger === 'on_date_form_field') {
+        const field = await this.formFields.findByFormAndType(formId, 'on_date_automation_field');
+        if (!field) {
+          throw new BadRequestException(
+            `Formulário '${form.name}' não tem campo de data para automação (on_date_automation_field)`,
+          );
+        }
       }
     }
   }
