@@ -133,6 +133,16 @@ export class PrismaFormResponseRepository
     return { data: rows.map((row) => this.toContext(row)), total };
   }
 
+  // Um único DELETE ... WHERE id IN (...) AND event_id = ... — atômico por si,
+  // sem precisar de $transaction. `eventId` no WHERE é o escopo: id de outro
+  // evento não casa, não apaga e não conta.
+  async deleteMany(ids: string[], eventId: string): Promise<number> {
+    const { count } = await this.prisma.formResponse.deleteMany({
+      where: { id: { in: ids }, eventId },
+    });
+    return count;
+  }
+
   async setPipedriveStatus(id: string, status: PipedriveStatus): Promise<void> {
     await this.prisma.formResponse.update({ where: { id }, data: { pipedriveStatus: status } });
   }

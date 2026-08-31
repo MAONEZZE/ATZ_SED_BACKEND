@@ -67,7 +67,9 @@ describe('PrismaFormResponseRepository.upsert', () => {
   // Resposta anônima: sem inscrito, `where` composto com null é inválido no
   // Prisma, e idempotência não faz sentido sem chave — sempre create.
   it('creates a new row instead of upserting when registrationId is null', async () => {
-    const create = jest.fn().mockResolvedValue({ ...ROW, registrationId: null, registration: null });
+    const create = jest
+      .fn()
+      .mockResolvedValue({ ...ROW, registrationId: null, registration: null });
     const upsert = jest.fn();
     const { repo } = await makeRepo({ create, upsert });
 
@@ -197,5 +199,48 @@ describe('PrismaFormResponseRepository.setPipedriveStatus', () => {
       where: { id: 'resp-1' },
       data: { pipedriveStatus: 'sent' },
     });
+  });
+});
+
+describe('PrismaFormResponseRepository.deleteMany', () => {
+  // Escopo por evento no WHERE: passar na mão o id de uma resposta de outro
+  // evento não apaga nada — e um único deleteMany, não N queries em loop.
+  it('scopes the delete by event and issues a single query', async () => {
+    const deleteMany = jest.fn().mockResolvedValue({ count: 2 });
+    const { repo } = await makeRepo({ deleteMany });
+
+    const count = await repo.deleteMany(['resp-1', 'resp-2'], 'evt-1');
+
+    expect(deleteMany).toHaveBeenCalledTimes(1);
+    expect(deleteMany).toHaveBeenCalledWith({
+      where: { id: { in: ['resp-1', 'resp-2'] }, eventId: 'evt-1' },
+    });
+    expect(count).toBe(2);
+  });
+
+  // Ids inexistentes ou de outro evento simplesmente não casam: o lote inteiro
+  // não falha, o retorno só não os conta.
+  it('returns the count from the database, not the size of the batch', async () => {
+    const deleteMany = jest.fn().mockResolvedValue({ count: 1 });
+    const { repo } = await makeRepo({ deleteMany });
+
+    await expect(repo.deleteMany(['meu', 'de-outro-evento'], 'evt-1')).resolves.toBe(1);
+  });
+
+  // Formulário não-anônimo: a resposta tem inscrito. Excluir a resposta não é
+  // excluir o inscrito — pra isso existe o DELETE de registrations.
+  it('never touches registrations, so a linked inscrito survives', async () => {
+    const deleteMany = jest.fn().mockResolvedValue({ count: 1 });
+    const registration = { deleteMany: jest.fn(), delete: jest.fn(), update: jest.fn() };
+    const prismaMock = { formResponse: { deleteMany }, registration } as unknown as PrismaService;
+    const moduleRef = await Test.createTestingModule({
+      providers: [PrismaFormResponseRepository, { provide: PrismaService, useValue: prismaMock }],
+    }).compile();
+
+    await moduleRef.get(PrismaFormResponseRepository).deleteMany(['resp-com-inscrito'], 'evt-1');
+
+    expect(registration.deleteMany).not.toHaveBeenCalled();
+    expect(registration.delete).not.toHaveBeenCalled();
+    expect(registration.update).not.toHaveBeenCalled();
   });
 });

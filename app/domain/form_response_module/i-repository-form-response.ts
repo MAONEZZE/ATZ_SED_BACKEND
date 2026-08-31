@@ -42,6 +42,16 @@ export interface FormResponseRepositoryPort {
     formId?: string,
     search?: string,
   ): Promise<{ data: FormResponseWithContext[]; total: number }>;
+  /**
+   * Apaga em lote por ids explícitos, escopado no evento: id de outro evento
+   * (ou inexistente) não entra no WHERE e não conta no retorno — o lote inteiro
+   * não falha por um id velho, igual ao delete de inscrições.
+   *
+   * Só a resposta: o `Registration` vinculado (formulário não-anônimo)
+   * continua existindo — quem apaga inscrito é o endpoint de registrations.
+   */
+  deleteMany(ids: string[], eventId: string): Promise<number>;
+
   /** Resultado do envio ao Pipedrive por resposta (antes vivia em Registration). */
   setPipedriveStatus(id: string, status: PipedriveStatus): Promise<void>;
 
