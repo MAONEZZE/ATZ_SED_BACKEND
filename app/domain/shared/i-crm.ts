@@ -4,7 +4,8 @@ export interface CrmPayload {
   /** `eventDate` em ISO 8601 (UTC); ausente quando o evento nao tem data definida. */
   event: { id: string; slug: string; title: string; eventDate?: string };
   form: 'registration';
-  contact: { email: string; phone: string; linkedin?: string; instagram?: string };
+  /** `name` vem da resposta cujo label cita "nome"/"name"; ausente se o formulário não tem esse campo. */
+  contact: { name?: string; email: string; phone: string; linkedin?: string; instagram?: string };
   answers: Record<string, unknown>;
 }
 
