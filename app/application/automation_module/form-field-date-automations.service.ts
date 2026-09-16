@@ -19,7 +19,26 @@ import { APP_TIMEZONE } from '@handlers/timezone';
 import { AutomationEngine } from '@application/automation_module/automation-engine.service';
 
 const SWEEP_CRON = '2-59/5 * * * *'; // deslocado do sweeper do on_date (*/5)
-const TOLERANCE_MINUTES = 30; // 6 ticks: sobrevive a ~25min de indisponibilidade
+/**
+ * Janela de recuperação. Com 30min (o valor original) qualquer queda maior que
+ * meia hora custava o mês inteiro daquela coorte: a varredura é diária, cada
+ * dia atinge quem respondeu aquele dia-do-mês, e no dia seguinte o âncora já é
+ * outro. Não havia recuperação.
+ *
+ * Alargar é seguro porque a deduplicação não depende da janela: o `dedupKey` do
+ * outbox é `${registrationId}:${templateId}:on_date_form_field:${occurrenceKey}`
+ * com `occurrenceKey` mensal e constraint @unique. Reprocessar a mesma coorte no
+ * mesmo mês é no-op no banco — não existe caminho para duplicata.
+ *
+ * O preço é custo, não correção: dentro da janela cada tick de 5min refaz a
+ * varredura das respostas e tenta enfileirar de novo (no-op). 12h = 144 ticks
+ * por dia contra os 6 anteriores.
+ *
+ * TEM que ficar abaixo de 1440. Os âncoras de `off: 0` e `off: -1` distam 24h e
+ * `resolveWindow` depende deles nunca casarem juntos — com tolerância >= 1440
+ * um mesmo instante cairia nas duas janelas.
+ */
+const TOLERANCE_MINUTES = 720;
 const RULES_PER_TICK = 200;
 const RESPONSES_PER_PAGE = 500;
 // Estimativa pra log: média do gap anti-ban (WA_AUTOMATION_GAP_MIN/MAX_MS,
