@@ -1,6 +1,12 @@
 import { DateAutomationsService } from '@application/automation_module/date-automations.service';
 
 const SEND_AT = new Date('2027-02-12T12:00:00Z');
+// Relógio travado 5min após o SEND_AT: dentro do teto de atraso de 2h. Sem
+// travar, o teto passaria a descartar estas regras quando a data real chegasse
+// em 2027 — o teste morreria sozinho.
+const NOW = new Date('2027-02-12T12:05:00Z');
+
+const minutesBeforeNow = (minutes: number) => new Date(NOW.getTime() - minutes * 60_000);
 
 function make(due: Array<{ id: string; eventId: string; sendAt: Date; formIds?: string[] }>) {
   const automations = {
@@ -18,7 +24,11 @@ function make(due: Array<{ id: string; eventId: string; sendAt: Date; formIds?: 
 }
 
 describe('DateAutomationsService.sweep', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers().setSystemTime(NOW);
+  });
+  afterEach(() => jest.useRealTimers());
 
   it('fires the rule for every approved registration of the event', async () => {
     const { svc, engine } = make([{ id: 'rule-1', eventId: 'evt-1', sendAt: SEND_AT }]);
@@ -118,5 +128,69 @@ describe('DateAutomationsService.sweep', () => {
     // A regra órfã também é marcada: sem isso a varredura a revisitaria a cada
     // 5 min para sempre.
     expect(automations.markDateRuleFired).toHaveBeenCalledWith('rule-1');
+  });
+
+  // Teto de atraso: a varredura é um backlog, então depois de uma queda longa
+  // ela reencontra regras vencidas há horas. Disparar "seu evento é hoje" para
+  // um evento de ontem é pior que não disparar.
+  describe('teto de atraso', () => {
+    it('ainda dispara uma regra vencida dentro do teto (1h59 de atraso)', async () => {
+      const { svc, engine, automations } = make([
+        { id: 'rule-1', eventId: 'evt-1', sendAt: minutesBeforeNow(119) },
+      ]);
+
+      await svc.sweep();
+
+      expect(engine.fireAutomations).toHaveBeenCalledTimes(2);
+      expect(automations.markDateRuleFired).toHaveBeenCalledWith('rule-1');
+    });
+
+    it('descarta sem enviar uma regra vencida além do teto (2h01 de atraso)', async () => {
+      const { svc, engine, automations, eventRepo } = make([
+        { id: 'rule-velha', eventId: 'evt-1', sendAt: minutesBeforeNow(121) },
+      ]);
+
+      await svc.sweep();
+
+      expect(engine.fireAutomations).not.toHaveBeenCalled();
+      // Marcada mesmo sem enviar: a data passou e não volta, então deixá-la
+      // pendurada faria a varredura revisitá-la a cada 5 min para sempre.
+      expect(automations.markDateRuleFired).toHaveBeenCalledWith('rule-velha');
+      // O descarte acontece antes de consultar o evento — regra vencida demais
+      // não gera consulta nenhuma.
+      expect(eventRepo.findWithApprovedRegistrationIds).not.toHaveBeenCalled();
+    });
+
+    it('descarta a vencida e segue disparando a que está no prazo', async () => {
+      const { svc, engine, automations } = make([
+        { id: 'rule-velha', eventId: 'evt-1', sendAt: minutesBeforeNow(600) },
+        { id: 'rule-nova', eventId: 'evt-1', sendAt: minutesBeforeNow(5) },
+      ]);
+
+      await svc.sweep();
+
+      expect(engine.fireAutomations).toHaveBeenCalledTimes(2);
+      expect(engine.fireAutomations).toHaveBeenCalledWith(
+        'reg-1',
+        'evt-1',
+        'on_date',
+        ['rule-nova'],
+        expect.any(String),
+      );
+      expect(automations.markDateRuleFired).toHaveBeenCalledWith('rule-velha');
+      expect(automations.markDateRuleFired).toHaveBeenCalledWith('rule-nova');
+    });
+
+    // Regra agendada para o futuro não deve ser afetada pelo teto: `lateness`
+    // negativo nunca é maior que o limite.
+    it('não descarta uma regra cujo sendAt ainda está no futuro', async () => {
+      const { svc, engine } = make([
+        { id: 'rule-futura', eventId: 'evt-1', sendAt: minutesBeforeNow(-30) },
+      ]);
+
+      await svc.sweep();
+
+      expect(engine.fireAutomations).toHaveBeenCalledTimes(2);
+    });
   });
 });

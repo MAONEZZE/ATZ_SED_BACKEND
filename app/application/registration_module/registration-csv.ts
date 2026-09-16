@@ -1,4 +1,4 @@
-import { answerToString } from '@application/shared/csv-utils';
+import { answerToString, formatCsvDate } from '@application/shared/csv-utils';
 import { buildCsv, CsvColumn } from '@application/shared/csv-builder';
 
 export interface CsvRegistration {
@@ -26,7 +26,7 @@ export function buildRegistrationsCsv(
     { header: 'email', value: (r) => r.email },
     { header: 'telefone', value: (r) => r.phone },
     { header: 'status', value: (r) => r.status },
-    { header: 'data_inscricao', value: (r) => (r.createdAt ? r.createdAt.toISOString() : '') },
+    { header: 'data_inscricao', value: (r) => formatCsvDate(r.createdAt) },
     { header: 'autorizacao_imagem', value: (r) => (r.imageAuthorization ? 'sim' : 'não') },
     { header: 'compareceu', value: (r) => (r.attended ? 'sim' : 'não') },
     ...formFields.map(

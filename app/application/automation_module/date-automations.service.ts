@@ -11,6 +11,19 @@ import {
 import { AutomationEngine } from '@application/automation_module/automation-engine.service';
 
 /**
+ * Teto de atraso. A varredura é um backlog (`firedAt: null, sendAt <= now`), o
+ * que a torna imune a queda curta — mas sem teto ela também dispara o que
+ * venceu há dias. Depois de uma indisponibilidade longa isso vira "seu evento é
+ * hoje" mandado para um evento que já aconteceu.
+ *
+ * Regra vencida além do teto é marcada como disparada sem enviar: a data passou
+ * e não volta, então deixá-la pendurada só faria a varredura revisitá-la a cada
+ * 5 min para sempre.
+ */
+const MAX_LATENESS_MINUTES = 120;
+const MAX_LATENESS_MS = MAX_LATENESS_MINUTES * 60_000;
+
+/**
  * Varredura do gatilho `on_date`: disparo único, na data marcada na regra, para
  * os inscritos aprovados naquele momento.
  *
@@ -40,7 +53,29 @@ export class DateAutomationsService {
     const due = await this.automations.findDueDateRules();
     if (!due.length) return;
 
+    let fired = 0;
+    let stale = 0;
+
     for (const rule of due) {
+      // Antes de tocar no banco do evento: regra vencida demais não gera
+      // consulta nenhuma.
+      const latenessMs = Date.now() - rule.sendAt.getTime();
+      if (latenessMs > MAX_LATENESS_MS) {
+        this.logger.warn(
+          {
+            ruleId: rule.id,
+            eventId: rule.eventId,
+            sendAt: rule.sendAt.toISOString(),
+            latenessMinutes: Math.round(latenessMs / 60_000),
+            maxLatenessMinutes: MAX_LATENESS_MINUTES,
+          },
+          'regra on_date vencida além do teto de atraso — marcada como disparada sem enviar',
+        );
+        await this.automations.markDateRuleFired(rule.id);
+        stale += 1;
+        continue;
+      }
+
       const event = await this.eventRepo.findWithApprovedRegistrationIds(
         rule.eventId,
         rule.formIds,
@@ -76,8 +111,11 @@ export class DateAutomationsService {
       // engine barrou tudo (evento em rascunho ou cancelado) — a data não fica
       // pendurada esperando uma publicação futura.
       await this.automations.markDateRuleFired(rule.id);
+      fired += 1;
     }
 
-    this.logger.log(`Date automations fired: ${due.length} rule(s)`);
+    // `stale` separado de `fired`: sem isso uma queda longa aparece no log como
+    // varredura bem-sucedida, escondendo quantas regras foram descartadas.
+    this.logger.log(`Date automations fired: ${fired} rule(s), ${stale} stale rule(s) discarded`);
   }
 }

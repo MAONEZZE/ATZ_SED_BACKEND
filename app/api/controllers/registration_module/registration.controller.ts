@@ -28,6 +28,8 @@ import { RegistrationService } from '@application/registration_module/registrati
 import { FormFieldService } from '@application/form_field_module/form-field.service';
 import { FormService } from '@application/form_module/form.service';
 import { buildRegistrationsCsv } from '@application/registration_module/registration-csv';
+import { DateTime } from 'luxon';
+import { APP_TIMEZONE } from '@handlers/timezone';
 import { UpdateRegistrationStatusDto } from '@api/dto/registration_module/update-registration-status.dto';
 import { UpdateRegistrationAnswersDto } from '@api/dto/registration_module/update-registration-answers.dto';
 import { ListRegistrationsQueryDto } from '@api/dto/registration_module/list-registrations-query.dto';
@@ -75,7 +77,9 @@ export class RegistrationController {
         this.registrations.findAll(eventId, status, search, attended, formId),
         primary ? this.formFields.exportLabels(primary.id, true) : Promise.resolve([]),
       ]);
-      const date = new Date().toISOString().slice(0, 10);
+      // Dia no fuso da aplicacao: `toISOString()` daria o dia UTC, e entre 21h
+      // e a meia-noite o arquivo saia nomeado com a data de amanha.
+      const date = DateTime.now().setZone(APP_TIMEZONE).toISODate();
       res!.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res!.setHeader(
         'Content-Disposition',

@@ -1,4 +1,4 @@
-import { answerToString } from '@application/shared/csv-utils';
+import { answerToString, formatCsvDate } from '@application/shared/csv-utils';
 import { buildCsv, CsvColumn } from '@application/shared/csv-builder';
 import { FormResponseWithContext } from '@domain/form_response_module/i-repository-form-response';
 
@@ -22,7 +22,7 @@ export function buildFormResponsesCsv(
     { header: 'email', value: (r) => r.email },
     { header: 'telefone', value: (r) => r.phone },
     { header: 'status', value: (r) => r.status ?? '' },
-    { header: 'respondido_em', value: (r) => r.createdAt.toISOString() },
+    { header: 'respondido_em', value: (r) => formatCsvDate(r.createdAt) },
     ...fields.map(
       (f): CsvColumn<FormResponseWithContext> => ({
         header: f.label,
