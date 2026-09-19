@@ -136,13 +136,18 @@ describe('RegistrationService.submitForm — identidade por telefone', () => {
     );
   });
 
-  it('rejects an empty phone', async () => {
-    const { service, formResponses } = make();
+  it('creates a registration with an empty phone when the phone is blank', async () => {
+    const { service, regRepo, formResponses } = make();
 
-    await expect(service.submitForm('tech-day', 'nps', '   ', {})).rejects.toThrow(
-      BadRequestException,
+    const result = await service.submitForm('tech-day', 'nps', '   ', {});
+
+    // Telefone em branco não identifica ninguém: nem se busca o inscrito.
+    expect(regRepo.findByEventAndContact).not.toHaveBeenCalled();
+    expect(regRepo.create).toHaveBeenCalledWith(expect.objectContaining({ phone: '' }));
+    expect(result.created).toBe(true);
+    expect(formResponses.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ registrationId: 'reg-new' }),
     );
-    expect(formResponses.upsert).not.toHaveBeenCalled();
   });
 
   it('reuses the same response row on resubmit (upsert por form + inscrito)', async () => {
@@ -409,12 +414,19 @@ describe('RegistrationService.submitForm — formulário anônimo', () => {
     );
   });
 
-  it('still requires a phone on a non-anonymous form', async () => {
-    const { service, formResponses } = make({ anonymous: false });
+  // Formulário não-anônimo sem campo de telefone: o front não tem o que mandar
+  // em `phone`, e isso não pode derrubar a submissão.
+  it('accepts a non-anonymous form without a phone, creating one registration per submission', async () => {
+    const { service, regRepo, formResponses } = make({ anonymous: false });
 
-    await expect(service.submitForm('tech-day', 'nps', undefined, { Nota: '9' })).rejects.toThrow(
-      BadRequestException,
-    );
-    expect(formResponses.upsert).not.toHaveBeenCalled();
+    const first = await service.submitForm('tech-day', 'nps', undefined, { Nota: '9' });
+    const second = await service.submitForm('tech-day', 'nps', undefined, { Nota: '10' });
+
+    expect(regRepo.findByEventAndContact).not.toHaveBeenCalled();
+    expect(regRepo.create).toHaveBeenCalledTimes(2);
+    expect(regRepo.create).toHaveBeenCalledWith(expect.objectContaining({ phone: '' }));
+    expect(first.created).toBe(true);
+    expect(second.created).toBe(true);
+    expect(formResponses.upsert).toHaveBeenCalledTimes(2);
   });
 });

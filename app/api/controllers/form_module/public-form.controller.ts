@@ -43,7 +43,7 @@ export class PublicFormController {
   @HttpCode(201)
   @ApiOperation({
     summary:
-      'Responder um formulário público. Formulário normal: o telefone identifica o inscrito; sem match, o inscrito é criado. Formulário anônimo: sem telefone, resposta não vira inscrito.',
+      'Responder um formulário público. Formulário normal: o telefone identifica o inscrito; sem match (ou sem telefone, quando o formulário não tem esse campo), o inscrito é criado. Formulário anônimo: sem telefone, resposta não vira inscrito.',
   })
   @ApiResponse({
     status: 201,
@@ -51,8 +51,7 @@ export class PublicFormController {
   })
   @ApiResponse({
     status: 400,
-    description:
-      'Campo obrigatório ausente, telefone vazio (formulário não-anônimo), capacidade esgotada ou autorização de imagem obrigatória',
+    description: 'Campo obrigatório ausente, capacidade esgotada ou autorização de imagem obrigatória',
   })
   @ApiResponse({ status: 404, description: 'Evento ou formulário não encontrado' })
   async submit(

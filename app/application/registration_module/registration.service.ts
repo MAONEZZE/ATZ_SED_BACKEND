@@ -94,6 +94,9 @@ export class RegistrationService {
    * morreram em 2026-08-17). O telefone é a identidade: normalizado, ele casa
    * com um inscrito do evento; sem match, o inscrito é criado ali mesmo.
    *
+   * Formulário sem campo de telefone continua valendo: sem identidade, cada
+   * envio vira um inscrito novo com telefone vazio — não dá mais 400.
+   *
    * A resposta sempre vai para `FormResponse` (uma por form + inscrito, reenviar
    * sobrescreve); `Registration.answers` guarda o que veio no primeiro contato.
    */
@@ -149,12 +152,20 @@ export class RegistrationService {
       });
       return { registration: null, created: false };
     }
-    if (!phone) throw new BadRequestException('Telefone é obrigatório');
+    // Telefone vazio: o formulário não tem campo de telefone (ou tem e veio em
+    // branco). Sem ele não há identidade para casar com um inscrito do evento,
+    // então não se busca nada e cada envio cria um inscrito novo, com o nome e
+    // o e-mail que derem para extrair das respostas. É a alternativa a derrubar
+    // a submissão em 400 por um campo que o formulário nem pede.
+    //
+    // Gravar `phone: ''` é seguro: o índice único (event_id, dígitos do
+    // telefone) tem `WHERE ... <> ''`, então linhas sem telefone não colidem
+    // entre si (migration 20260819140000_fix_empty_phone_unique_index).
+    const normalized = phone ? (normalizePhone(phone) ?? phone.replace(/\D/g, '')) : '';
 
-    const normalized = normalizePhone(phone) ?? phone.replace(/\D/g, '');
-    if (!normalized) throw new BadRequestException('Telefone é obrigatório');
-
-    const existing = await this.regRepo.findByEventAndContact(event.id, { phone: normalized });
+    const existing = normalized
+      ? await this.regRepo.findByEventAndContact(event.id, { phone: normalized })
+      : null;
     const registration = existing
       ? existing
       : await this.createFromForm(
