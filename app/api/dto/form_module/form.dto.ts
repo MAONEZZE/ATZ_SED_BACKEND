@@ -104,7 +104,7 @@ export class SubmitFormResponseDto {
   @ApiPropertyOptional({
     example: '11999998888',
     description:
-      'Identidade do respondente; casa com o inscrito do evento. Obrigatório, exceto em formulário anônimo.',
+      'Identidade do respondente; casa com o inscrito do evento. Ausente, cada envio cria um inscrito novo — é o caso do formulário que não tem campo de telefone.',
   })
   @IsOptional()
   @IsString()

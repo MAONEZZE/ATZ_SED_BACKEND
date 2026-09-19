@@ -14,6 +14,19 @@
 -- para limpar drift caso o banco ainda tenha um default esquecido la.
 --
 -- ATENCAO: ALTER TYPE reescreve a tabela sob ACCESS EXCLUSIVE lock.
+--
+-- O indice parcial de `registrations` PRECISA cair antes e voltar depois. O
+-- predicado dele compara `created_at` com um literal `timestamp` sem fuso;
+-- virando a coluna `timestamptz`, a comparacao passa a exigir cast implicito
+-- dependente do fuso da sessao — STABLE, nao IMMUTABLE — e o Postgres recusa
+-- com 42P17 ao reconstruir o indice. Foi exatamente o que derrubou a primeira
+-- tentativa desta migration em producao (16/09/2026).
+--
+-- Recriado no fim com literal `+00`, que torna a comparacao imutavel. O
+-- conjunto de linhas indexadas nao muda: `created_at` sempre guardou UTC, e
+-- '2026-08-17 00:00:00' sem fuso ja significava meia-noite UTC.
+
+DROP INDEX IF EXISTS "SED"."registrations_event_phone_new_key";
 
 -- profiles
 ALTER TABLE "SED"."profiles" ALTER COLUMN "created_at" DROP DEFAULT;
@@ -144,3 +157,11 @@ ALTER TABLE "SED"."message_logs" ALTER COLUMN "sent_at" TYPE TIMESTAMPTZ(3) USIN
 ALTER TABLE "SED"."message_logs" ALTER COLUMN "created_at" DROP DEFAULT;
 ALTER TABLE "SED"."message_logs" ALTER COLUMN "created_at" TYPE TIMESTAMPTZ(3) USING "created_at" AT TIME ZONE 'UTC';
 ALTER TABLE "SED"."message_logs" ALTER COLUMN "created_at" SET DEFAULT CURRENT_TIMESTAMP;
+
+-- Recriacao do indice derrubado no topo. Mesmas colunas e mesmo recorte da
+-- migration 20260819140000_fix_empty_phone_unique_index; muda so o literal,
+-- que agora carrega o fuso explicito.
+CREATE UNIQUE INDEX IF NOT EXISTS "registrations_event_phone_new_key"
+  ON "SED"."registrations" ("event_id", (regexp_replace("phone", '[^0-9]', '', 'g')))
+  WHERE "created_at" >= '2026-08-17 00:00:00+00'::timestamptz
+    AND regexp_replace("phone", '[^0-9]', '', 'g') <> '';
