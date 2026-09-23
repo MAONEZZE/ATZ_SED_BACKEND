@@ -569,6 +569,7 @@ export class RegistrationService {
       reg.imageAuthorization,
       reg.attended,
       reg.originFormId,
+      reg.formName,
     );
   }
 
