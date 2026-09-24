@@ -1,9 +1,10 @@
 import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RegistrationService } from '@application/registration_module/registration.service';
 import { FormService } from '@application/form_module/form.service';
 import { FormFieldService } from '@application/form_field_module/form-field.service';
-import { SubmitFormResponseDto } from '@api/dto/form_module/form.dto';
+import { PublicEventService } from '@application/event_module/public-event.service';
+import { PublicFormSummaryDto, SubmitFormResponseDto } from '@api/dto/form_module/form.dto';
 
 @ApiTags('Public')
 @Controller('public/events')
@@ -12,13 +13,16 @@ export class PublicFormController {
     private readonly registrations: RegistrationService,
     private readonly forms: FormService,
     private readonly formFields: FormFieldService,
+    private readonly publicEvents: PublicEventService,
   ) {}
 
   @Get(':slug/forms')
   @ApiOperation({ summary: 'Listar formulários públicos do evento' })
   @ApiParam({ name: 'slug', description: 'Slug do evento' })
-  async listForms(@Param('slug') slug: string) {
-    const event = await this.registrations.publicEventBySlug(slug);
+  @ApiOkResponse({ type: [PublicFormSummaryDto] })
+  @ApiResponse({ status: 404, description: 'Evento não encontrado ou não publicado' })
+  async listForms(@Param('slug') slug: string): Promise<PublicFormSummaryDto[]> {
+    const event = await this.publicEvents.getPublicEvent(slug);
     const forms = await this.forms.list(event.id);
     return forms.map((f) => ({
       id: f.id,
@@ -26,6 +30,8 @@ export class PublicFormController {
       slug: f.slug,
       order: f.order,
       description: f.description,
+      postRegistrationMessage: f.postRegistrationMessage,
+      linkPostSubscription: f.linkPostSubscription,
       requireImageAuthorization: f.requireImageAuthorization,
       anonymous: f.anonymous,
     }));
@@ -33,8 +39,9 @@ export class PublicFormController {
 
   @Get(':slug/forms/:formSlug/fields')
   @ApiOperation({ summary: 'Campos de um formulário público, na ordem de renderização' })
-  @ApiResponse({ status: 404, description: 'Formulário não encontrado' })
+  @ApiResponse({ status: 404, description: 'Evento ou formulário não encontrado' })
   async fields(@Param('slug') slug: string, @Param('formSlug') formSlug: string) {
+    await this.publicEvents.getPublicEvent(slug);
     const form = await this.forms.findPublic(slug, formSlug);
     return this.formFields.publicFields(form.id);
   }
@@ -51,7 +58,8 @@ export class PublicFormController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Campo obrigatório ausente, capacidade esgotada ou autorização de imagem obrigatória',
+    description:
+      'Campo obrigatório ausente, capacidade esgotada ou autorização de imagem obrigatória',
   })
   @ApiResponse({ status: 404, description: 'Evento ou formulário não encontrado' })
   async submit(

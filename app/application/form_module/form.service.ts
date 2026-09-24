@@ -27,7 +27,8 @@ export class FormService {
   /**
    * Formulário principal do evento: o de menor `order`. Sem os 3 tipos fixos, é
    * ele que representa "o formulário do evento" onde antes se assumia
-   * `kind=registration` — página pública e colunas do CSV de inscritos.
+   * `kind=registration` — colunas do CSV de inscritos. A página pública não usa:
+   * cada formulário expõe as próprias configurações.
    */
   async primary(eventId: string): Promise<FormEntity | null> {
     const forms = await this.repo.listByEvent(eventId);

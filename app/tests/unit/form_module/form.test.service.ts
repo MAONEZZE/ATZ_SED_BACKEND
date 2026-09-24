@@ -114,6 +114,14 @@ describe('FormService.update', () => {
     expect(data).not.toHaveProperty('slug');
   });
 
+  it('passes null through to clear the post-submit link', async () => {
+    const { service, repo } = make([form('form-1', 'NPS', 'nps')]);
+
+    await service.update('form-1', 'evt-1', { linkPostSubscription: null });
+
+    expect(repo.update).toHaveBeenCalledWith('form-1', { linkPostSubscription: null });
+  });
+
   it('409s when the new name collides with another form of the event', async () => {
     const { service, repo } = make([form('form-1', 'NPS', 'nps'), form('form-2', 'Pós', 'pos')]);
 
@@ -154,7 +162,7 @@ describe('FormService.update', () => {
 
 describe('FormService.primary', () => {
   // Sem os 3 tipos fixos, "o formulário do evento" passou a ser o de menor order
-  // — é ele que alimenta a página pública e as colunas do CSV de inscritos.
+  // — é ele que alimenta as colunas do CSV de inscritos (a página pública não usa).
   it('returns the first form by order', async () => {
     const { service } = make([form('form-1', 'Inscrição', 'inscricao', 0), form('form-2', 'NPS', 'nps', 1)]);
 
