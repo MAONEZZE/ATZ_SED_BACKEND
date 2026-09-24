@@ -102,11 +102,6 @@ export class RegistrationService {
    * A resposta sempre vai para `FormResponse` (uma por form + inscrito, reenviar
    * sobrescreve); `Registration.answers` guarda o que veio no primeiro contato.
    */
-  /** Evento público por slug — a listagem pública de formulários precisa do id. */
-  publicEventBySlug(slug: string) {
-    return this.eventsService.findBySlug(slug);
-  }
-
   async submitForm(
     eventSlug: string,
     formSlug: string,

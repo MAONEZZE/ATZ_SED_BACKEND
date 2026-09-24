@@ -8,11 +8,15 @@ import {
   IsUrl,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateFormDto {
-  @ApiProperty({ example: 'Pesquisa de satisfação', description: 'O slug público é derivado daqui.' })
+  @ApiProperty({
+    example: 'Pesquisa de satisfação',
+    description: 'O slug público é derivado daqui.',
+  })
   @IsString()
   @MinLength(1)
   @MaxLength(120)
@@ -59,8 +63,41 @@ export class CreateFormDto {
   anonymous?: boolean;
 }
 
+/** Item de GET /public/events/:slug/forms — cada formulário com as próprias configurações. */
+export class PublicFormSummaryDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Inscrição' })
+  name!: string;
+
+  @ApiProperty({ example: 'inscricao' })
+  slug!: string;
+
+  @ApiProperty({ example: 0 })
+  order!: number;
+
+  @ApiProperty({ nullable: true, type: String, example: 'Descrição do formulário' })
+  description!: string | null;
+
+  @ApiProperty({ nullable: true, type: String, example: 'Obrigado por responder!' })
+  postRegistrationMessage!: string | null;
+
+  @ApiProperty({ nullable: true, type: String, example: 'https://example.com/proximos-passos' })
+  linkPostSubscription!: string | null;
+
+  @ApiProperty({ example: false })
+  requireImageAuthorization!: boolean;
+
+  @ApiProperty({ example: false })
+  anonymous!: boolean;
+}
+
 export class UpdateFormDto {
-  @ApiPropertyOptional({ example: 'Pesquisa de satisfação (v2)', description: 'Renomear reescreve o slug público.' })
+  @ApiPropertyOptional({
+    example: 'Pesquisa de satisfação (v2)',
+    description: 'Renomear reescreve o slug público.',
+  })
   @IsOptional()
   @IsString()
   @MinLength(1)
@@ -72,15 +109,25 @@ export class UpdateFormDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: 'null remove a mensagem; omitir não altera.',
+  })
+  @ValidateIf((_, v) => v !== null)
   @IsOptional()
   @IsString()
-  postRegistrationMessage?: string;
+  postRegistrationMessage?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: 'null remove o link; omitir não altera.',
+  })
+  @ValidateIf((_, v) => v !== null)
   @IsOptional()
   @IsUrl()
-  linkPostSubscription?: string;
+  linkPostSubscription?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -94,7 +141,10 @@ export class UpdateFormDto {
 }
 
 export class ReorderFormsDto {
-  @ApiProperty({ example: ['uuid-form-2', 'uuid-form-1'], description: '`order` = índice na lista.' })
+  @ApiProperty({
+    example: ['uuid-form-2', 'uuid-form-1'],
+    description: '`order` = índice na lista.',
+  })
   @IsArray()
   @IsUUID('all', { each: true })
   ids!: string[];
@@ -119,7 +169,9 @@ export class SubmitFormResponseDto {
   @IsObject()
   answers!: Record<string, unknown>;
 
-  @ApiPropertyOptional({ description: 'Consentimento de uso de imagem, quando o formulário exige.' })
+  @ApiPropertyOptional({
+    description: 'Consentimento de uso de imagem, quando o formulário exige.',
+  })
   @IsOptional()
   @IsBoolean()
   image_authorization?: boolean;

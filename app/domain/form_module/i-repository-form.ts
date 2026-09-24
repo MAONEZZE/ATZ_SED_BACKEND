@@ -19,8 +19,10 @@ export interface UpdateFormData {
   name?: string;
   slug?: string;
   description?: string;
-  postRegistrationMessage?: string;
-  linkPostSubscription?: string;
+  /** `null` limpa a coluna. */
+  postRegistrationMessage?: string | null;
+  /** `null` limpa a coluna. */
+  linkPostSubscription?: string | null;
   requireImageAuthorization?: boolean;
   sendToPipedrive?: boolean;
 }
