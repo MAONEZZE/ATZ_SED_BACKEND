@@ -79,7 +79,7 @@ describe('RegistrationService.importMany', () => {
     expect(result).toEqual({
       created: 0,
       skipped: 1,
-      rejected: [{ linha: 1, motivo: 'já inscrito neste evento' }],
+      rejected: [{ linha: 1, motivo: 'já inscrito neste formulário' }],
     });
     expect(regRepo.create).not.toHaveBeenCalled();
   });
@@ -97,7 +97,7 @@ describe('RegistrationService.importMany', () => {
     const { svc, regRepo } = make(null);
     await svc.importMany('evt-1', 'form-1', [{ nome: 'Fulano', email: '  Fulano@X.com  ' }]);
 
-    expect(regRepo.findByEventAndContact).toHaveBeenCalledWith('evt-1', {
+    expect(regRepo.findByEventAndContact).toHaveBeenCalledWith('evt-1', 'form-1', {
       email: 'fulano@x.com',
       phone: undefined,
     });
@@ -125,7 +125,7 @@ describe('RegistrationService.importMany', () => {
     expect(result).toEqual({
       created: 1,
       skipped: 1,
-      rejected: [{ linha: 2, motivo: 'telefone já usado neste evento' }],
+      rejected: [{ linha: 2, motivo: 'telefone já usado neste formulário' }],
     });
   });
 });

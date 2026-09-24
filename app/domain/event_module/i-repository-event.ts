@@ -1,4 +1,5 @@
 import { EventRole } from '@domain/collaborator_module/event-role.type';
+import { MessageChannel } from '@domain/shared/message-channel.type';
 import { EventEntity, EventStatus } from './event.entity';
 
 export const EVENT_REPOSITORY_PORT = Symbol('EVENT_REPOSITORY_PORT');
@@ -70,7 +71,21 @@ export interface EventDuplicationForm {
   }>;
 }
 
+/** Template copiado junto do evento — dos próprios templates do evento e dos referenciados por regra de fora dele. */
+export interface EventDuplicationTemplate {
+  /** Id do template no evento de origem. `createDuplicateGraph` remapeia para o id novo. */
+  sourceId: string;
+  name: string;
+  channel: MessageChannel;
+  subject: string | null;
+  body: string;
+  layoutConfig: Record<string, unknown> | null;
+  styleKey: string | null;
+  order: number;
+}
+
 export interface EventDuplicationAutomationRule {
+  /** Id do template **de origem** (`EventDuplicationTemplate.sourceId`) — o repositório troca pelo id novo dentro da transação. */
   templateId: string;
   trigger: string;
   delayMinutes: number | null;
@@ -100,7 +115,13 @@ export interface EventDuplicationSource {
   groupLink: string | null;
   eventDate: Date | null;
   endDate: Date | null;
+  /** Pasta do evento de origem. */
+  folderId: string | null;
+  /** Dono da pasta do evento de origem — decide se o evento novo herda a pasta ou vai para a raiz. */
+  folderOwnerId: string | null;
   forms: EventDuplicationForm[];
+  /** Templates do evento de origem ∪ os referenciados por regra de fora dele, deduplicados por id. */
+  templates: EventDuplicationTemplate[];
   automationRules: EventDuplicationAutomationRule[];
 }
 
@@ -122,6 +143,26 @@ export interface CreatedDuplicateEvent {
   ownerId: string;
   title: string;
   slug: string;
+}
+
+export interface CreateDuplicateEventGraphData {
+  event: CreateDuplicateEventData & { folderId: string | null };
+  forms: EventDuplicationForm[];
+  /** `ownerId` de cada template criado é `event.ownerId`; `folderId` nasce nulo. */
+  templates: EventDuplicationTemplate[];
+  /** `templateId` de cada regra referencia `EventDuplicationTemplate.sourceId`; `formSlugs` referencia `forms[].slug`. */
+  rules: EventDuplicationAutomationRule[];
+}
+
+export interface CreateDuplicateEventGraphResult {
+  event: CreatedDuplicateEvent;
+  rules: Array<{
+    id: string;
+    trigger: string;
+    cron: string | null;
+    timezone: string | null;
+    active: boolean;
+  }>;
 }
 
 export interface EventAutomationContext {
@@ -183,7 +224,14 @@ export interface EventRepositoryPort {
   /** Token da instância WhatsApp vinculada ao evento (relação whatsappInstance, não a coluna whatsappToken). */
   findWhatsappInstanceToken(id: string): Promise<string | null>;
   findDuplicationSource(id: string): Promise<EventDuplicationSource | null>;
-  createDuplicate(data: CreateDuplicateEventData): Promise<CreatedDuplicateEvent>;
+  /**
+   * Evento + formulários + templates + regras de automação, numa única
+   * transação. O mapeamento `sourceTemplateId → novoId` e `formSlug → novoFormId`
+   * acontece dentro dela — é lá que os ids novos nascem.
+   */
+  createDuplicateGraph(
+    data: CreateDuplicateEventGraphData,
+  ): Promise<CreateDuplicateEventGraphResult>;
   findPublicBySlug(slug: string): Promise<PublicEventSummary | null>;
   findAutomationContext(id: string): Promise<EventAutomationContext | null>;
   /**

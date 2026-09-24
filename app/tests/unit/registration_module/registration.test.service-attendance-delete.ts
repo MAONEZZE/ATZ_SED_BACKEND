@@ -200,6 +200,26 @@ describe('RegistrationService.checkIn', () => {
     expect(regRepo.setAttendance).toHaveBeenCalledWith(['reg-hoje'], 'evt-hoje', true);
   });
 
+  // Sem dedup entre formulários, a pessoa tem um inscrito por form do evento:
+  // a presença vale para todos, não só para um deles.
+  it('marks attendance on every registration of the person in the chosen event', async () => {
+    const { service, regRepo } = makeService({
+      candidates: [
+        candidate('reg-form-1', 'evt-hoje', '11999998888', 0),
+        candidate('reg-form-2', 'evt-hoje', '(11) 99999-8888', 0),
+        candidate('reg-antigo', 'evt-antigo', '11999998888', -30),
+      ],
+    });
+
+    await service.checkIn('11999998888');
+
+    expect(regRepo.setAttendance).toHaveBeenCalledWith(
+      ['reg-form-1', 'reg-form-2'],
+      'evt-hoje',
+      true,
+    );
+  });
+
   // Quem não se inscreveu não entra na lista pelo check-in.
   it('rejects a phone with no registration', async () => {
     const { service, regRepo } = makeService({ candidates: [] });

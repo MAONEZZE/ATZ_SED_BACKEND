@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-repository.base';
-import { EventDuplicationForm } from '@domain/event_module/i-repository-event';
 import { FormEntity } from '@domain/form_module/form.entity';
 import {
   CreateFormData,
@@ -132,31 +131,5 @@ export class PrismaFormRepository extends PrismaRepositoryBase implements FormRe
         this.prisma.form.updateMany({ where: { id, eventId }, data: { order: index } }),
       ),
     );
-  }
-
-  async createWithFields(eventId: string, form: EventDuplicationForm): Promise<FormEntity> {
-    const row = await this.prisma.form.create({
-      data: {
-        eventId,
-        name: form.name,
-        slug: form.slug,
-        order: form.order,
-        description: form.description,
-        postRegistrationMessage: form.postRegistrationMessage,
-        linkPostSubscription: form.linkPostSubscription,
-        sendToPipedrive: form.sendToPipedrive,
-        fields: {
-          create: form.fields.map((f) => ({
-            label: f.label,
-            type: f.type as Prisma.FormFieldUncheckedCreateInput['type'],
-            required: f.required,
-            options: f.options ?? undefined,
-            order: f.order,
-            isFixed: f.isFixed,
-          })),
-        },
-      },
-    });
-    return this.toEntity(row);
   }
 }

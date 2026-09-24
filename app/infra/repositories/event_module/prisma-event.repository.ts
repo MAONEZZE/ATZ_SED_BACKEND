@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { randomBytes } from 'crypto';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '@infra/prisma/prisma.service';
 import {
   EventRepositoryPort,
@@ -7,8 +8,8 @@ import {
   UpdateEventData,
   EventOwnership,
   EventDuplicationSource,
-  CreateDuplicateEventData,
-  CreatedDuplicateEvent,
+  CreateDuplicateEventGraphData,
+  CreateDuplicateEventGraphResult,
   PublicEventSummary,
   EventAutomationContext,
   EventWithMyRole,
@@ -251,11 +252,26 @@ export class PrismaEventRepository implements EventRepositoryPort {
     const row = await this.prisma.event.findUnique({
       where: { id },
       include: {
+        folder: { select: { ownerId: true } },
         forms: { include: { fields: true } },
-        automationRules: { include: { forms: { include: { form: { select: { slug: true } } } } } },
+        messageTemplates: true,
+        automationRules: {
+          include: {
+            template: true,
+            forms: { include: { form: { select: { slug: true } } } },
+          },
+        },
       },
     });
     if (!row) return null;
+
+    // Templates do evento ∪ os referenciados por regra de fora dele (globais ou
+    // de outro evento) — o Map dedupla por id, então um template do evento já
+    // presente em `messageTemplates` só é reescrito com o mesmo valor.
+    const templatesById = new Map<string, (typeof row.messageTemplates)[number]>();
+    for (const template of row.messageTemplates) templatesById.set(template.id, template);
+    for (const rule of row.automationRules) templatesById.set(rule.template.id, rule.template);
+
     return {
       title: row.title,
       location: row.location,
@@ -264,6 +280,8 @@ export class PrismaEventRepository implements EventRepositoryPort {
       groupLink: row.groupLink,
       eventDate: row.eventDate,
       endDate: row.endDate,
+      folderId: row.folderId,
+      folderOwnerId: row.folder?.ownerId ?? null,
       forms: row.forms.map((form) => ({
         name: form.name,
         slug: form.slug,
@@ -281,6 +299,19 @@ export class PrismaEventRepository implements EventRepositoryPort {
           isFixed: f.isFixed,
         })),
       })),
+      templates: [...templatesById.values()].map((t) => ({
+        sourceId: t.id,
+        name: t.name,
+        channel: t.channel,
+        subject: t.subject,
+        body: t.body,
+        layoutConfig:
+          t.layoutConfig && typeof t.layoutConfig === 'object'
+            ? (t.layoutConfig as Record<string, unknown>)
+            : null,
+        styleKey: t.styleKey,
+        order: t.order,
+      })),
       automationRules: row.automationRules.map((a) => ({
         templateId: a.templateId,
         trigger: a.trigger,
@@ -297,11 +328,130 @@ export class PrismaEventRepository implements EventRepositoryPort {
     };
   }
 
-  async createDuplicate(data: CreateDuplicateEventData): Promise<CreatedDuplicateEvent> {
-    const row = await this.prisma.event.create({
-      data: { ...data, status: 'draft' },
+  /**
+   * Evento + formulários + templates + regras numa única transação: os ids
+   * novos (`formId`, `templateId`) só existem depois do `create` de cada peça,
+   * então o remapeamento (`sourceTemplateId → novoId`, `formSlug → novoFormId`)
+   * acontece aqui dentro, não no service.
+   */
+  async createDuplicateGraph(
+    data: CreateDuplicateEventGraphData,
+  ): Promise<CreateDuplicateEventGraphResult> {
+    return this.prisma.$transaction(async (tx) => {
+      const eventRow = await tx.event.create({
+        data: {
+          ownerId: data.event.ownerId,
+          title: data.event.title,
+          slug: data.event.slug,
+          location: data.event.location,
+          capacity: data.event.capacity,
+          dressCode: data.event.dressCode,
+          groupLink: data.event.groupLink,
+          eventDate: data.event.eventDate,
+          endDate: data.event.endDate,
+          lastEditedById: data.event.lastEditedById,
+          folderId: data.event.folderId,
+          status: 'draft',
+        },
+      });
+
+      // `createWithFields` de antes preservava o slug do formulário original;
+      // aqui o mapa nasce junto com a criação, no mesmo lugar.
+      const formIdBySlug = new Map<string, string>();
+      for (const form of data.forms) {
+        const formRow = await tx.form.create({
+          data: {
+            eventId: eventRow.id,
+            name: form.name,
+            slug: form.slug,
+            order: form.order,
+            description: form.description,
+            postRegistrationMessage: form.postRegistrationMessage,
+            linkPostSubscription: form.linkPostSubscription,
+            sendToPipedrive: form.sendToPipedrive,
+            fields: {
+              create: form.fields.map((f) => ({
+                label: f.label,
+                type: f.type as Prisma.FormFieldUncheckedCreateInput['type'],
+                required: f.required,
+                options: f.options ?? undefined,
+                order: f.order,
+                isFixed: f.isFixed,
+              })),
+            },
+          },
+        });
+        formIdBySlug.set(formRow.slug, formRow.id);
+      }
+
+      const templateIdBySourceId = new Map<string, string>();
+      for (const template of data.templates) {
+        const templateRow = await tx.messageTemplate.create({
+          data: {
+            ownerId: data.event.ownerId,
+            name: template.name,
+            channel: template.channel,
+            subject: template.subject,
+            body: template.body,
+            layoutConfig:
+              template.layoutConfig != null
+                ? (template.layoutConfig as Prisma.InputJsonValue)
+                : Prisma.JsonNull,
+            styleKey: template.styleKey,
+            eventId: eventRow.id,
+            folderId: null,
+            order: template.order,
+          },
+        });
+        templateIdBySourceId.set(template.sourceId, templateRow.id);
+      }
+
+      const createdRules: CreateDuplicateEventGraphResult['rules'] = [];
+      for (const rule of data.rules) {
+        const templateId = templateIdBySourceId.get(rule.templateId);
+        // Não deveria acontecer: `findDuplicationSource` garante que todo
+        // template referenciado por uma regra está em `templates`.
+        if (!templateId) {
+          throw new Error(`Duplication template not found for source template ${rule.templateId}`);
+        }
+        const formIds = rule.formSlugs
+          .map((slug) => formIdBySlug.get(slug))
+          .filter((formId): formId is string => formId !== undefined);
+        const ruleRow = await tx.automationRule.create({
+          data: {
+            eventId: eventRow.id,
+            templateId,
+            trigger: rule.trigger as Prisma.AutomationRuleUncheckedCreateInput['trigger'],
+            delayMinutes: rule.delayMinutes ?? undefined,
+            cron: rule.cron ?? undefined,
+            timezone: rule.timezone ?? undefined,
+            sendAt: rule.sendAt ?? undefined,
+            sendTime: rule.sendTime ?? undefined,
+            name: rule.name ?? undefined,
+            order: rule.order,
+            active: rule.active,
+            ...(formIds.length && { forms: { create: formIds.map((formId) => ({ formId })) } }),
+          },
+        });
+        createdRules.push({
+          id: ruleRow.id,
+          trigger: ruleRow.trigger,
+          cron: ruleRow.cron,
+          timezone: ruleRow.timezone,
+          active: ruleRow.active,
+        });
+      }
+
+      return {
+        event: {
+          id: eventRow.id,
+          ownerId: eventRow.ownerId,
+          title: eventRow.title,
+          slug: eventRow.slug,
+        },
+        rules: createdRules,
+      };
     });
-    return { id: row.id, ownerId: row.ownerId, title: row.title, slug: row.slug };
   }
 
   findPublicBySlug(slug: string): Promise<PublicEventSummary | null> {
