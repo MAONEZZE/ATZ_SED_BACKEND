@@ -91,8 +91,10 @@ export class RegistrationService {
 
   /**
    * Submissão pública de **qualquer** formulário do evento (os 3 tipos fixos
-   * morreram em 2026-08-17). O telefone é a identidade: normalizado, ele casa
-   * com um inscrito do evento; sem match, o inscrito é criado ali mesmo.
+   * morreram em 2026-08-17). O telefone é a identidade **dentro do formulário**:
+   * normalizado, ele casa com um inscrito daquele form; sem match, o inscrito é
+   * criado ali mesmo. Não há dedup entre formulários — a mesma pessoa em dois
+   * forms do evento são dois inscritos, cada um aparecendo na sua listagem.
    *
    * Formulário sem campo de telefone continua valendo: sem identidade, cada
    * envio vira um inscrito novo com telefone vazio — não dá mais 400.
@@ -164,7 +166,7 @@ export class RegistrationService {
     const normalized = phone ? (normalizePhone(phone) ?? phone.replace(/\D/g, '')) : '';
 
     const existing = normalized
-      ? await this.regRepo.findByEventAndContact(event.id, { phone: normalized })
+      ? await this.regRepo.findByEventAndContact(event.id, form.id, { phone: normalized })
       : null;
     const registration = existing
       ? existing
@@ -324,12 +326,12 @@ export class RegistrationService {
         continue;
       }
 
-      const existing = await this.regRepo.findByEventAndContact(eventId, {
+      const existing = await this.regRepo.findByEventAndContact(eventId, formId, {
         email: email || undefined,
         phone: phone || undefined,
       });
       if (existing) {
-        rejected.push({ linha, motivo: 'já inscrito neste evento' });
+        rejected.push({ linha, motivo: 'já inscrito neste formulário' });
         continue;
       }
 
@@ -352,7 +354,7 @@ export class RegistrationService {
         created++;
       } catch (err) {
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-          rejected.push({ linha, motivo: 'telefone já usado neste evento' });
+          rejected.push({ linha, motivo: 'telefone já usado neste formulário' });
           continue;
         }
         throw err;
@@ -435,7 +437,10 @@ export class RegistrationService {
     }
 
     const chosen = pickClosestToToday(matches);
-    await this.regRepo.setAttendance([chosen.id], chosen.eventId, true);
+    // Sem dedup entre formulários, a pessoa pode ter um inscrito por form do
+    // evento: a presença é dela, então marca todos.
+    const sameEvent = matches.filter((m) => m.eventId === chosen.eventId).map((m) => m.id);
+    await this.regRepo.setAttendance(sameEvent, chosen.eventId, true);
 
     return {
       registration: await this.findById(chosen.id, chosen.eventId),

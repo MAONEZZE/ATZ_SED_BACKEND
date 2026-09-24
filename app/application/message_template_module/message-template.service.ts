@@ -116,6 +116,16 @@ export class MessageTemplateService {
     const existing = await this.findOne(userId, id);
     if (input.eventId) await this.assertEventAccess(input.eventId, userId);
 
+    // Trocar o evento de um template com automação (ativa ou não) quebraria a
+    // regra: ela continuaria com o `templateId` antigo, mas ele deixaria de
+    // pertencer ao evento — e a automação nunca usa template de fora do evento.
+    if (input.eventId !== undefined && input.eventId !== existing.eventId) {
+      const hasRule = await this.automations.hasRuleForTemplate(id);
+      if (hasRule) {
+        throw new BadRequestException('Template em uso por automação; não pode trocar de evento');
+      }
+    }
+
     // O patch é parcial, então a regra vale sobre o resultado da mesclagem, não
     // sobre o que veio no corpo: trocar só o canal para email sem assunto no
     // template existente também é inválido.

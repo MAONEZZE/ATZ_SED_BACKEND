@@ -52,6 +52,19 @@ export class PrismaRegistrationRepository
     return row ? this.map(row) : null;
   }
 
+  /**
+   * Inscrito "do formulário" é quem foi criado por ele (`originFormId`, cobre o
+   * import, que não grava FormResponse) ou quem o respondeu depois de já existir
+   * (FormResponse). Só `originFormId` escondia quem respondeu o segundo form.
+   * Dentro de `AND` para não colidir com o `OR` da busca.
+   */
+  private formClause(formId?: string): Prisma.RegistrationWhereInput {
+    if (!formId) return {};
+    return {
+      AND: [{ OR: [{ originFormId: formId }, { formResponses: { some: { formId } } }] }],
+    };
+  }
+
   async findAllByEvent(
     eventId: string,
     status?: FunnelStatus,
@@ -64,7 +77,7 @@ export class PrismaRegistrationRepository
         eventId,
         ...(status ? { status } : {}),
         ...(attended !== undefined ? { attended } : {}),
-        ...(formId ? { originFormId: formId } : {}),
+        ...this.formClause(formId),
         ...this.containsSearch(['name', 'email', 'phone'], search),
       },
       include: { originForm: { select: { name: true } } },
@@ -85,7 +98,7 @@ export class PrismaRegistrationRepository
       eventId,
       ...(status ? { status } : {}),
       ...(attended !== undefined ? { attended } : {}),
-      ...(formId ? { originFormId: formId } : {}),
+      ...this.formClause(formId),
       ...this.containsSearch(['name', 'email', 'phone'], search),
     };
     const [rows, total] = await Promise.all([
@@ -152,19 +165,24 @@ export class PrismaRegistrationRepository
 
   async findByEventAndContact(
     eventId: string,
+    formId: string,
     contact: { email?: string; phone?: string },
   ): Promise<RegistrationEntity | null> {
+    // Sem dedup entre formulários: o mesmo contato em outro form é outro inscrito.
+    const scope = { eventId, ...this.formClause(formId) };
     if (contact.email) {
       const row = await this.prisma.registration.findFirst({
-        where: { eventId, email: { equals: contact.email, mode: 'insensitive' } },
+        where: { ...scope, email: { equals: contact.email, mode: 'insensitive' } },
       });
       return row ? this.map(row) : null;
     }
     if (contact.phone) {
       const digits = normalizePhone(contact.phone) ?? contact.phone.replace(/\D/g, '');
       if (!digits) return null;
-      const rows = await this.prisma.registration.findMany({ where: { eventId } });
-      const match = rows.find((r) => (normalizePhone(r.phone) ?? r.phone.replace(/\D/g, '')) === digits);
+      const rows = await this.prisma.registration.findMany({ where: scope });
+      const match = rows.find(
+        (r) => (normalizePhone(r.phone) ?? r.phone.replace(/\D/g, '')) === digits,
+      );
       return match ? this.map(match) : null;
     }
     return null;

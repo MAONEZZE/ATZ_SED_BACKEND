@@ -399,6 +399,7 @@ export class AutomationService {
     }
   }
 
+  /** Automação só usa template do próprio evento — global ou de outro evento é 404, igual a inexistente. */
   private async assertTemplateExists(templateId: string, eventId: string): Promise<void> {
     const template = await this.repo.templateById(templateId, eventId);
     if (!template) throw new NotFoundException('Template not found');

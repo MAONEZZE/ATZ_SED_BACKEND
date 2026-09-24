@@ -56,7 +56,7 @@ export class RegistrationController {
   @ApiParam({ name: 'eventId', description: 'UUID do evento' })
   @ApiQuery({ name: 'status', required: false, enum: ['pending', 'approved', 'rejected'] })
   @ApiQuery({ name: 'search', required: false, description: 'Busca por nome ou email' })
-  @ApiQuery({ name: 'formId', required: false, description: 'Filtra por formulário de origem' })
+  @ApiQuery({ name: 'formId', required: false, description: 'Filtra por formulário: criados por ele ou que o responderam' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'attended', required: false, type: Boolean, description: 'Filtra por presença' })

@@ -4,7 +4,6 @@ import { PrismaRepositoryBase } from '@infra/repositories/shared/prisma-reposito
 import { MessageChannel } from '@domain/shared/message-channel.type';
 import { resequence } from '@domain/shared/resequence';
 import { writesFor } from '@infra/repositories/shared/order-writes';
-import { EventDuplicationAutomationRule } from '@domain/event_module/i-repository-event';
 import { MessageTemplateEntity } from '@domain/message_template_module/message-template.entity';
 import {
   AutomationRuleEntity,
@@ -226,14 +225,11 @@ export class PrismaAutomationRepository
     return row ? this.toEntity(row) : null;
   }
 
-  // Com `eventId`, só aceita template do próprio evento ou global — antes um id
-  // conhecido de template de outro evento passava.
-  async templateById(templateId: string, eventId?: string): Promise<MessageTemplateEntity | null> {
+  // Só aceita template do próprio evento — o caminho do global (ou de outro
+  // evento) some de propósito: automação sempre usa template do próprio evento.
+  async templateById(templateId: string, eventId: string): Promise<MessageTemplateEntity | null> {
     const row = await this.prisma.messageTemplate.findFirst({
-      where: {
-        id: templateId,
-        ...(eventId && { OR: [{ eventId }, { eventId: null }] }),
-      },
+      where: { id: templateId, eventId },
     });
     return row ? this.toTemplateEntity(row) : null;
   }
@@ -441,6 +437,14 @@ export class PrismaAutomationRepository
     });
   }
 
+  async hasRuleForTemplate(templateId: string): Promise<boolean> {
+    const rule = await this.prisma.automationRule.findFirst({
+      where: { templateId },
+      select: { id: true },
+    });
+    return rule !== null;
+  }
+
   /**
    * Regras ativas de um evento+trigger. `ruleIds` filtra pelo conjunto exato
    * (usado pelo worker de recorrência); sem isso, dispara imediato: apenas
@@ -463,49 +467,5 @@ export class PrismaAutomationRepository
       include: { template: true, ...WITH_FORMS },
     });
     return rows.map((row) => this.withFullTemplate(row));
-  }
-
-  // `createMany` não aceita nested writes: cada regra precisa do próprio
-  // `create` para gravar a junção de formIds junto. `formIds` já vem resolvido
-  // pelo caller (slug -> id do formulário no evento novo).
-  async createManyForDuplication(
-    eventId: string,
-    rules: Array<Omit<EventDuplicationAutomationRule, 'formSlugs'> & { formIds: string[] }>,
-  ): Promise<
-    Array<{
-      id: string;
-      trigger: string;
-      cron: string | null;
-      timezone: string | null;
-      active: boolean;
-    }>
-  > {
-    const created = await this.prisma.$transaction(
-      rules.map((a) =>
-        this.prisma.automationRule.create({
-          data: {
-            eventId,
-            templateId: a.templateId,
-            trigger: a.trigger as Prisma.AutomationRuleUncheckedCreateInput['trigger'],
-            delayMinutes: a.delayMinutes ?? undefined,
-            cron: a.cron ?? undefined,
-            timezone: a.timezone ?? undefined,
-            sendAt: a.sendAt ?? undefined,
-            sendTime: a.sendTime ?? undefined,
-            name: a.name ?? undefined,
-            order: a.order,
-            active: a.active,
-            ...(a.formIds.length && { forms: { create: a.formIds.map((formId) => ({ formId })) } }),
-          },
-        }),
-      ),
-    );
-    return created.map((r) => ({
-      id: r.id,
-      trigger: r.trigger,
-      cron: r.cron,
-      timezone: r.timezone,
-      active: r.active,
-    }));
   }
 }

@@ -15,7 +15,7 @@ export class ListRegistrationsQueryDto extends PaginationQueryDto {
   @IsString()
   search?: string;
 
-  @ApiPropertyOptional({ description: 'Filtra por formulário de origem (originFormId)' })
+  @ApiPropertyOptional({ description: 'Filtra por formulário: criados por ele ou que o responderam' })
   @IsOptional()
   @IsString()
   formId?: string;

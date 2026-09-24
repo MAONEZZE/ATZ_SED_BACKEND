@@ -208,25 +208,24 @@ describe('PrismaAutomationRepository.findActiveByEventTriggerAndTemplate', () =>
 });
 
 describe('PrismaAutomationRepository.templateById scope', () => {
-  // Antes o id era aceito sozinho: template de outro evento entrava na regra.
-  it('accepts only the event template or a global one when the event is given', async () => {
+  // Automação só usa template do próprio evento: nem global (eventId null) nem
+  // de outro evento passam — o `where` trava os dois na mesma consulta.
+  it('accepts only the template that belongs to the given event', async () => {
     const findFirst = jest.fn().mockResolvedValue(TEMPLATE_ROW);
     const { repo } = await makeRepo({}, { findFirst });
 
     const template = await repo.templateById('tpl-1', 'evt-1');
 
-    expect(findFirst).toHaveBeenCalledWith({
-      where: { id: 'tpl-1', OR: [{ eventId: 'evt-1' }, { eventId: null }] },
-    });
+    expect(findFirst).toHaveBeenCalledWith({ where: { id: 'tpl-1', eventId: 'evt-1' } });
     expect(template).toBeInstanceOf(MessageTemplateEntity);
   });
 
-  it('keeps the plain lookup when no event is given', async () => {
-    const findFirst = jest.fn().mockResolvedValue(TEMPLATE_ROW);
+  it('resolves null when the template belongs to a different event or is global', async () => {
+    const findFirst = jest.fn().mockResolvedValue(null);
     const { repo } = await makeRepo({}, { findFirst });
 
-    await repo.templateById('tpl-1');
+    const template = await repo.templateById('tpl-1', 'evt-1');
 
-    expect(findFirst).toHaveBeenCalledWith({ where: { id: 'tpl-1' } });
+    expect(template).toBeNull();
   });
 });

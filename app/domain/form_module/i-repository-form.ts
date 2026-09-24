@@ -1,4 +1,3 @@
-import { EventDuplicationForm } from '@domain/event_module/i-repository-event';
 import { FormEntity } from './form.entity';
 
 export const FORM_REPOSITORY_PORT = Symbol('FORM_REPOSITORY_PORT');
@@ -41,6 +40,4 @@ export interface FormRepositoryPort {
   delete(id: string): Promise<void>;
   /** Reescreve `order` na ordem dos ids, dentro do evento. */
   reorder(eventId: string, ids: string[]): Promise<void>;
-  /** Clona um formulário com os campos para outro evento (duplicação de evento). */
-  createWithFields(eventId: string, form: EventDuplicationForm): Promise<FormEntity>;
 }

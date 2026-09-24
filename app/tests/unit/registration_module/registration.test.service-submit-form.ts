@@ -98,14 +98,16 @@ function make(overrides?: {
   return { service, regRepo, emitter, pipedrive, forms, formResponses, answerImages };
 }
 
-// O telefone é a identidade: casa com o inscrito do evento; sem match, cria.
+// O telefone é a identidade dentro do formulário: casa com o inscrito daquele
+// form; sem match (inclusive quando a pessoa só está em outro form), cria.
 describe('RegistrationService.submitForm — identidade por telefone', () => {
   it('attaches the response to the matching registration without creating another', async () => {
     const { service, regRepo, formResponses } = make();
 
     const result = await service.submitForm('tech-day', 'nps', '(11) 99999-8888', { Nota: '9' });
 
-    expect(regRepo.findByEventAndContact).toHaveBeenCalledWith('evt-1', {
+    // Busca escopada no formulário: sem dedup entre formulários.
+    expect(regRepo.findByEventAndContact).toHaveBeenCalledWith('evt-1', 'form-1', {
       phone: '5511999998888',
     });
     expect(regRepo.create).not.toHaveBeenCalled();

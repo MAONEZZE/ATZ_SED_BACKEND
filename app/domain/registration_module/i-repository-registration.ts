@@ -54,8 +54,10 @@ export interface RegistrationRepositoryPort {
   create(data: CreateRegistrationData): Promise<RegistrationEntity>;
   updateStatus(id: string, status: FunnelStatus): Promise<RegistrationEntity>;
   updateAnswers(id: string, data: UpdateAnswersData): Promise<RegistrationEntity>;
+  /** Contato já inscrito **naquele formulário** — não há dedup entre formulários. */
   findByEventAndContact(
     eventId: string,
+    formId: string,
     contact: { email?: string; phone?: string },
   ): Promise<RegistrationEntity | null>;
   /**

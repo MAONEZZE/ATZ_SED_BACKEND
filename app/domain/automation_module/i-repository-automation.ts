@@ -1,5 +1,4 @@
 import { MessageChannel } from '@domain/shared/message-channel.type';
-import { EventDuplicationAutomationRule } from '@domain/event_module/i-repository-event';
 import { MessageTemplateEntity } from '@domain/message_template_module/message-template.entity';
 import { AutomationRuleEntity, AutomationTrigger } from './automation-rule.entity';
 
@@ -126,6 +125,9 @@ export interface AutomationRepositoryPort {
     templateId: string,
   ): Promise<{ id: string; eventId: string; trigger: string } | null>;
 
+  /** Toda regra (ativa ou não) que usa este template — barra trocar o `eventId` do template em uso. */
+  hasRuleForTemplate(templateId: string): Promise<boolean>;
+
   findById(id: string): Promise<AutomationRuleEntity | null>;
 
   /** Resolve pelo evento, para não alcançar regra de outro evento. */
@@ -155,8 +157,8 @@ export interface AutomationRepositoryPort {
     sendAt?: Date | null,
   ): Promise<AutomationRuleEntity | null>;
 
-  /** O template referenciado existe e é alcançável pelo evento (dele ou global)? */
-  templateById(templateId: string, eventId?: string): Promise<MessageTemplateEntity | null>;
+  /** O template referenciado existe e é do próprio evento — automação nunca usa template global ou de outro evento. */
+  templateById(templateId: string, eventId: string): Promise<MessageTemplateEntity | null>;
 
   create(data: CreateAutomationRuleData): Promise<AutomationRuleWithTemplate>;
   update(id: string, data: UpdateAutomationRuleData): Promise<AutomationRuleWithTemplate>;
@@ -182,26 +184,4 @@ export interface AutomationRepositoryPort {
     trigger: string,
     ruleIds?: string[],
   ): Promise<AutomationRuleWithFullTemplate[]>;
-
-  /**
-   * `formIds` já vem resolvido pelo application layer (slug -> id do formulário
-   * recém-criado no evento novo); o repositório só grava.
-   */
-  /**
-   * Devolve as regras criadas (não só a contagem): a regra `recurring` copiada
-   * precisa do job scheduler registrado no BullMQ, e para isso o caller precisa
-   * do id novo.
-   */
-  createManyForDuplication(
-    eventId: string,
-    rules: Array<Omit<EventDuplicationAutomationRule, 'formSlugs'> & { formIds: string[] }>,
-  ): Promise<
-    Array<{
-      id: string;
-      trigger: string;
-      cron: string | null;
-      timezone: string | null;
-      active: boolean;
-    }>
-  >;
 }
