@@ -9,7 +9,12 @@ import {
   Query,
   UseGuards,
   HttpCode,
+  UseInterceptors,
+  UploadedFile,
+  ParseFilePipe,
+  MaxFileSizeValidator,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -17,6 +22,8 @@ import {
   ApiResponse,
   ApiQuery,
   ApiParam,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@api/config/guards/jwt-auth.guard';
 import { CurrentUser } from '@api/config/decorators/current-user.decorator';
@@ -30,13 +37,39 @@ import { ListTemplatesQueryDto } from '@api/dto/message_template_module/list-tem
 import { ReorderTemplatesDto } from '@api/dto/message_template_module/reorder-templates.dto';
 import { MoveItemDto } from '@api/dto/shared/move-item.dto';
 import { Paginated } from '@api/dto/shared/pagination';
+import { MessageAttachmentsService } from '@application/outbox_module/message-attachments.service';
+
+const MAX_TEMPLATE_ATTACHMENT_BYTES = 60 * 1024 * 1024;
 
 @ApiTags('Messaging (global)')
 @ApiBearerAuth()
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class MessageTemplateController {
-  constructor(private readonly templates: MessageTemplateService) {}
+  constructor(
+    private readonly templates: MessageTemplateService,
+    private readonly attachments: MessageAttachmentsService,
+  ) {}
+
+  @Post('messaging/templates/attachments')
+  @HttpCode(201)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_TEMPLATE_ATTACHMENT_BYTES } }))
+  @ApiOperation({ summary: 'Upload do anexo de um template' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } },
+  })
+  uploadTemplateAttachment(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [new MaxFileSizeValidator({ maxSize: MAX_TEMPLATE_ATTACHMENT_BYTES })],
+      }),
+    )
+    file: Express.Multer.File,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.attachments.uploadTemplate(user.id, file);
+  }
 
   @Post('messaging/templates')
   @HttpCode(201)
@@ -92,10 +125,7 @@ export class MessageTemplateController {
   @ApiOperation({ summary: 'Reordenar templates dentro de uma pasta (drag & drop)' })
   @ApiResponse({ status: 204, description: 'Ordem reescrita' })
   @ApiResponse({ status: 404, description: 'Pasta não encontrada' })
-  reorderTemplates(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: ReorderTemplatesDto,
-  ) {
+  reorderTemplates(@CurrentUser() user: AuthenticatedUser, @Body() dto: ReorderTemplatesDto) {
     return this.templates.reorder(user.id, dto.folderId ?? null, dto.ids);
   }
 

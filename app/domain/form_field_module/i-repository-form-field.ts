@@ -61,6 +61,7 @@ export interface FormFieldRepositoryPort {
 
   /** Resolve pelo evento, e não só pelo id, para não alcançar campo de outro evento. */
   findByEvent(eventId: string, id: string): Promise<FormFieldEntity | null>;
+  findByForm(formId: string, id: string): Promise<FormFieldEntity | null>;
 
   /**
    * Campo do evento com o `type` dado (join com `forms`, que é quem carrega

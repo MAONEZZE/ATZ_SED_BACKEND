@@ -11,7 +11,7 @@ const envSchema = z.object({
   SUPABASE_STORAGE_BUCKET: z.string().min(1),
   SUPABASE_STORAGE_BUCKET_COVERS: z.string().min(1),
   SUPABASE_STORAGE_BUCKET_PROFILE_PHOTOS: z.string().min(1),
-  /** Pasta das imagens enviadas como resposta de formulário (campo `type: image`). */
+  /** Pasta dos documentos enviados como resposta de formulário. */
   SUPABASE_STORAGE_BUCKET_UPLOADS: z.string().min(1),
   WHATSAPP_API_URL: z.string().url(),
   WHATSAPP_WEBHOOK_SECRET: z.string().min(1),
@@ -48,6 +48,7 @@ const envSchema = z.object({
 
   QUEUE_STALLED_INTERVAL_MS: z.coerce.number().int().positive(),
   REDIS_CLEANUP_CRON: z.string().min(1),
+  FORM_UPLOAD_PRUNE_CRON: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

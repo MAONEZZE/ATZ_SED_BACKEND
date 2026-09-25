@@ -31,6 +31,6 @@ import { BullQueuesModule } from '@infra/queue/bull-queues.module';
     DeliveryStatusService,
     TemplateRenderer,
   ],
-  exports: [OutboxService, WhatsappPacingService, DeliveryStatusService],
+  exports: [OutboxService, WhatsappPacingService, DeliveryStatusService, MessageAttachmentsService],
 })
 export class OutboxModule {}

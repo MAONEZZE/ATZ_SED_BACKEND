@@ -70,6 +70,11 @@ export class PrismaFormFieldRepository
     return row ? this.toEntity(row) : null;
   }
 
+  async findByForm(formId: string, id: string): Promise<FormFieldEntity | null> {
+    const row = await this.prisma.formField.findFirst({ where: { id, formId } });
+    return row ? this.toEntity(row) : null;
+  }
+
   findByEventAndType(
     eventId: string,
     type: string,

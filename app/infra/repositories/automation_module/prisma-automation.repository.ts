@@ -19,6 +19,7 @@ import {
   RecurringSchedule,
   UpdateAutomationRuleData,
 } from '@domain/automation_module/i-repository-automation';
+import { StoredAttachment } from '@domain/shared/file-reference';
 
 const TEMPLATE_SUMMARY = {
   template: { select: { id: true, name: true, channel: true } },
@@ -54,6 +55,7 @@ type MessageTemplateRow = {
   body: string;
   layoutConfig: Prisma.JsonValue;
   styleKey: string | null;
+  attachment: Prisma.JsonValue;
   eventId: string | null;
   folderId: string | null;
   order: number;
@@ -99,6 +101,9 @@ export class PrismaAutomationRepository
         ? (row.layoutConfig as Record<string, unknown>)
         : null,
       row.styleKey,
+      row.attachment && typeof row.attachment === 'object'
+        ? (row.attachment as unknown as StoredAttachment)
+        : null,
       row.eventId,
       row.folderId,
       row.order,

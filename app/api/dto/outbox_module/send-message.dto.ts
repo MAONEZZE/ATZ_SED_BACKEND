@@ -85,7 +85,10 @@ export class ManualRecipientDto {
 }
 
 export class AttachmentRefDto {
-  @ApiProperty({ example: 'message-attachments/uuid-user/uuid-arquivo.pdf', description: 'path retornado por POST /messages/attachments' })
+  @ApiProperty({
+    example: 'message-attachments/uuid-user/uuid-arquivo.pdf',
+    description: 'path retornado por POST /messages/attachments',
+  })
   @IsString()
   path!: string;
 
@@ -96,6 +99,12 @@ export class AttachmentRefDto {
   @ApiProperty({ example: 'application/pdf' })
   @IsString()
   mimetype!: string;
+
+  @ApiPropertyOptional({ example: 204800, description: 'Tamanho retornado pelo upload.' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  size?: number;
 }
 
 // Só o WhatsApp precisa de origem: o token da instância vem do instanceId ou do
@@ -178,11 +187,15 @@ export class SendMessageDto {
 
   @ApiPropertyOptional({
     example: ['120363424826018469@g.us'],
-    description: 'IDs (JIDs @g.us) de grupos WhatsApp destinatários. Só canal whatsapp. Liste via GET /whatsapp/groups.',
+    description:
+      'IDs (JIDs @g.us) de grupos WhatsApp destinatários. Só canal whatsapp. Liste via GET /whatsapp/groups.',
   })
   @IsOptional()
   @IsArray()
-  @Matches(/@g\.us$/, { each: true, message: 'groupIds deve conter JIDs de grupo (terminando em @g.us)' })
+  @Matches(/@g\.us$/, {
+    each: true,
+    message: 'groupIds deve conter JIDs de grupo (terminando em @g.us)',
+  })
   groupIds?: string[];
 
   @ApiPropertyOptional({
@@ -194,7 +207,10 @@ export class SendMessageDto {
   @Type(() => InviteConfigDto)
   invite?: InviteConfigDto;
 
-  @ApiPropertyOptional({ type: [AttachmentRefDto], description: 'Anexos previamente enviados via POST /messages/attachments.' })
+  @ApiPropertyOptional({
+    type: [AttachmentRefDto],
+    description: 'Anexos previamente enviados via POST /messages/attachments.',
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })

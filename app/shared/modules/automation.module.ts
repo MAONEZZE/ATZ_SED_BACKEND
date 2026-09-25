@@ -16,6 +16,7 @@ import { EventDbModule } from '@infra/repositories/event_module/event-db.module'
 import { RegistrationDbModule } from '@infra/repositories/registration_module/registration-db.module';
 import { FormFieldDbModule } from '@infra/repositories/form_field_module/form-field-db.module';
 import { FormResponseDbModule } from '@infra/repositories/form_response_module/form-response-db.module';
+import { StorageModule } from '@shared/modules/storage.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { FormResponseDbModule } from '@infra/repositories/form_response_module/f
     RegistrationDbModule,
     FormFieldDbModule,
     FormResponseDbModule,
+    StorageModule,
   ],
   controllers: [AutomationController, GlobalAutomationController],
   providers: [

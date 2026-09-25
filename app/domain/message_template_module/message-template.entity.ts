@@ -1,5 +1,6 @@
 import { EntityBase } from '@domain/shared/entity.base';
 import { MessageChannel } from '@domain/shared/message-channel.type';
+import { StoredAttachment } from '@domain/shared/file-reference';
 
 /**
  * Modelo de mensagem reutilizável de um usuário. `eventId` nulo significa
@@ -19,6 +20,7 @@ export class MessageTemplateEntity extends EntityBase {
     public readonly body: string,
     public readonly layoutConfig: Record<string, unknown> | null,
     public readonly styleKey: string | null,
+    public readonly attachment: StoredAttachment | null,
     public readonly eventId: string | null,
     /** Pasta que organiza o template. Tem que ter o mesmo `eventId` dele. */
     public readonly folderId: string | null,

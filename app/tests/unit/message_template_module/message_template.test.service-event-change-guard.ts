@@ -20,7 +20,7 @@ function make(hasRule: boolean) {
     findActiveRuleByTemplate: jest.fn().mockResolvedValue(null),
     hasRuleForTemplate: jest.fn().mockResolvedValue(hasRule),
   };
-  const svc = new MessageTemplateService(repo as any, folders as any, automations as any);
+  const svc = new MessageTemplateService(repo as any, folders as any, automations as any, {} as any);
   return { svc, repo, automations };
 }
 

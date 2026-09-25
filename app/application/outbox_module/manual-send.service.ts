@@ -55,7 +55,7 @@ export interface SendMessageInput {
   /** JIDs de grupos WhatsApp (@g.us) como destinatários. Só canal whatsapp. */
   groupIds?: string[];
   invite?: InviteConfigInput;
-  attachments?: { path: string; filename: string; mimetype: string }[];
+  attachments?: { path: string; filename: string; mimetype: string; size?: number }[];
 }
 
 export interface SendMessageResult {
@@ -139,6 +139,7 @@ export class ManualSendService {
           url: this.storage.getPublicUrl(bucket, a.path),
           filename: a.filename,
           mimetype: a.mimetype,
+          ...(a.size !== undefined && { size: a.size }),
         };
       });
     }
@@ -200,9 +201,11 @@ export class ManualSendService {
 
     let template: {
       id: string;
+      ownerId: string;
       channel: string;
       subject: string | null;
       body: string;
+      attachment: { path: string; name: string; mimetype: string; size: number } | null;
     } | null = null;
     if (input.templateId) {
       template = await this.templates.findByIdForUser(input.templateId, userId);
@@ -211,6 +214,17 @@ export class ManualSendService {
         throw new BadRequestException(
           `Template channel '${template.channel}' does not match requested channel '${input.channel}'`,
         );
+      }
+      if (!input.attachments?.length && template.attachment) {
+        resolvedAttachments = [
+          {
+            path: template.attachment.path,
+            url: this.storage.getPublicUrl(bucket, template.attachment.path),
+            filename: template.attachment.name,
+            mimetype: template.attachment.mimetype,
+            size: template.attachment.size,
+          },
+        ];
       }
     }
 

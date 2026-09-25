@@ -24,7 +24,13 @@ function makeService() {
     updateStatus: jest.fn().mockImplementation((_id, status) => Promise.resolve({ status })),
   };
   const folders = { findByIdForOwner: jest.fn().mockResolvedValue({ id: 'fld-1' }) };
-  const storage = { upload: jest.fn(), delete: jest.fn(), getPublicUrl: jest.fn() };
+  const storage = {
+    upload: jest.fn(),
+    delete: jest.fn(),
+    move: jest.fn(),
+    list: jest.fn(),
+    getPublicUrl: jest.fn(),
+  };
   const config = { get: jest.fn().mockReturnValue(undefined) };
   const whatsappInstances = { isAllowedForProfile: jest.fn().mockResolvedValue(true) };
   const collaborators = { remove: jest.fn().mockResolvedValue(1) };

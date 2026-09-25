@@ -5,6 +5,7 @@ import {
   resolveAnswerByKeys,
   mapAnswersToFieldIds,
   hydrateAnswerLabels,
+  rejectDataUris,
 } from '@domain/shared/answer-validation';
 
 describe('validateAnswers — resolve by id, fallback to label for raw submissions', () => {
@@ -64,14 +65,11 @@ describe("validateAnswers — case 'on_date_automation_field'", () => {
     expect(() => validateAnswers(fields, { 'Dia da mensalidade': '2026-10-20' })).not.toThrow();
   });
 
-  it.each(['20/10/2026', '2026', '2026-13-01', '2026-02-30'])(
-    'rejects %s',
-    (value) => {
-      expect(() => validateAnswers(fields, { 'Dia da mensalidade': value })).toThrow(
-        BadRequestException,
-      );
-    },
-  );
+  it.each(['20/10/2026', '2026', '2026-13-01', '2026-02-30'])('rejects %s', (value) => {
+    expect(() => validateAnswers(fields, { 'Dia da mensalidade': value })).toThrow(
+      BadRequestException,
+    );
+  });
 
   it('rejects a number', () => {
     expect(() => validateAnswers(fields, { 'Dia da mensalidade': 20 })).toThrow(
@@ -140,5 +138,50 @@ describe('hydrateAnswerLabels', () => {
       Nome: 'Fulano',
       'deleted-field-id': 'x',
     });
+  });
+});
+
+describe("validateAnswers — case 'document'", () => {
+  const file = {
+    url: 'https://cdn.example.com/a.pdf',
+    name: 'a.pdf',
+    mimetype: 'application/pdf',
+    size: 123,
+  };
+
+  it('accepts the uploaded-file object array', () => {
+    const fields = [{ id: 'doc', label: 'Documento', type: 'document', required: true }];
+    expect(() => validateAnswers(fields, { Documento: [file] })).not.toThrow();
+  });
+
+  it('uses maxFiles from options and defaults to one', () => {
+    const one = [{ id: 'doc', label: 'Documento', type: 'document', required: false }];
+    expect(() => validateAnswers(one, { Documento: [file, file] })).toThrow(/no máximo 1/);
+    const two = [{ ...one[0], options: { maxFiles: 2 } }];
+    expect(() => validateAnswers(two, { Documento: [file, file] })).not.toThrow();
+  });
+
+  it('rejects strings, malformed objects and data URIs', () => {
+    const fields = [{ id: 'doc', label: 'Documento', type: 'document', required: true }];
+    expect(() => validateAnswers(fields, { Documento: 'https://cdn/a.pdf' })).toThrow();
+    expect(() => validateAnswers(fields, { Documento: [{ ...file, name: '' }] })).toThrow();
+    expect(() =>
+      validateAnswers(fields, {
+        Documento: [{ ...file, url: 'data:application/pdf;base64,AA==' }],
+      }),
+    ).toThrow();
+  });
+
+  it('treats an empty array as missing when required', () => {
+    const fields = [{ id: 'doc', label: 'Documento', type: 'document', required: true }];
+    expect(() => validateAnswers(fields, { Documento: [] })).toThrow(/obrigatório/);
+  });
+});
+
+describe('rejectDataUris', () => {
+  it('rejects nested data URIs even outside document fields', () => {
+    expect(() =>
+      rejectDataUris({ texto: ['ok', { blob: 'data:text/plain;base64,QQ==' }] }),
+    ).toThrow(BadRequestException);
   });
 });

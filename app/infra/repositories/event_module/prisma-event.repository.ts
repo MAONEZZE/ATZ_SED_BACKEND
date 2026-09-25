@@ -31,6 +31,7 @@ import { EventEntity, EventStatus } from '@domain/event_module/event.entity';
 import { EventRole } from '@domain/collaborator_module/event-role.type';
 import { resequence } from '@domain/shared/resequence';
 import { writesFor } from '@infra/repositories/shared/order-writes';
+import { StoredAttachment } from '@domain/shared/file-reference';
 
 interface EventRow {
   id: string;
@@ -310,6 +311,10 @@ export class PrismaEventRepository implements EventRepositoryPort {
             ? (t.layoutConfig as Record<string, unknown>)
             : null,
         styleKey: t.styleKey,
+        attachment:
+          t.attachment && typeof t.attachment === 'object'
+            ? (t.attachment as unknown as StoredAttachment)
+            : null,
         order: t.order,
       })),
       automationRules: row.automationRules.map((a) => ({
@@ -398,6 +403,10 @@ export class PrismaEventRepository implements EventRepositoryPort {
                 ? (template.layoutConfig as Prisma.InputJsonValue)
                 : Prisma.JsonNull,
             styleKey: template.styleKey,
+            attachment:
+              template.attachment != null
+                ? (template.attachment as unknown as Prisma.InputJsonValue)
+                : Prisma.JsonNull,
             eventId: eventRow.id,
             folderId: null,
             order: template.order,

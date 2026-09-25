@@ -11,6 +11,7 @@ import {
   MessageTemplateRepositoryPort,
   UpdateMessageTemplateData,
 } from '@domain/message_template_module/i-repository-message-template';
+import { StoredAttachment } from '@domain/shared/file-reference';
 
 type MessageTemplateRow = {
   id: string;
@@ -21,6 +22,7 @@ type MessageTemplateRow = {
   body: string;
   layoutConfig: Prisma.JsonValue;
   styleKey: string | null;
+  attachment: Prisma.JsonValue;
   eventId: string | null;
   folderId: string | null;
   order: number;
@@ -45,6 +47,9 @@ export class PrismaMessageTemplateRepository
         ? (row.layoutConfig as Record<string, unknown>)
         : null,
       row.styleKey,
+      row.attachment && typeof row.attachment === 'object'
+        ? (row.attachment as unknown as StoredAttachment)
+        : null,
       row.eventId,
       row.folderId,
       row.order,
@@ -111,6 +116,9 @@ export class PrismaMessageTemplateRepository
         body: data.body,
         layoutConfig: this.toJson(data.layoutConfig),
         styleKey: data.styleKey ?? null,
+        attachment: data.attachment
+          ? (data.attachment as unknown as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
         eventId: data.eventId ?? null,
         folderId: data.folderId ?? null,
       },
@@ -159,6 +167,11 @@ export class PrismaMessageTemplateRepository
       ...(data.body !== undefined && { body: data.body }),
       ...(data.layoutConfig !== undefined && { layoutConfig: this.toJson(data.layoutConfig) }),
       ...(data.styleKey !== undefined && { styleKey: data.styleKey }),
+      ...(data.attachment !== undefined && {
+        attachment: data.attachment
+          ? (data.attachment as unknown as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
+      }),
       ...(data.eventId !== undefined && { eventId: data.eventId }),
       ...(data.folderId !== undefined && { folderId: data.folderId }),
     };
@@ -210,6 +223,30 @@ export class PrismaMessageTemplateRepository
 
   async delete(id: string): Promise<void> {
     await this.prisma.messageTemplate.delete({ where: { id } });
+  }
+
+  async isAttachmentPathReferenced(path: string): Promise<boolean> {
+    const rows = await this.prisma.$queryRaw<Array<{ referenced: boolean }>>(Prisma.sql`
+      SELECT (
+        EXISTS (
+          SELECT 1
+          FROM "SED"."message_templates" mt
+          WHERE mt."attachment"->>'path' = ${path}
+        ) OR EXISTS (
+          SELECT 1
+          FROM "SED"."outbox_messages" om,
+               jsonb_array_elements(
+                 CASE
+                   WHEN jsonb_typeof(om."attachments") = 'array' THEN om."attachments"
+                   ELSE '[]'::jsonb
+                 END
+               ) attachment
+          WHERE om."status" IN ('pending', 'processing')
+            AND attachment->>'path' = ${path}
+        )
+      ) AS referenced
+    `);
+    return rows[0]?.referenced ?? false;
   }
 
   /** True if the event exists and is owned by / shared with the user (for template linking). */

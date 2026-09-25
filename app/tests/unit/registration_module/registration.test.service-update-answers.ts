@@ -1,7 +1,13 @@
 import { RegistrationService } from '@application/registration_module/registration.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 
-type FormFieldLike = { id: string; label: string; type: string; required: boolean; isFixed: boolean };
+type FormFieldLike = {
+  id: string;
+  label: string;
+  type: string;
+  required: boolean;
+  isFixed: boolean;
+};
 
 const NOME_ID = 'nome-id';
 const EMAIL_ID = 'email-id';
@@ -24,16 +30,18 @@ function makeService(regOverrides: Partial<{ id: string; eventId: string }> = {}
   };
   const regRepo = {
     findById: jest.fn().mockResolvedValue(reg),
-    updateAnswers: jest.fn().mockImplementation((_id, data) => Promise.resolve({ ...reg, ...data })),
+    updateAnswers: jest
+      .fn()
+      .mockImplementation((_id, data) => Promise.resolve({ ...reg, ...data })),
     updateStatus: jest.fn(),
     create: jest.fn(),
     findAllByEvent: jest.fn(),
     findAllByEventPaginated: jest.fn(),
   };
   const eventsService = { findBySlug: jest.fn(), findById: jest.fn() };
-  // Pass-through: a conversão de imagem tem testes próprios; aqui só interessa
-  // que o resultado dela é o que segue para o repositório.
-  const answerImages = { materialize: jest.fn().mockImplementation((a) => Promise.resolve(a)) };
+  const formDocuments = {
+    finalizeAnswers: jest.fn().mockImplementation((a) => Promise.resolve(a)),
+  };
   const formResponses = { upsert: jest.fn(), mergeAnswers: jest.fn().mockResolvedValue(undefined) };
   const service = new RegistrationService(
     regRepo as any,
@@ -42,10 +50,13 @@ function makeService(regOverrides: Partial<{ id: string; eventId: string }> = {}
     { send: jest.fn() } as any,
     { findOne: jest.fn(), primary: jest.fn(), findPublic: jest.fn() } as any,
     formResponses as any,
-    { listValidationFields: jest.fn().mockResolvedValue([]), listLabels: jest.fn().mockResolvedValue([]) } as any,
-    answerImages as any,
+    {
+      listValidationFields: jest.fn().mockResolvedValue([]),
+      listLabels: jest.fn().mockResolvedValue([]),
+    } as any,
+    formDocuments as any,
   );
-  return { service, regRepo, answerImages, formResponses };
+  return { service, regRepo, formDocuments, formResponses };
 }
 
 const allFields: FormFieldLike[] = [

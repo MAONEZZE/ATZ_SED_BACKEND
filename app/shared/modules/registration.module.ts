@@ -2,7 +2,8 @@ import { Module } from '@nestjs/common';
 import { RegistrationController } from '@api/controllers/registration_module/registration.controller';
 import { PublicCheckinController } from '@api/controllers/registration_module/public-checkin.controller';
 import { RegistrationService } from '@application/registration_module/registration.service';
-import { AnswerImageService } from '@application/registration_module/answer-images.service';
+import { FormDocumentsService } from '@application/registration_module/form-documents.service';
+import { FormDocumentUploadController } from '@api/controllers/registration_module/form-document-upload.controller';
 import { StorageModule } from '@shared/modules/storage.module';
 import { RegistrationDbModule } from '@infra/repositories/registration_module/registration-db.module';
 import { FormResponseDbModule } from '@infra/repositories/form_response_module/form-response-db.module';
@@ -23,8 +24,8 @@ import { FormFieldModule } from '@shared/modules/form-field.module';
     FormModule,
     FormFieldModule,
   ],
-  controllers: [RegistrationController, PublicCheckinController],
-  providers: [RegistrationService, AnswerImageService],
-  exports: [RegistrationService],
+  controllers: [RegistrationController, PublicCheckinController, FormDocumentUploadController],
+  providers: [RegistrationService, FormDocumentsService],
+  exports: [RegistrationService, FormDocumentsService],
 })
 export class RegistrationModule {}

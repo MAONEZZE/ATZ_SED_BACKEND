@@ -52,6 +52,11 @@ export class PrismaFormRepository extends PrismaRepositoryBase implements FormRe
     return rows.map((row) => this.toEntity(row));
   }
 
+  async findById(id: string): Promise<FormEntity | null> {
+    const row = await this.prisma.form.findUnique({ where: { id } });
+    return row ? this.toEntity(row) : null;
+  }
+
   async findByIdAndEvent(id: string, eventId: string): Promise<FormEntity | null> {
     const row = await this.prisma.form.findFirst({ where: { id, eventId } });
     return row ? this.toEntity(row) : null;

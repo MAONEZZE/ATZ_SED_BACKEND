@@ -22,6 +22,12 @@ export function answerToString(value: unknown): string {
   if (Array.isArray(value)) {
     return value.map(answerToString).join('; ');
   }
+  if (typeof value === 'object') {
+    const file = value as { url?: unknown; name?: unknown };
+    if (typeof file.url === 'string') {
+      return typeof file.name === 'string' && file.name ? `${file.name}: ${file.url}` : file.url;
+    }
+  }
   return JSON.stringify(value);
 }
 

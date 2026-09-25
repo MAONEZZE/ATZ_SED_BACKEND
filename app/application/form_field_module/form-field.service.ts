@@ -78,6 +78,7 @@ export class FormFieldService {
     // mais "o form padrão" para materializar na hora.
     const form = await this.formsService.findOne(input.formId, eventId);
     await this.assertSingleAutomationDateField(form.id, input.type);
+    this.assertDocumentOptions(input.type, input.options);
     const field = await this.repo.create({
       formId: form.id,
       label: input.label,
@@ -98,6 +99,7 @@ export class FormFieldService {
     if (input.type !== undefined && input.type !== field.type) {
       this.warnIfTypeChangeIncoherent(field, input);
     }
+    this.assertDocumentOptions(input.type ?? field.type, input.options ?? field.options);
     await this.assertSingleAutomationDateField(field.formId, input.type, id);
 
     const updated = await this.repo.update(id, {
@@ -135,6 +137,17 @@ export class FormFieldService {
       this.logger.warn(
         `Form field "${field.label}" changed type from "${field.type}" to "${nextType}"; existing answers are not revalidated/migrated against the new type.`,
       );
+    }
+  }
+
+  private assertDocumentOptions(type: string, options: unknown): void {
+    if (type !== 'document' || options == null) return;
+    if (typeof options !== 'object' || Array.isArray(options)) {
+      throw new BadRequestException('Campo document deve configurar options como objeto');
+    }
+    const maxFiles = (options as { maxFiles?: unknown }).maxFiles;
+    if (maxFiles !== undefined && (!Number.isInteger(maxFiles) || (maxFiles as number) < 1)) {
+      throw new BadRequestException('maxFiles deve ser um inteiro maior ou igual a 1');
     }
   }
 

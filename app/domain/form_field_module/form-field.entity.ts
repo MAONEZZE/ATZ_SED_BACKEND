@@ -9,7 +9,7 @@ export const FIELD_TYPES = [
   'select',
   'multiselect',
   'checkbox',
-  'image',
+  'document',
   'date',
   'linkedin',
   'instagram',

@@ -20,6 +20,8 @@ import {
   AUTOMATION_REPOSITORY_PORT,
   AutomationRepositoryPort,
 } from '@domain/automation_module/i-repository-automation';
+import { StoredAttachment } from '@domain/shared/file-reference';
+import { MessageAttachmentsService } from '@application/outbox_module/message-attachments.service';
 
 export interface CreateTemplateInput {
   name: string;
@@ -30,6 +32,7 @@ export interface CreateTemplateInput {
   styleKey?: string;
   eventId?: string;
   folderId?: string;
+  attachment?: StoredAttachment;
 }
 
 export interface UpdateTemplateInput {
@@ -41,6 +44,7 @@ export interface UpdateTemplateInput {
   styleKey?: string;
   eventId?: string | null;
   folderId?: string | null;
+  attachment?: StoredAttachment | null;
 }
 
 @Injectable()
@@ -52,6 +56,7 @@ export class MessageTemplateService {
     private readonly folders: FolderRepositoryPort,
     @Inject(AUTOMATION_REPOSITORY_PORT)
     private readonly automations: AutomationRepositoryPort,
+    private readonly attachments: MessageAttachmentsService,
   ) {}
 
   async create(userId: string, input: CreateTemplateInput) {
@@ -59,6 +64,7 @@ export class MessageTemplateService {
     if (input.folderId) {
       await this.assertFolderMatches(input.folderId, userId, input.eventId ?? null);
     }
+    if (input.attachment) this.attachments.assertOwned(userId, input.attachment);
     return this.repo.create({
       ownerId: userId,
       name: input.name,
@@ -67,6 +73,7 @@ export class MessageTemplateService {
       body: input.body,
       layoutConfig: input.layoutConfig,
       styleKey: input.styleKey ?? null,
+      attachment: input.attachment ?? null,
       eventId: input.eventId ?? null,
       folderId: input.folderId ?? null,
     });
@@ -114,6 +121,7 @@ export class MessageTemplateService {
 
   async update(userId: string, id: string, input: UpdateTemplateInput) {
     const existing = await this.findOne(userId, id);
+    if (input.attachment) this.attachments.assertOwned(userId, input.attachment);
     if (input.eventId) await this.assertEventAccess(input.eventId, userId);
 
     // Trocar o evento de um template com automação (ativa ou não) quebraria a
@@ -139,20 +147,29 @@ export class MessageTemplateService {
 
     const resolvedFolderId = await this.resolveFolderId(userId, input, existing);
 
-    return this.repo.update(id, {
+    const updated = await this.repo.update(id, {
       ...(input.name !== undefined && { name: input.name }),
       ...(input.channel !== undefined && { channel: input.channel as MessageChannel }),
       ...(input.subject !== undefined && { subject: input.subject }),
       ...(input.body !== undefined && { body: input.body }),
       ...(input.layoutConfig !== undefined && { layoutConfig: input.layoutConfig }),
       ...(input.styleKey !== undefined && { styleKey: input.styleKey }),
+      ...(input.attachment !== undefined && { attachment: input.attachment }),
       ...(input.eventId !== undefined && { eventId: input.eventId }),
       ...(resolvedFolderId !== undefined && { folderId: resolvedFolderId }),
     });
+    if (
+      input.attachment !== undefined &&
+      existing.attachment &&
+      existing.attachment.path !== input.attachment?.path
+    ) {
+      await this.attachments.deleteIfUnreferenced(existing.attachment.path);
+    }
+    return updated;
   }
 
   async delete(userId: string, id: string): Promise<void> {
-    await this.findOne(userId, id);
+    const existing = await this.findOne(userId, id);
     const rule = await this.automations.findActiveRuleByTemplate(id);
     if (rule) {
       throw new ConflictException(
@@ -160,6 +177,9 @@ export class MessageTemplateService {
       );
     }
     await this.repo.delete(id);
+    if (existing.attachment) {
+      await this.attachments.deleteIfUnreferenced(existing.attachment.path);
+    }
   }
 
   private async assertEventAccess(eventId: string, userId: string): Promise<void> {

@@ -1,5 +1,6 @@
 import { MessageChannel } from '@domain/shared/message-channel.type';
 import { MessageTemplateEntity } from './message-template.entity';
+import { StoredAttachment } from '@domain/shared/file-reference';
 
 export const MESSAGE_TEMPLATE_REPOSITORY_PORT = Symbol('MESSAGE_TEMPLATE_REPOSITORY_PORT');
 
@@ -11,6 +12,7 @@ export interface CreateMessageTemplateData {
   body: string;
   layoutConfig?: Record<string, unknown> | null;
   styleKey?: string | null;
+  attachment?: StoredAttachment | null;
   eventId?: string | null;
   folderId?: string | null;
 }
@@ -23,6 +25,7 @@ export interface UpdateMessageTemplateData {
   body?: string;
   layoutConfig?: Record<string, unknown> | null;
   styleKey?: string | null;
+  attachment?: StoredAttachment | null;
   eventId?: string | null;
   folderId?: string | null;
 }
@@ -75,6 +78,9 @@ export interface MessageTemplateRepositoryPort {
   move(userId: string, id: string, beforeId?: string): Promise<boolean>;
 
   delete(id: string): Promise<void>;
+
+  /** Referência viva em outro template ou em uma mensagem ainda não concluída. */
+  isAttachmentPathReferenced(path: string): Promise<boolean>;
 
   /** Verdadeiro se o evento existe e o usuário é dono ou colaborador dele. */
   eventAccessible(eventId: string, userId: string): Promise<boolean>;

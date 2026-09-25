@@ -28,6 +28,9 @@ export interface OutboxAttachment {
   url: string;
   filename: string;
   mimetype: string;
+  /** Mantido para limpeza segura de anexos compartilhados por templates. */
+  path?: string;
+  size?: number;
 }
 
 export interface EnqueueMessageData {
