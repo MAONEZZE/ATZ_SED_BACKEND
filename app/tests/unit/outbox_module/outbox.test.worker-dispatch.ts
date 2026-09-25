@@ -268,6 +268,31 @@ describe('MessageDispatchWorker.process', () => {
     expect(fifthArg).toEqual([{ filename: 'f.pdf', url: 'https://cdn/f.pdf' }]);
   });
 
+  it('replaces an email attachment above 20 MB with a download link in the body', async () => {
+    const row = {
+      ...outboxRow,
+      id: 'att-email-large',
+      eventId: null,
+      channel: 'email',
+      attachments: [
+        {
+          url: 'https://cdn/f.mp4?a=1&b=2',
+          filename: 'vídeo <final>.mp4',
+          mimetype: 'video/mp4',
+          size: 20 * 1024 * 1024 + 1,
+        },
+      ],
+    };
+    const m = makeMocks(row);
+    const worker = makeWorker(m);
+    await worker.process({ data: { outboxId: row.id } } as any);
+
+    const [, , body, , attachments] = m.resend.sendEmail.mock.calls[0];
+    expect(body).toContain('https://cdn/f.mp4?a=1&amp;b=2');
+    expect(body).toContain('vídeo &lt;final&gt;.mp4');
+    expect(attachments).toBeUndefined();
+  });
+
   it('resumes whatsapp media from sentAttachments, sending only the remaining one', async () => {
     const row = {
       ...outboxRow,

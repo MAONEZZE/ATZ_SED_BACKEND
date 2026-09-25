@@ -13,7 +13,13 @@ function makeService(instanceAllowed = true) {
   const whatsappInstances = {
     isAllowedForProfile: jest.fn().mockResolvedValue(instanceAllowed),
   };
-  const storage = { upload: jest.fn(), delete: jest.fn(), getPublicUrl: jest.fn() };
+  const storage = {
+    upload: jest.fn(),
+    delete: jest.fn(),
+    move: jest.fn(),
+    list: jest.fn(),
+    getPublicUrl: jest.fn(),
+  };
   const config = { get: jest.fn().mockReturnValue(undefined) };
   const collaborators = { remove: jest.fn().mockResolvedValue(1) };
   const service = new EventService(

@@ -27,6 +27,7 @@ import { DateTime } from 'luxon';
 
 const ICS_MARKER = '[[[ICS_INVITE]]]';
 const ICS_MARKER_RECURRENT = '[[[ICS_INVITE_RECURRENT]]]';
+const EMAIL_ATTACHMENT_LIMIT = 20 * 1024 * 1024;
 
 @Processor(QUEUE_MESSAGE_DISPATCH, {
   concurrency: Number(process.env.WA_DISPATCH_CONCURRENCY) || 1,
@@ -115,12 +116,25 @@ export class MessageDispatchWorker extends WorkerHost {
           body = body.replace(ICS_MARKER_RECURRENT, '').replace(ICS_MARKER, '');
         }
 
-        const emailAttachments = ((outbox.attachments as OutboxAttachment[] | null) ?? []).map(
-          (a) => ({
+        const allAttachments = (outbox.attachments as OutboxAttachment[] | null) ?? [];
+        const oversized = allAttachments.filter(
+          (attachment) =>
+            typeof attachment.size === 'number' && attachment.size > EMAIL_ATTACHMENT_LIMIT,
+        );
+        const emailAttachments = allAttachments
+          .filter((attachment) => !oversized.includes(attachment))
+          .map((a) => ({
             filename: a.filename,
             url: a.url,
-          }),
-        );
+          }));
+        if (oversized.length) {
+          body += oversized
+            .map(
+              (attachment) =>
+                `<p><a href="${this.escapeHtml(attachment.url)}">Baixar ${this.escapeHtml(attachment.filename)}</a></p>`,
+            )
+            .join('');
+        }
 
         await this.resend.sendEmail(
           outbox.recipient,
@@ -300,5 +314,18 @@ export class MessageDispatchWorker extends WorkerHost {
     if (mimetype.startsWith('video/')) return 'video';
     if (mimetype.startsWith('audio/')) return 'audio';
     return 'document';
+  }
+
+  private escapeHtml(value: string): string {
+    return value.replace(/[&<>"']/g, (char) => {
+      const replacements: Record<string, string> = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      };
+      return replacements[char];
+    });
   }
 }

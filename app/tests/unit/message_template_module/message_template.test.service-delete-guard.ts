@@ -10,7 +10,7 @@ function make(rule: { id: string; eventId: string; trigger: string } | null = nu
   };
   const folders = { findById: jest.fn().mockResolvedValue(null) };
   const automations = { findActiveRuleByTemplate: jest.fn().mockResolvedValue(rule) };
-  const svc = new MessageTemplateService(repo as any, folders as any, automations as any);
+  const svc = new MessageTemplateService(repo as any, folders as any, automations as any, {} as any);
   return { svc, repo, automations };
 }
 

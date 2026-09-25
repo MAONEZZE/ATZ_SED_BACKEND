@@ -7,8 +7,32 @@ import {
   IsUUID,
   MinLength,
   ValidateIf,
+  ValidateNested,
+  IsInt,
+  Min,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+
+export class TemplateAttachmentDto {
+  @ApiProperty({ example: 'message-attachments/profile-id/uuid-arquivo.pdf' })
+  @IsString()
+  path!: string;
+
+  @ApiProperty({ example: 'apresentacao.pdf' })
+  @IsString()
+  @MinLength(1)
+  name!: string;
+
+  @ApiProperty({ example: 'application/pdf' })
+  @IsString()
+  mimetype!: string;
+
+  @ApiProperty({ example: 204800 })
+  @IsInt()
+  @Min(1)
+  size!: number;
+}
 
 export class CreateGlobalTemplateDto {
   @ApiProperty({ example: 'Confirmação de inscrição' })
@@ -24,7 +48,7 @@ export class CreateGlobalTemplateDto {
     example: 'Sua inscrição foi confirmada!',
     description: 'Obrigatório quando channel = email',
   })
-  @ValidateIf((o) => o.channel === 'email')
+  @ValidateIf((o: CreateGlobalTemplateDto) => o.channel === 'email')
   @IsString()
   @MinLength(1, { message: 'subject é obrigatório para templates de email' })
   subject?: string;
@@ -60,6 +84,15 @@ export class CreateGlobalTemplateDto {
   @IsOptional()
   @IsUUID()
   folderId?: string;
+
+  @ApiPropertyOptional({
+    type: TemplateAttachmentDto,
+    description: 'Um anexo previamente enviado.',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => TemplateAttachmentDto)
+  attachment?: TemplateAttachmentDto;
 }
 
 export class UpdateGlobalTemplateDto {
@@ -101,7 +134,7 @@ export class UpdateGlobalTemplateDto {
     nullable: true,
   })
   @IsOptional()
-  @ValidateIf((o) => o.eventId !== null)
+  @ValidateIf((o: UpdateGlobalTemplateDto) => o.eventId !== null)
   @IsUUID()
   eventId?: string | null;
 
@@ -112,7 +145,18 @@ export class UpdateGlobalTemplateDto {
     nullable: true,
   })
   @IsOptional()
-  @ValidateIf((o) => o.folderId !== null)
+  @ValidateIf((o: UpdateGlobalTemplateDto) => o.folderId !== null)
   @IsUUID()
   folderId?: string | null;
+
+  @ApiPropertyOptional({
+    type: TemplateAttachmentDto,
+    nullable: true,
+    description: 'Substitui o anexo; null remove.',
+  })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @ValidateNested()
+  @Type(() => TemplateAttachmentDto)
+  attachment?: TemplateAttachmentDto | null;
 }

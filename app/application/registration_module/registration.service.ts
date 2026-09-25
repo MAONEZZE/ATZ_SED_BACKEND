@@ -27,11 +27,12 @@ import {
   mapAnswersToFieldIds,
   hydrateAnswerLabels,
   AnswerFieldMeta,
+  rejectDataUris,
 } from '@domain/shared/answer-validation';
 import { normalizePhone, phoneMatchKey, phoneMatchSuffix } from '@handlers/phone';
 import { APP_TIMEZONE } from '@handlers/timezone';
 import { DateTime } from 'luxon';
-import { AnswerImageService } from '@application/registration_module/answer-images.service';
+import { FormDocumentsService } from '@application/registration_module/form-documents.service';
 
 /** Teto de ids por requisição em lote (delete e presença). */
 const MAX_BATCH = 500;
@@ -86,7 +87,7 @@ export class RegistrationService {
     private readonly formResponses: FormResponseRepositoryPort,
     @Inject(FORM_FIELD_REPOSITORY_PORT)
     private readonly formFields: FormFieldRepositoryPort,
-    private readonly answerImages: AnswerImageService,
+    private readonly formDocuments: FormDocumentsService,
   ) {}
 
   /**
@@ -118,17 +119,13 @@ export class RegistrationService {
     const fields = await this.formFields.listValidationFields(form.id);
     validateAnswers(fields, answers);
 
-    // Uma conversão só, antes de qualquer gravação: o mesmo objeto alimenta o
-    // inscrito, a FormResponse e o payload do Pipedrive. Converter depois de um
-    // deles deixaria base64 vazando pelos outros.
-    const storedAnswers = await this.answerImages.materialize(answers, {
+    // Promove uploads temporários e rejeita data URIs antes de qualquer gravação.
+    const storedAnswers = await this.formDocuments.finalizeAnswers(answers, fields, {
       eventId: event.id,
       formId: form.id,
     });
 
-    // Uma conversão só, depois do materialize (para as mensagens de erro de
-    // imagem continuarem citando o label): o mesmo objeto id-keyed alimenta o
-    // inscrito, a FormResponse e (hidratado de volta) o Pipedrive.
+    // O mesmo objeto id-keyed alimenta inscrito, FormResponse e Pipedrive.
     const convertedAnswers = mapAnswersToFieldIds(fields, storedAnswers);
     const discarded = Object.keys(storedAnswers).length - Object.keys(convertedAnswers).length;
     if (discarded > 0) {
@@ -297,7 +294,11 @@ export class RegistrationService {
     eventId: string,
     formId: string,
     items: Array<{ nome: string; telefone?: string; email?: string }>,
-  ): Promise<{ created: number; skipped: number; rejected: Array<{ linha: number; motivo: string }> }> {
+  ): Promise<{
+    created: number;
+    skipped: number;
+    rejected: Array<{ linha: number; motivo: string }>;
+  }> {
     await this.formsService.findOne(formId, eventId); // 404 se o formulário não é do evento
 
     const fields = await this.formFields.listValidationFields(formId);
@@ -507,20 +508,25 @@ export class RegistrationService {
       throw new NotFoundException('Registration not found');
     }
 
-    // O DTO do painel continua chaveado por label (contrato inalterado).
+    // O DTO do painel continua chaveado por label (contrato inalterado). Só
+    // obrigatoriedade: o painel edita respostas parciais e legadas.
     for (const field of formFields) {
       if (field.required) {
         const val = resolveAnswer(answers, field.label);
-        if (val === undefined || val === null || String(val).trim() === '') {
+        const isEmpty =
+          val === undefined ||
+          val === null ||
+          (typeof val === 'string' && val.trim() === '') ||
+          (Array.isArray(val) && val.length === 0);
+        if (isEmpty) {
           throw new BadRequestException(`Campo obrigatório ausente: "${field.label}"`);
         }
       }
     }
-
-    // Mesma conversão da submissão pública: sem isso a edição pelo painel
-    // reintroduz base64 no JSON. Idempotente, então as respostas antigas que já
-    // são URL passam reto.
-    const storedAnswers = await this.answerImages.materialize(answers, { eventId });
+    rejectDataUris(answers);
+    const storedAnswers = formId
+      ? await this.formDocuments.finalizeAnswers(answers, formFields, { eventId, formId })
+      : answers;
     const convertedAnswers = mapAnswersToFieldIds(formFields, storedAnswers);
     // `reg.answers` já é id-keyed no banco: o merge tem que ficar no mesmo
     // espaço de chaves, senão duplica a resposta (uma sob label, outra sob id).
@@ -579,14 +585,14 @@ export class RegistrationService {
    * `originFormId` nulo (import antigo/painel sem origem) passa reto.
    */
   private async hydrateRegistrations(regs: RegistrationEntity[]): Promise<RegistrationEntity[]> {
-    const formIds = [...new Set(regs.map((r) => r.originFormId).filter((id): id is string => !!id))];
+    const formIds = [
+      ...new Set(regs.map((r) => r.originFormId).filter((id): id is string => !!id)),
+    ];
     if (formIds.length === 0) return regs;
 
     const fieldsByForm = new Map(
       await Promise.all(
-        formIds.map(
-          async (formId) => [formId, await this.formFields.listLabels(formId)] as const,
-        ),
+        formIds.map(async (formId) => [formId, await this.formFields.listLabels(formId)] as const),
       ),
     );
 

@@ -30,6 +30,7 @@ export interface UpdateFormData {
 export interface FormRepositoryPort {
   /** Formulários do evento, ordenados por `order` e depois `createdAt`. */
   listByEvent(eventId: string): Promise<FormEntity[]>;
+  findById(id: string): Promise<FormEntity | null>;
   /** O eventId entra na consulta: sem ele um id conhecido devolveria form de outro evento. */
   findByIdAndEvent(id: string, eventId: string): Promise<FormEntity | null>;
   findByEventAndSlug(eventId: string, slug: string): Promise<FormEntity | null>;

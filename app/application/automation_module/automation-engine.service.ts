@@ -21,6 +21,8 @@ import {
   FORM_RESPONSE_REPOSITORY_PORT,
   FormResponseRepositoryPort,
 } from '@domain/form_response_module/i-repository-form-response';
+import { STORAGE_PORT, StoragePort } from '@domain/shared/i-storage';
+import { ConfigService } from '@nestjs/config';
 
 const TRIGGER_MAP: Partial<Record<string, string>> = {
   pending: 'on_registration',
@@ -42,6 +44,8 @@ export class AutomationEngine {
     private readonly formResponses: FormResponseRepositoryPort,
     private readonly outbox: OutboxService,
     private readonly renderer: TemplateRenderer,
+    @Inject(STORAGE_PORT) private readonly storage: StoragePort,
+    private readonly config: ConfigService,
   ) {}
 
   @OnEvent('registration.status_changed')
@@ -227,6 +231,22 @@ export class AutomationEngine {
         ? `${contact.registrationId}:${rule.templateId}:${trigger}${occurrence}`
         : `${eventId}:${(contact.email || contact.phone).toLowerCase()}:${rule.templateId}:${trigger}${occurrence}`;
 
+      const templateAttachment = rule.template.attachment;
+      const attachments = templateAttachment
+        ? [
+            {
+              path: templateAttachment.path,
+              url: this.storage.getPublicUrl(
+                this.config.get<string>('SUPABASE_STORAGE_BUCKET') ?? 'ATZ_SED',
+                templateAttachment.path,
+              ),
+              filename: templateAttachment.name,
+              mimetype: templateAttachment.mimetype,
+              size: templateAttachment.size,
+            },
+          ]
+        : undefined;
+
       await this.outbox.enqueue(
         {
           eventId: event.id,
@@ -240,6 +260,7 @@ export class AutomationEngine {
           instancia: instancia ?? undefined,
           renderedBody,
           renderedSubject,
+          attachments,
         },
         // Espaça os disparos de WhatsApp entre contatos distintos (anti-ban).
         instancia ? { paceInstancia: instancia } : undefined,

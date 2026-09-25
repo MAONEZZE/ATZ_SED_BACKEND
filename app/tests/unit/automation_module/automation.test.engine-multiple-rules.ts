@@ -42,6 +42,10 @@ function makeEngine(rules: unknown[]) {
   const registrations = { findById: jest.fn().mockResolvedValue(registration) };
   const formResponses = { findFormIdsByRegistration: jest.fn().mockResolvedValue([]) };
   const outbox = { enqueue: jest.fn().mockResolvedValue(undefined) };
+  const storage = {
+    getPublicUrl: jest.fn().mockImplementation((_bucket, path) => `https://cdn/ATZ_SED/${path}`),
+  };
+  const config = { get: jest.fn().mockReturnValue('ATZ_SED') };
   const engine = new AutomationEngine(
     automations as any,
     eventRepo as any,
@@ -49,6 +53,8 @@ function makeEngine(rules: unknown[]) {
     formResponses as any,
     outbox as any,
     new TemplateRenderer(),
+    storage as any,
+    config as any,
   );
   return { engine, outbox, automations };
 }
@@ -82,6 +88,31 @@ describe('AutomationEngine — múltiplas regras no mesmo gatilho', () => {
     const [emailCall, whatsCall] = outbox.enqueue.mock.calls.map(([data]) => data);
     expect(emailCall.recipient).toBe('joao@test.com');
     expect(whatsCall.recipient).toBe('+5511999998888');
+  });
+
+  it('copies the template attachment into the outbox with a server-resolved URL', async () => {
+    const attached = rule('rule-email', 'tpl-email', 'email');
+    Object.assign(attached.template, {
+      attachment: {
+        path: 'message-attachments/owner-1/file.pdf',
+        name: 'file.pdf',
+        mimetype: 'application/pdf',
+        size: 123,
+      },
+    });
+    const { engine, outbox } = makeEngine([attached]);
+
+    await engine.fireAutomations('reg-1', 'evt-1', 'on_approval');
+
+    expect(outbox.enqueue.mock.calls[0][0].attachments).toEqual([
+      {
+        path: 'message-attachments/owner-1/file.pdf',
+        url: 'https://cdn/ATZ_SED/message-attachments/owner-1/file.pdf',
+        filename: 'file.pdf',
+        mimetype: 'application/pdf',
+        size: 123,
+      },
+    ]);
   });
 
   // O dedupKey é `registrationId:templateId:trigger` (+ formulário, quando a

@@ -4,6 +4,7 @@ import { FormModule } from '@shared/modules/form.module';
 import { FormFieldModule } from '@shared/modules/form-field.module';
 import { RegistrationModule } from '@shared/modules/registration.module';
 import { EventModule } from '@shared/modules/event.module';
+import { PublicFormDocumentUploadController } from '@api/controllers/registration_module/form-document-upload.controller';
 
 /**
  * As rotas públicas de formulário moram aqui, e não no FormModule, porque elas
@@ -12,6 +13,6 @@ import { EventModule } from '@shared/modules/event.module';
  */
 @Module({
   imports: [FormModule, FormFieldModule, RegistrationModule, EventModule],
-  controllers: [PublicFormController],
+  controllers: [PublicFormController, PublicFormDocumentUploadController],
 })
 export class PublicFormModule {}

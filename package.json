@@ -18,7 +18,8 @@
     "test:cov": "jest --coverage",
     "test:mutation": "stryker run",
     "db:migrate": "prisma migrate dev",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "db:backfill-form-documents": "node --env-file=.env -r ts-node/register -r tsconfig-paths/register app/application/registration_module/backfill-form-documents.cli.ts"
   },
   "prisma": {
     "schema": "app/infra/prisma/schema.prisma"

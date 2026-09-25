@@ -4,9 +4,10 @@ import { MessageTemplateService } from '@application/message_template_module/mes
 import { MessageTemplateDbModule } from '@infra/repositories/message_template_module/message-template-db.module';
 import { AutomationDbModule } from '@infra/repositories/automation_module/automation-db.module';
 import { GuardsModule } from '@shared/modules/guards.module';
+import { OutboxModule } from '@shared/modules/outbox.module';
 
 @Module({
-  imports: [MessageTemplateDbModule, AutomationDbModule, GuardsModule],
+  imports: [MessageTemplateDbModule, AutomationDbModule, GuardsModule, OutboxModule],
   controllers: [MessageTemplateController],
   providers: [MessageTemplateService],
   exports: [MessageTemplateService],

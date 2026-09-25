@@ -54,6 +54,8 @@ function makeEngine(rules: unknown[], respondedFormIds: string[] = []) {
     formResponses as any,
     outbox as any,
     new TemplateRenderer(),
+    {} as any,
+    {} as any,
   );
   return { engine, outbox, formResponses };
 }

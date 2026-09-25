@@ -9,6 +9,8 @@ import { OutboxModule } from '@shared/modules/outbox.module';
 import { IcsGeneratorService } from '@application/shared/ics-generator.service';
 import { RedisMaintenanceService } from '@application/workers/redis-maintenance.service';
 import { OutboxMaintenanceService } from '@application/workers/outbox-maintenance.service';
+import { FormUploadMaintenanceService } from '@application/workers/form-upload-maintenance.service';
+import { RegistrationModule } from '@shared/modules/registration.module';
 
 @Module({
   imports: [
@@ -18,12 +20,14 @@ import { OutboxMaintenanceService } from '@application/workers/outbox-maintenanc
     EventDbModule,
     AdaptersModule,
     OutboxModule,
+    RegistrationModule,
   ],
   providers: [
     MessageDispatchWorker,
     IcsGeneratorService,
     RedisMaintenanceService,
     OutboxMaintenanceService,
+    FormUploadMaintenanceService,
   ],
 })
 export class WorkersModule {}

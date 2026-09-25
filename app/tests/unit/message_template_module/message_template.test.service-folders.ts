@@ -36,7 +36,7 @@ function make(folder: unknown = GLOBAL_FOLDER, existing: object = EXISTING) {
     hasRuleForTemplate: jest.fn().mockResolvedValue(false),
   };
   return {
-    svc: new MessageTemplateService(repo as any, folders as any, automations as any),
+    svc: new MessageTemplateService(repo as any, folders as any, automations as any, {} as any),
     repo,
     folders,
   };

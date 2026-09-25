@@ -1,6 +1,7 @@
 import { EventRole } from '@domain/collaborator_module/event-role.type';
 import { MessageChannel } from '@domain/shared/message-channel.type';
 import { EventEntity, EventStatus } from './event.entity';
+import { StoredAttachment } from '@domain/shared/file-reference';
 
 export const EVENT_REPOSITORY_PORT = Symbol('EVENT_REPOSITORY_PORT');
 
@@ -81,6 +82,8 @@ export interface EventDuplicationTemplate {
   body: string;
   layoutConfig: Record<string, unknown> | null;
   styleKey: string | null;
+  /** A duplicação compartilha a mesma referência; não copia o binário. */
+  attachment?: StoredAttachment | null;
   order: number;
 }
 

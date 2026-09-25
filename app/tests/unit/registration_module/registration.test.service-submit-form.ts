@@ -82,9 +82,9 @@ function make(overrides?: {
       { id: OPCAO_FIELD_ID, label: 'opcao', type: 'text', required: false, isFixed: false },
     ]),
   };
-  // Pass-through por padrão; os testes de imagem trocam o retorno para provar
-  // que é o valor convertido que chega em inscrito, FormResponse e Pipedrive.
-  const answerImages = { materialize: jest.fn().mockImplementation((a) => Promise.resolve(a)) };
+  const formDocuments = {
+    finalizeAnswers: jest.fn().mockImplementation((a) => Promise.resolve(a)),
+  };
   const service = new RegistrationService(
     regRepo as any,
     eventsService as any,
@@ -93,9 +93,9 @@ function make(overrides?: {
     forms as any,
     formResponses as any,
     formFields as any,
-    answerImages as any,
+    formDocuments as any,
   );
-  return { service, regRepo, emitter, pipedrive, forms, formResponses, answerImages };
+  return { service, regRepo, emitter, pipedrive, forms, formResponses, formDocuments };
 }
 
 // O telefone é a identidade dentro do formulário: casa com o inscrito daquele

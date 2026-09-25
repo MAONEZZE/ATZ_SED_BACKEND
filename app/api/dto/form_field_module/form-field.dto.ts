@@ -9,7 +9,7 @@ const FORM_FIELD_TYPES = [
   'select',
   'multiselect',
   'checkbox',
-  'image',
+  'document',
   'date',
   'linkedin',
   'instagram',
@@ -17,7 +17,10 @@ const FORM_FIELD_TYPES = [
 ] as const;
 
 export class CreateFormFieldDto {
-  @ApiProperty({ example: 'uuid-do-formulario', description: 'Formulário do evento onde o campo entra.' })
+  @ApiProperty({
+    example: 'uuid-do-formulario',
+    description: 'Formulário do evento onde o campo entra.',
+  })
   @IsUUID()
   formId!: string;
 
@@ -34,7 +37,10 @@ export class CreateFormFieldDto {
   @IsBoolean()
   required?: boolean;
 
-  @ApiPropertyOptional({ example: ['Opção 1', 'Opção 2'] })
+  @ApiPropertyOptional({
+    examples: [['Opção 1', 'Opção 2'], { maxFiles: 3 }],
+    description: 'Opções de select/multiselect ou `{ maxFiles }` para campos document.',
+  })
   @IsOptional()
   options?: unknown;
 
@@ -43,7 +49,6 @@ export class CreateFormFieldDto {
   @IsInt()
   @Min(0)
   order?: number;
-
 }
 
 export class UpdateFormFieldDto extends PartialType(CreateFormFieldDto) {}
