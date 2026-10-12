@@ -38,6 +38,7 @@ function make(templateById: jest.Mock) {
     forms as any,
     folders as any,
     formFields as any,
+    { findById: jest.fn() } as any,
   );
   return { svc, repo };
 }

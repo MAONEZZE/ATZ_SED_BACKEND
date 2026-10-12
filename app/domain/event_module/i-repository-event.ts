@@ -1,5 +1,9 @@
 import { EventRole } from '@domain/collaborator_module/event-role.type';
 import { MessageChannel } from '@domain/shared/message-channel.type';
+import {
+  AutomationDelayDirection,
+  AutomationDelayUnit,
+} from '@domain/automation_module/automation-rule.entity';
 import { EventEntity, EventStatus } from './event.entity';
 import { StoredAttachment } from '@domain/shared/file-reference';
 
@@ -98,6 +102,14 @@ export interface EventDuplicationAutomationRule {
   sendAt: Date | null;
   /** Hora do disparo mensal de `on_date_form_field`, "HH:mm". */
   sendTime: string | null;
+  /**
+   * Delay de `on_event_delay`. Copiado como está: o disparo é recalculado pela
+   * data do evento, então a regra nasce **ativa** e sem estado de disparo
+   * (`firedAt`/`firedForAt` não são copiados).
+   */
+  delayDirection: AutomationDelayDirection | null;
+  delayValue: number | null;
+  delayUnit: AutomationDelayUnit | null;
   /** Nome próprio da regra. */
   name: string | null;
   active: boolean;

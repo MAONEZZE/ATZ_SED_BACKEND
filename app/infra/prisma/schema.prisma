@@ -97,6 +97,24 @@ enum AutomationTrigger {
   /// Recorrência mensal por inscrito: dispara no dia-do-mês que a pessoa
   /// respondeu num campo `on_date_automation_field`. Hora vem de `sendTime`.
   on_date_form_field
+  /// Dispara X tempo antes (eventDate) ou depois (endDate ?? eventDate) do evento,
+  /// seguindo a data atual do evento. Ver delay_direction/delay_value/delay_unit.
+  on_event_delay
+
+  @@schema("SED")
+}
+
+enum AutomationDelayDirection {
+  before
+  after
+
+  @@schema("SED")
+}
+
+enum AutomationDelayUnit {
+  minutes
+  hours
+  days
 
   @@schema("SED")
 }
@@ -404,31 +422,40 @@ model MessageTemplate {
 }
 
 model AutomationRule {
-  id           String               @id @default(uuid())
-  eventId      String               @map("event_id")
-  templateId   String               @map("template_id")
-  trigger      AutomationTrigger
-  delayMinutes Int?                 @map("delay_minutes")
-  cron         String?
-  timezone     String?
+  id             String                    @id @default(uuid())
+  eventId        String                    @map("event_id")
+  templateId     String                    @map("template_id")
+  trigger        AutomationTrigger
+  delayMinutes   Int?                      @map("delay_minutes")
+  cron           String?
+  timezone       String?
   /// Instante do disparo único (trigger on_date), em UTC. `timezone` guarda o fuso em que foi marcado.
-  sendAt       DateTime?            @map("send_at") @db.Timestamptz(3)
+  sendAt         DateTime?                 @map("send_at") @db.Timestamptz(3)
   /// Marcado no claim do sweeper: regra de data já disparada não dispara de novo.
-  firedAt      DateTime?            @map("fired_at") @db.Timestamptz(3)
+  firedAt        DateTime?                 @map("fired_at") @db.Timestamptz(3)
   /// Hora do disparo mensal de on_date_form_field, "HH:mm", no `timezone` da regra. NULL nos outros gatilhos.
-  sendTime     String?              @map("send_time")
+  sendTime       String?                   @map("send_time")
+  /// on_event_delay: antes/depois do evento. NULL nos outros gatilhos.
+  delayDirection AutomationDelayDirection? @map("delay_direction")
+  /// on_event_delay: quantidade (inteiro >= 1) na unidade `delayUnit`.
+  delayValue     Int?                      @map("delay_value")
+  delayUnit      AutomationDelayUnit?      @map("delay_unit")
+  /// on_event_delay: momento de disparo (data do evento ± delay) já processado.
+  /// O sweeper recalcula o momento a cada tick; mudou a data do evento ou o delay,
+  /// o momento difere deste e a regra rearma sozinha.
+  firedForAt     DateTime?                 @map("fired_for_at") @db.Timestamptz(3)
   /// Nome próprio da regra. NULL = a UI cai no nome do template.
-  name         String?
-  active       Boolean              @default(true)
-  folderId     String?              @map("folder_id")
-  order        Int                  @default(0)
-  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
-  event        Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  template     MessageTemplate      @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  folder       Folder?              @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  name           String?
+  active         Boolean                   @default(true)
+  folderId       String?                   @map("folder_id")
+  order          Int                       @default(0)
+  createdAt      DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  event          Event                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  template       MessageTemplate           @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  folder         Folder?                   @relation(fields: [folderId], references: [id], onDelete: SetNull)
   /// Escopo por formulário: obrigatório em on_form_submitted, opcional em on_registration.
   /// Vazio = todos os formulários do evento (dinâmico).
-  forms        AutomationRuleForm[]
+  forms          AutomationRuleForm[]
 
   @@index([eventId, trigger, active])
   @@index([folderId])

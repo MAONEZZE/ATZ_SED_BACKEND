@@ -17,7 +17,13 @@ import {
 } from 'class-validator';
 import { OmitType, PartialType, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IANAZone } from 'luxon';
-import { AUTOMATION_TRIGGERS } from '@domain/automation_module/automation-rule.entity';
+import {
+  AUTOMATION_DELAY_DIRECTIONS,
+  AUTOMATION_DELAY_UNITS,
+  AUTOMATION_TRIGGERS,
+  AutomationDelayDirection,
+  AutomationDelayUnit,
+} from '@domain/automation_module/automation-rule.entity';
 import { PaginationQueryDto } from '@api/dto/shared/pagination';
 
 // 5-field cron: minute hour day-of-month month day-of-week.
@@ -74,7 +80,7 @@ export class CreateAutomationDto {
     type: [String],
     example: ['uuid-do-formulario-1', 'uuid-do-formulario-2'],
     description:
-      'Vale nos 7 gatilhos. Ausente/vazio = todos os formulários do evento, inclusive os criados depois. Obrigatório (não-vazio) em "on_form_submitted" e "on_date_form_field". Em "on_registration"/"on_form_submitted" o critério é o formulário da submissão; nos outros (on_approval, on_rejection, recurring, on_date, on_date_form_field) é participação — o inscrito respondeu algum dos formulários da regra; inscrito criado pelo painel (sem FormResponse) não é alcançado por regra escopada. Formulário anônimo é sempre recusado (400). "on_date_form_field" também exige que o formulário tenha um campo on_date_automation_field.',
+      'Vale nos 8 gatilhos. Ausente/vazio = todos os formulários do evento, inclusive os criados depois. Obrigatório (não-vazio) em "on_form_submitted" e "on_date_form_field". Em "on_registration"/"on_form_submitted" o critério é o formulário da submissão; nos outros (on_approval, on_rejection, recurring, on_date, on_date_form_field, on_event_delay) é participação — o inscrito respondeu algum dos formulários da regra; inscrito criado pelo painel (sem FormResponse) não é alcançado por regra escopada. Formulário anônimo é sempre recusado (400). "on_date_form_field" também exige que o formulário tenha um campo on_date_automation_field.',
   })
   @IsOptional()
   @IsArray()
@@ -91,6 +97,41 @@ export class CreateAutomationDto {
   @Min(0)
   @Max(0)
   delayMinutes?: number;
+
+  @ApiPropertyOptional({
+    enum: AUTOMATION_DELAY_DIRECTIONS,
+    example: 'before',
+    description:
+      'Obrigatório quando trigger="on_event_delay". before = antes do início (eventDate); after = após o fim (endDate, ou eventDate se não houver).',
+  })
+  @ValidateIf(
+    (o: CreateAutomationDto) => o.trigger === 'on_event_delay' || o.delayDirection !== undefined,
+  )
+  @IsIn(AUTOMATION_DELAY_DIRECTIONS)
+  delayDirection?: AutomationDelayDirection;
+
+  @ApiPropertyOptional({
+    example: 2,
+    description:
+      'Obrigatório quando trigger="on_event_delay". Inteiro ≥ 1; o total fica limitado a 365 dias.',
+  })
+  @ValidateIf(
+    (o: CreateAutomationDto) => o.trigger === 'on_event_delay' || o.delayValue !== undefined,
+  )
+  @IsInt()
+  @Min(1)
+  delayValue?: number;
+
+  @ApiPropertyOptional({
+    enum: AUTOMATION_DELAY_UNITS,
+    example: 'hours',
+    description: 'Obrigatório quando trigger="on_event_delay". Dia = 24h exatas.',
+  })
+  @ValidateIf(
+    (o: CreateAutomationDto) => o.trigger === 'on_event_delay' || o.delayUnit !== undefined,
+  )
+  @IsIn(AUTOMATION_DELAY_UNITS)
+  delayUnit?: AutomationDelayUnit;
 
   @ApiPropertyOptional({
     example: '0 9 * * 1',

@@ -51,6 +51,7 @@ function make(existing = rule('on_form_submitted', ['form-1'])) {
     forms as any,
     folders as any,
     formFields as any,
+    { findById: jest.fn() } as any,
   );
   return { svc, repo, forms };
 }
@@ -174,6 +175,7 @@ describe('AutomationService — formulário anônimo', () => {
       forms as any,
       folders as any,
       formFields as any,
+      { findById: jest.fn() } as any,
     );
     return { svc, repo };
   }

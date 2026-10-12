@@ -72,6 +72,9 @@ export class EventLifecycleService {
       // evento novo nasce sem respostas, então ativar de cara mandaria a
       // mensagem sem ninguém ter respondido nada — decisão explícita, não
       // herdada da cópia.
+      // `on_event_delay` fica de fora da trava de propósito: o disparo é
+      // recalculado pela data do evento (copiada) e não há estado de disparo
+      // herdado, então copiar ativa é seguro.
       active:
         AutomationRuleEntity.isDate(rule.trigger) ||
         AutomationRuleEntity.isDateFormField(rule.trigger)

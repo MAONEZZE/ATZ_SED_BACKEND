@@ -137,6 +137,9 @@ describe('EventLifecycleService.duplicate — automation rules', () => {
     timezone: null,
     sendAt: null,
     sendTime: null,
+    delayDirection: null,
+    delayValue: null,
+    delayUnit: null,
     name: null,
     active: true,
     order: 0,
@@ -151,6 +154,9 @@ describe('EventLifecycleService.duplicate — automation rules', () => {
     timezone: 'America/Sao_Paulo',
     sendAt: null,
     sendTime: null,
+    delayDirection: null,
+    delayValue: null,
+    delayUnit: null,
     name: null,
     active: true,
     order: 1,
@@ -165,6 +171,9 @@ describe('EventLifecycleService.duplicate — automation rules', () => {
     timezone: 'America/Sao_Paulo',
     sendAt: new Date('2026-02-12T12:00:00Z'),
     sendTime: null,
+    delayDirection: null,
+    delayValue: null,
+    delayUnit: null,
     name: null,
     active: true,
     order: 2,
@@ -179,11 +188,49 @@ describe('EventLifecycleService.duplicate — automation rules', () => {
     timezone: 'America/Sao_Paulo',
     sendAt: null,
     sendTime: '18:30',
+    delayDirection: null,
+    delayValue: null,
+    delayUnit: null,
     name: 'Cobrança mensal',
     active: true,
     order: 3,
     formSlugs: [],
   };
+
+  const RULE_EVENT_DELAY = {
+    templateId: 'tpl-delay',
+    trigger: 'on_event_delay',
+    delayMinutes: null,
+    cron: null,
+    timezone: null,
+    sendAt: null,
+    sendTime: null,
+    delayDirection: 'before',
+    delayValue: 2,
+    delayUnit: 'hours',
+    name: null,
+    active: true,
+    order: 4,
+    formSlugs: [],
+  };
+
+  // O disparo é recalculado pela data do evento (copiada), sem estado de disparo
+  // para herdar: ao contrário de `on_date`, copiar ativa é seguro.
+  it('keeps an on_event_delay rule active with its delay fields', async () => {
+    const source = baseSource({ automationRules: [RULE_EVENT_DELAY] });
+    const { service, eventRepo } = makeService(source);
+    await service.duplicate('evt-1', 'user-9');
+
+    const rules = eventRepo.createDuplicateGraph.mock.calls[0][0].rules;
+    expect(rules[0]).toEqual(
+      expect.objectContaining({
+        active: true,
+        delayDirection: 'before',
+        delayValue: 2,
+        delayUnit: 'hours',
+      }),
+    );
+  });
 
   it('keeps the source templateId and formSlugs on each rule sent to the graph (the repo remaps them)', async () => {
     const source = baseSource({ automationRules: [RULE_IMMEDIATE] });
@@ -238,6 +285,9 @@ describe('EventLifecycleService.duplicate — automation rules', () => {
       expect.objectContaining({
         trigger: 'on_date_form_field',
         sendTime: '18:30',
+        delayDirection: null,
+        delayValue: null,
+        delayUnit: null,
         name: 'Cobrança mensal',
         active: false,
       }),

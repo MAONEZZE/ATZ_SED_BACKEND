@@ -6,6 +6,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import {
+  AutomationDelayDirection,
+  AutomationDelayUnit,
   AutomationRuleEntity,
   AutomationTrigger,
   DEFAULT_SEND_TIME,
@@ -19,6 +21,10 @@ import {
 } from '@domain/automation_module/i-repository-automation';
 import { RecurringSchedulerService } from '@application/automation_module/recurring-scheduler.service';
 import { FORM_REPOSITORY_PORT, FormRepositoryPort } from '@domain/form_module/i-repository-form';
+import {
+  EVENT_REPOSITORY_PORT,
+  EventRepositoryPort,
+} from '@domain/event_module/i-repository-event';
 import {
   FOLDER_REPOSITORY_PORT,
   FolderRepositoryPort,
@@ -41,6 +47,10 @@ export interface CreateAutomationInput {
   sendTime?: string | null;
   /** Nome próprio da regra. Ausente = a UI cai no nome do template. */
   name?: string | null;
+  /** `on_event_delay`: obrigatórios nesse gatilho, ignorados nos outros. */
+  delayDirection?: AutomationDelayDirection | null;
+  delayValue?: number | null;
+  delayUnit?: AutomationDelayUnit | null;
   active?: boolean;
   folderId?: string | null;
 }
@@ -55,8 +65,18 @@ export interface UpdateAutomationInput {
   sendAt?: string | null;
   sendTime?: string | null;
   name?: string | null;
+  delayDirection?: AutomationDelayDirection | null;
+  delayValue?: number | null;
+  delayUnit?: AutomationDelayUnit | null;
   active?: boolean;
   folderId?: string | null;
+}
+
+/** Delay de `on_event_delay` já validado. */
+interface EventDelay {
+  direction: AutomationDelayDirection;
+  value: number;
+  unit: AutomationDelayUnit;
 }
 
 interface RecurringSyncable {
@@ -76,6 +96,7 @@ export class AutomationService {
     @Inject(FORM_REPOSITORY_PORT) private readonly forms: FormRepositoryPort,
     @Inject(FOLDER_REPOSITORY_PORT) private readonly folders: FolderRepositoryPort,
     @Inject(FORM_FIELD_REPOSITORY_PORT) private readonly formFields: FormFieldRepositoryPort,
+    @Inject(EVENT_REPOSITORY_PORT) private readonly events: EventRepositoryPort,
   ) {}
 
   listPaginated(eventId: string, page: number, limit: number, folderId?: string | null) {
@@ -112,8 +133,14 @@ export class AutomationService {
     await this.assertTemplateExists(input.templateId, eventId);
     const sendAt = this.resolveSendAt(input.trigger, input.sendAt, input.timezone);
     // Na criação a obrigatoriedade de formIds vale sempre (enforceFormRequirement default).
-    this.assertRuleValid(input.trigger, input.cron, input.timezone, input.formIds, sendAt);
+    this.assertRuleValid(input.trigger, input.cron, input.timezone, input.formIds, sendAt, true, {
+      direction: input.delayDirection,
+      value: input.delayValue,
+      unit: input.delayUnit,
+    });
     this.assertSendAtFuture(input.trigger, sendAt, input.active ?? true, null);
+    const delay = this.eventDelayOf(input.trigger, input);
+    await this.assertEventDelayFuture(eventId, input.trigger, delay, input.active ?? true);
     if (input.formIds?.length)
       await this.assertFormsBelongToEvent(input.formIds, eventId, input.trigger);
     if (input.folderId) await this.assertFolderBelongsToEvent(input.folderId, eventId);
@@ -123,7 +150,14 @@ export class AutomationService {
     // o mesmo template em formulários diferentes vira uma regra com dois
     // formIds, não duas regras.
     if (input.active !== false) {
-      await this.assertNoActiveDuplicate(eventId, input.trigger, input.templateId, sendAt);
+      await this.assertNoActiveDuplicate(
+        eventId,
+        input.trigger,
+        input.templateId,
+        sendAt,
+        undefined,
+        delay,
+      );
     }
     const rule = await this.repo.create({
       eventId,
@@ -141,6 +175,9 @@ export class AutomationService {
       sendAt,
       sendTime: this.resolveSendTime(input.trigger, input.sendTime),
       name: input.name ?? null,
+      delayDirection: delay?.direction ?? null,
+      delayValue: delay?.value ?? null,
+      delayUnit: delay?.unit ?? null,
       active: input.active ?? true,
       folderId: input.folderId ?? null,
     });
@@ -178,6 +215,13 @@ export class AutomationService {
     // A obrigatoriedade de formIds só se aplica quando o corpo do PATCH manda
     // `formIds` explicitamente — senão uma regra `on_date_form_field` legada
     // (sem formulário) tomaria 400 em qualquer patch que nem toca nisso.
+    // Fora de `on_event_delay` o delay não existe: trocar de gatilho zera os campos.
+    const delay = this.eventDelayOf(trigger, {
+      delayDirection:
+        input.delayDirection !== undefined ? input.delayDirection : existing.delayDirection,
+      delayValue: input.delayValue !== undefined ? input.delayValue : existing.delayValue,
+      delayUnit: input.delayUnit !== undefined ? input.delayUnit : existing.delayUnit,
+    });
     this.assertRuleValid(
       trigger,
       cron,
@@ -185,12 +229,26 @@ export class AutomationService {
       mergedFormIds,
       sendAt,
       input.formIds !== undefined,
+      {
+        direction: delay?.direction ?? null,
+        value: delay?.value ?? null,
+        unit: delay?.unit ?? null,
+      },
     );
     // Remarcar a data reabre o disparo, então a regra volta a valer como nova:
     // o `firedAt` gravado não a isenta da checagem de data futura.
     const sendAtChanged = sendAt?.getTime() !== existing.sendAt?.getTime();
     this.assertSendAtFuture(trigger, sendAt, willBeActive, sendAtChanged ? null : existing.firedAt);
     this.assertDateNotRearmed(existing, trigger, sendAt, input.sendAt);
+    // Mexer só em nome/pasta de regra já disparada não revalida: o momento só é
+    // checado quando o delay muda, o gatilho muda ou a regra é (re)ativada.
+    const delayChanged =
+      (delay?.direction ?? null) !== existing.delayDirection ||
+      (delay?.value ?? null) !== existing.delayValue ||
+      (delay?.unit ?? null) !== existing.delayUnit;
+    if (delayChanged || input.active === true || input.trigger !== undefined) {
+      await this.assertEventDelayFuture(eventId, trigger, delay, willBeActive);
+    }
     if (input.formIds?.length) await this.assertFormsBelongToEvent(input.formIds, eventId, trigger);
     const formIds = mergedFormIds;
 
@@ -200,9 +258,9 @@ export class AutomationService {
     // ocupada pelo mesmo template também é duplicata.
     if (
       willBeActive &&
-      (input.trigger || input.templateId || input.active === true || sendAtChanged)
+      (input.trigger || input.templateId || input.active === true || sendAtChanged || delayChanged)
     ) {
-      await this.assertNoActiveDuplicate(eventId, trigger, templateId, sendAt, id);
+      await this.assertNoActiveDuplicate(eventId, trigger, templateId, sendAt, id, delay);
     }
 
     const updated = await this.repo.update(id, {
@@ -220,6 +278,14 @@ export class AutomationService {
       ...(sendAtChanged && { sendAt, firedAt: null }),
       ...(sendTime !== existing.sendTime && { sendTime }),
       ...(input.name !== undefined && { name: input.name }),
+      // O `firedForAt` só é limpo ao sair do gatilho; remarcar o delay não
+      // precisa: o momento novo difere do gravado e a regra rearma sozinha.
+      ...(delayChanged && {
+        delayDirection: delay?.direction ?? null,
+        delayValue: delay?.value ?? null,
+        delayUnit: delay?.unit ?? null,
+      }),
+      ...(AutomationRuleEntity.isEventDelay(existing.trigger) && !delay && { firedForAt: null }),
       ...(input.active !== undefined && { active: input.active }),
       ...(input.folderId !== undefined && { folderId: input.folderId }),
     });
@@ -250,6 +316,11 @@ export class AutomationService {
     formIds?: string[],
     sendAt?: Date | null,
     enforceFormRequirement = true,
+    delay?: {
+      direction?: string | null;
+      value?: number | null;
+      unit?: string | null;
+    },
   ): void {
     const errors = new AutomationValidator().validate(
       {
@@ -258,10 +329,62 @@ export class AutomationService {
         timezone,
         formIds,
         sendAt,
+        delayDirection: delay?.direction,
+        delayValue: delay?.value,
+        delayUnit: delay?.unit,
       },
       enforceFormRequirement,
     );
     if (errors.length > 0) throw new BadRequestException(errors[0]);
+  }
+
+  /**
+   * O delay só existe em `on_event_delay`; nos outros gatilhos é `null`. Chamado
+   * depois do validador, que já garantiu os três campos.
+   */
+  private eventDelayOf(
+    trigger: string,
+    fields: {
+      delayDirection?: AutomationDelayDirection | null;
+      delayValue?: number | null;
+      delayUnit?: AutomationDelayUnit | null;
+    },
+  ): EventDelay | null {
+    if (!AutomationRuleEntity.isEventDelay(trigger)) return null;
+    return {
+      direction: fields.delayDirection as AutomationDelayDirection,
+      value: fields.delayValue as number,
+      unit: fields.delayUnit as AutomationDelayUnit,
+    };
+  }
+
+  /**
+   * Mesma ideia de `assertSendAtFuture`: regra ativa cujo momento de disparo
+   * (data do evento ± delay) já passou seria descartada pela varredura sem
+   * enviar nada. Inativa pode — só vale ao ativar. Evento sem data nunca
+   * dispararia.
+   */
+  private async assertEventDelayFuture(
+    eventId: string,
+    trigger: string,
+    delay: EventDelay | null,
+    willBeActive: boolean,
+  ): Promise<void> {
+    if (!delay || !AutomationRuleEntity.isEventDelay(trigger) || !willBeActive) return;
+    const event = await this.events.findById(eventId);
+    if (!event) throw new NotFoundException('Event not found');
+    const fireAt = AutomationRuleEntity.computeEventDelayFireAt(
+      { eventDate: event.eventDate ?? null, endDate: event.endDate ?? null },
+      delay,
+    );
+    if (!fireAt) {
+      throw new BadRequestException('O evento precisa ter data para usar trigger "on_event_delay"');
+    }
+    if (fireAt.getTime() <= Date.now()) {
+      throw new BadRequestException(
+        'O momento do disparo (data do evento ± delay) precisa ser no futuro',
+      );
+    }
   }
 
   /**
@@ -409,7 +532,8 @@ export class AutomationService {
    * Em `on_date` a chave da duplicata inclui a **data**: o mesmo template em
    * datas diferentes são mensagens diferentes, e o `dedupKey` do outbox carrega o
    * `sendAt`, então não há colisão. Nos outros gatilhos a chave segue sendo
-   * (evento, gatilho, template). Espelha os índices parciais do banco.
+   * (evento, gatilho, template). Em `on_event_delay` a chave é (evento, template,
+   * direção, valor, unidade). Espelha os índices parciais do banco.
    */
   private async assertNoActiveDuplicate(
     eventId: string,
@@ -417,20 +541,36 @@ export class AutomationService {
     templateId: string,
     sendAt?: Date | null,
     excludeId?: string,
+    delay?: EventDelay | null,
   ): Promise<void> {
     const scopedByDate = AutomationRuleEntity.isDate(trigger);
-    const duplicate = await this.repo.findActiveByEventTriggerAndTemplate(
-      eventId,
-      trigger,
-      templateId,
-      excludeId,
-      scopedByDate ? (sendAt ?? null) : undefined,
-    );
+    const scopedByDelay = AutomationRuleEntity.isEventDelay(trigger) && !!delay;
+    const dateKey = scopedByDate ? (sendAt ?? null) : undefined;
+    // O 6º argumento só vai quando existe: nos outros gatilhos a chamada fica
+    // idêntica à de antes do `on_event_delay`.
+    const duplicate = scopedByDelay
+      ? await this.repo.findActiveByEventTriggerAndTemplate(
+          eventId,
+          trigger,
+          templateId,
+          excludeId,
+          dateKey,
+          delay,
+        )
+      : await this.repo.findActiveByEventTriggerAndTemplate(
+          eventId,
+          trigger,
+          templateId,
+          excludeId,
+          dateKey,
+        );
     if (duplicate) {
       throw new ConflictException(
         scopedByDate
           ? 'An active automation with this template already exists for this date on this event'
-          : `An active automation for trigger '${trigger}' with this template already exists on this event`,
+          : scopedByDelay
+            ? 'An active automation with this template and delay already exists on this event'
+            : `An active automation for trigger '${trigger}' with this template already exists on this event`,
       );
     }
   }
