@@ -6,6 +6,8 @@ import { resequence } from '@domain/shared/resequence';
 import { writesFor } from '@infra/repositories/shared/order-writes';
 import { MessageTemplateEntity } from '@domain/message_template_module/message-template.entity';
 import {
+  AutomationDelayDirection,
+  AutomationDelayUnit,
   AutomationRuleEntity,
   AutomationTrigger,
 } from '@domain/automation_module/automation-rule.entity';
@@ -15,6 +17,7 @@ import {
   AutomationRuleWithFullTemplate,
   AutomationRuleWithTemplate,
   CreateAutomationRuleData,
+  EventDelayCandidate,
   FormFieldDateRule,
   RecurringSchedule,
   UpdateAutomationRuleData,
@@ -41,6 +44,10 @@ type AutomationRuleRow = {
   firedAt: Date | null;
   sendTime: string | null;
   name: string | null;
+  delayDirection: AutomationDelayDirection | null;
+  delayValue: number | null;
+  delayUnit: AutomationDelayUnit | null;
+  firedForAt: Date | null;
   forms?: Array<{ formId: string }>;
 };
 
@@ -86,6 +93,10 @@ export class PrismaAutomationRepository
       row.firedAt,
       row.sendTime,
       row.name,
+      row.delayDirection,
+      row.delayValue,
+      row.delayUnit,
+      row.firedForAt,
     );
   }
 
@@ -215,6 +226,7 @@ export class PrismaAutomationRepository
     templateId: string,
     excludeId?: string,
     sendAt?: Date | null,
+    delay?: { direction: AutomationDelayDirection; value: number; unit: AutomationDelayUnit },
   ): Promise<AutomationRuleEntity | null> {
     const row = await this.prisma.automationRule.findFirst({
       where: {
@@ -224,6 +236,12 @@ export class PrismaAutomationRepository
         active: true,
         // Espelha o índice parcial: no on_date a chave é (evento, template, data).
         ...(sendAt !== undefined && { sendAt }),
+        // Idem no on_event_delay: a chave é (evento, template, direção, valor, unidade).
+        ...(delay && {
+          delayDirection: delay.direction,
+          delayValue: delay.value,
+          delayUnit: delay.unit,
+        }),
         ...(excludeId && { id: { not: excludeId } }),
       },
     });
@@ -267,6 +285,9 @@ export class PrismaAutomationRepository
           sendAt: data.sendAt ?? null,
           sendTime: data.sendTime ?? null,
           name: data.name ?? null,
+          delayDirection: data.delayDirection ?? null,
+          delayValue: data.delayValue ?? null,
+          delayUnit: data.delayUnit ?? null,
           folderId: data.folderId ?? null,
           ...(data.active !== undefined && { active: data.active }),
           ...(data.formIds?.length && {
@@ -292,6 +313,10 @@ export class PrismaAutomationRepository
       ...(data.firedAt !== undefined && { firedAt: data.firedAt }),
       ...(data.sendTime !== undefined && { sendTime: data.sendTime }),
       ...(data.name !== undefined && { name: data.name }),
+      ...(data.delayDirection !== undefined && { delayDirection: data.delayDirection }),
+      ...(data.delayValue !== undefined && { delayValue: data.delayValue }),
+      ...(data.delayUnit !== undefined && { delayUnit: data.delayUnit }),
+      ...(data.firedForAt !== undefined && { firedForAt: data.firedForAt }),
       ...(data.active !== undefined && { active: data.active }),
       ...(data.folderId !== undefined && { folderId: data.folderId }),
     };
@@ -391,6 +416,49 @@ export class PrismaAutomationRepository
 
   async markDateRuleFired(id: string): Promise<void> {
     await this.prisma.automationRule.update({ where: { id }, data: { firedAt: new Date() } });
+  }
+
+  // Pré-filtro: o momento exato é calculado em memória pelo sweeper. 367 dias =
+  // teto de 365 do delay + folga; evento mais antigo que isso nunca dispara.
+  async findEventDelayCandidates(): Promise<EventDelayCandidate[]> {
+    const windowStart = new Date(Date.now() - 367 * 24 * 60 * 60_000);
+    const rows = await this.prisma.automationRule.findMany({
+      where: {
+        trigger: 'on_event_delay',
+        active: true,
+        event: { status: { in: ['published', 'ended'] }, eventDate: { gte: windowStart } },
+      },
+      select: {
+        id: true,
+        eventId: true,
+        delayDirection: true,
+        delayValue: true,
+        delayUnit: true,
+        firedForAt: true,
+        forms: { select: { formId: true } },
+        event: { select: { eventDate: true, endDate: true } },
+      },
+    });
+    // O delay é non-null para `on_event_delay` (o service exige); o select não sabe disso.
+    return rows.map((r) => ({
+      id: r.id,
+      eventId: r.eventId,
+      formIds: r.forms.map((f) => f.formId),
+      delay: {
+        direction: r.delayDirection as AutomationDelayDirection,
+        value: r.delayValue as number,
+        unit: r.delayUnit as AutomationDelayUnit,
+      },
+      firedForAt: r.firedForAt,
+      event: r.event,
+    }));
+  }
+
+  async markEventDelayRuleFired(id: string, firedForAt: Date): Promise<void> {
+    await this.prisma.automationRule.update({
+      where: { id },
+      data: { firedAt: new Date(), firedForAt },
+    });
   }
 
   // A exceção do `ended` mora aqui, não no AutomationEngine (compartilhado, e

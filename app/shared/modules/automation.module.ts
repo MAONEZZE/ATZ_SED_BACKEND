@@ -5,6 +5,7 @@ import { AutomationService } from '@application/automation_module/automation.ser
 import { RecurringSchedulerService } from '@application/automation_module/recurring-scheduler.service';
 import { RecurringAutomationsWorker } from '@application/workers/recurring-automations.worker';
 import { DateAutomationsService } from '@application/automation_module/date-automations.service';
+import { EventDelayAutomationsService } from '@application/automation_module/event-delay-automations.service';
 import { FormFieldDateAutomationsService } from '@application/automation_module/form-field-date-automations.service';
 import { BullQueuesModule } from '@infra/queue/bull-queues.module';
 import { AutomationDbModule } from '@infra/repositories/automation_module/automation-db.module';
@@ -38,6 +39,7 @@ import { StorageModule } from '@shared/modules/storage.module';
     RecurringSchedulerService,
     RecurringAutomationsWorker,
     DateAutomationsService,
+    EventDelayAutomationsService,
     FormFieldDateAutomationsService,
   ],
   exports: [AutomationEngine, TemplateRenderer, AutomationService, RecurringSchedulerService],

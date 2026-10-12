@@ -45,6 +45,9 @@ function ruleRow(overrides: Record<string, unknown>) {
     timezone: null,
     sendAt: null,
     sendTime: null,
+    delayDirection: null,
+    delayValue: null,
+    delayUnit: null,
     name: null,
     active: true,
     order: 0,
@@ -55,6 +58,41 @@ function ruleRow(overrides: Record<string, unknown>) {
 }
 
 describe('PrismaEventRepository.findDuplicationSource', () => {
+  it('maps the delay fields of an on_event_delay rule', async () => {
+    const findUnique = jest.fn().mockResolvedValue({
+      title: 'Tech Day',
+      location: null,
+      capacity: null,
+      dressCode: null,
+      groupLink: null,
+      eventDate: null,
+      endDate: null,
+      folderId: null,
+      folder: null,
+      forms: [],
+      messageTemplates: [],
+      automationRules: [
+        ruleRow({
+          trigger: 'on_event_delay',
+          delayDirection: 'after',
+          delayValue: 3,
+          delayUnit: 'days',
+          firedForAt: new Date('2027-03-10T20:00:00Z'),
+        }),
+      ],
+    });
+    const { repo } = makeRepo({ findUnique });
+
+    const source = await repo.findDuplicationSource('evt-1');
+
+    expect(source!.automationRules[0]).toMatchObject({
+      delayDirection: 'after',
+      delayValue: 3,
+      delayUnit: 'days',
+    });
+    expect(source!.automationRules[0]).not.toHaveProperty('firedForAt');
+  });
+
   it('dedupes a template referenced by several rules, alongside the event own templates', async () => {
     const findUnique = jest.fn().mockResolvedValue({
       title: 'Tech Day',
@@ -237,6 +275,9 @@ describe('PrismaEventRepository.createDuplicateGraph', () => {
           timezone: null,
           sendAt: null,
           sendTime: null,
+          delayDirection: null,
+          delayValue: null,
+          delayUnit: null,
           name: null,
           active: true,
           order: 0,
@@ -269,6 +310,9 @@ describe('PrismaEventRepository.createDuplicateGraph', () => {
           timezone: null,
           sendAt: null,
           sendTime: null,
+          delayDirection: null,
+          delayValue: null,
+          delayUnit: null,
           name: null,
           active: true,
           order: 0,
@@ -287,6 +331,38 @@ describe('PrismaEventRepository.createDuplicateGraph', () => {
   // Não deveria acontecer — `findDuplicationSource` garante que todo template
   // referenciado por uma regra está em `templates` — mas se acontecer, a
   // transação inteira falha em vez de gravar uma regra com template errado.
+  it('copies the delay fields but never the firing state', async () => {
+    const { tx, ruleCreate } = makeTx();
+    const $transaction = jest.fn((cb: (tx: unknown) => unknown) => cb(tx));
+    const { repo } = makeRepo({}, $transaction);
+
+    await repo.createDuplicateGraph(
+      baseGraph([
+        {
+          templateId: 'tpl-1',
+          trigger: 'on_event_delay',
+          delayMinutes: null,
+          cron: null,
+          timezone: null,
+          sendAt: null,
+          sendTime: null,
+          delayDirection: 'before',
+          delayValue: 2,
+          delayUnit: 'hours',
+          name: null,
+          active: true,
+          order: 0,
+          formSlugs: [],
+        },
+      ]),
+    );
+
+    const data = ruleCreate.mock.calls[0][0].data;
+    expect(data).toMatchObject({ delayDirection: 'before', delayValue: 2, delayUnit: 'hours' });
+    expect(data).not.toHaveProperty('firedAt');
+    expect(data).not.toHaveProperty('firedForAt');
+  });
+
   it('throws when a rule references a source template id absent from templates', async () => {
     const { tx } = makeTx();
     const $transaction = jest.fn((cb: (tx: unknown) => unknown) => cb(tx));
@@ -305,6 +381,9 @@ describe('PrismaEventRepository.createDuplicateGraph', () => {
             timezone: null,
             sendAt: null,
             sendTime: null,
+            delayDirection: null,
+            delayValue: null,
+            delayUnit: null,
             name: null,
             active: true,
             order: 0,
