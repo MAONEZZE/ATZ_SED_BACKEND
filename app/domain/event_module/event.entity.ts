@@ -9,6 +9,9 @@ const STATUS_TRANSITIONS: Record<EventStatus, EventStatus[]> = {
   ended: [],
 };
 
+/** Formato de slug aceito quando informado pelo usuário (minúsculas, dígitos e hífens simples). */
+export const EVENT_SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
 export class EventEntity extends EntityBase {
   constructor(
     id: string,

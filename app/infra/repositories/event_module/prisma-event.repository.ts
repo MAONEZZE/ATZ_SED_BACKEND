@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@infra/prisma/prisma.service';
@@ -191,6 +191,14 @@ export class PrismaEventRepository implements EventRepositoryPort {
   }
 
   async create(data: CreateEventData): Promise<EventEntity> {
+    // Slug escolhido pelo usuário é literal: colisão vira 409, sem retry com sufixo.
+    if (data.slug) {
+      try {
+        return this.map(await this.prisma.event.create({ data: { ...data, slug: data.slug } }));
+      } catch (err) {
+        this.rethrowSlugConflict(err);
+      }
+    }
     const MAX_RETRIES = 3;
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       const suffix = randomBytes(3).toString('hex').toUpperCase();
@@ -207,8 +215,22 @@ export class PrismaEventRepository implements EventRepositoryPort {
   }
 
   async update(id: string, data: UpdateEventData): Promise<EventEntity> {
-    const row = await this.prisma.event.update({ where: { id }, data });
-    return this.map(row);
+    try {
+      return this.map(await this.prisma.event.update({ where: { id }, data }));
+    } catch (err) {
+      this.rethrowSlugConflict(err);
+    }
+  }
+
+  /**
+   * `slug` é a única unique de `events` alcançável por create/update; sem isto a
+   * corrida com a checagem do service vira 500 (o filtro global procura `.status`).
+   */
+  private rethrowSlugConflict(err: unknown): never {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw new ConflictException('Slug already in use');
+    }
+    throw err;
   }
 
   async updateStatus(id: string, status: EventStatus, editorId?: string): Promise<EventEntity> {

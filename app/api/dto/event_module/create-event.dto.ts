@@ -7,14 +7,34 @@ import {
   IsUUID,
   MinLength,
   Min,
+  Length,
+  Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { EVENT_SLUG_REGEX } from '@domain/event_module/event.entity';
 
 export class CreateEventDto {
   @ApiProperty({ example: 'Meu Evento Incrível', minLength: 3 })
   @IsString()
   @MinLength(3)
   title!: string;
+
+  @ApiPropertyOptional({
+    example: 'meu-evento-2026',
+    description:
+      'Slug público do evento (URL). Omitido no POST: gerado a partir do título. ' +
+      'Trocar o slug quebra links já divulgados.',
+    minLength: 3,
+    maxLength: 100,
+    pattern: EVENT_SLUG_REGEX.source,
+  })
+  @IsOptional()
+  @IsString()
+  @Length(3, 100)
+  @Matches(EVENT_SLUG_REGEX, {
+    message: 'slug must contain only lowercase letters, digits and single hyphens',
+  })
+  slug?: string;
 
   @ApiPropertyOptional({ example: 'São Paulo, SP' })
   @IsOptional()
