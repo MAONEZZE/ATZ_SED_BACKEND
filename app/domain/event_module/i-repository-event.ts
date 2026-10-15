@@ -12,6 +12,8 @@ export const EVENT_REPOSITORY_PORT = Symbol('EVENT_REPOSITORY_PORT');
 export interface CreateEventData {
   ownerId: string;
   title: string;
+  /** Informado pelo usuário; ausente → gerado a partir do título. */
+  slug?: string;
   location?: string;
   capacity?: number;
   dressCode?: string;
@@ -26,6 +28,7 @@ export interface CreateEventData {
 
 export interface UpdateEventData {
   title?: string;
+  slug?: string;
   coverUrl?: string | null;
   location?: string;
   capacity?: number;

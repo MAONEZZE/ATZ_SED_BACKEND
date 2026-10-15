@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import {
   EVENT_REPOSITORY_PORT,
@@ -29,6 +30,7 @@ import { ConfigService } from '@nestjs/config';
 
 export interface CreateEventInput {
   title: string;
+  slug?: string;
   location?: string;
   capacity?: number;
   dressCode?: string;
@@ -45,6 +47,7 @@ export interface UpdateEventInput {
   /** `null` tira o evento da pasta (volta para a raiz do painel). */
   folderId?: string | null;
   title?: string;
+  slug?: string;
   location?: string;
   capacity?: number;
   dressCode?: string;
@@ -73,6 +76,7 @@ export class EventService {
 
   async create(ownerId: string, input: CreateEventInput): Promise<EventEntity> {
     this.assertValidPeriod(input.eventDate, input.endDate);
+    if (input.slug) await this.assertSlugAvailable(input.slug);
     return this.eventRepo.create({ ...input, ownerId });
   }
 
@@ -120,6 +124,7 @@ export class EventService {
       throw new ForbiddenException('Cancelled or ended events cannot be edited');
     }
     this.assertValidPeriod(input.eventDate ?? event.eventDate, input.endDate ?? event.endDate);
+    if (input.slug) await this.assertSlugAvailable(input.slug, id);
     // Pasta de evento é organização pessoal do painel: nem pasta de outra conta,
     // nem pasta de template/automação, nem pasta que mora dentro de um evento.
     // Sem isso um id conhecido moveria o evento para a pasta errada.
@@ -148,6 +153,15 @@ export class EventService {
       }
     }
     return this.eventRepo.update(id, editorId ? { ...input, lastEditedById: editorId } : input);
+  }
+
+  /**
+   * Checagem prévia para devolver 409 com mensagem clara; a corrida entre duas
+   * requisições é coberta pelo repositório, que converte o P2002 em 409.
+   */
+  private async assertSlugAvailable(slug: string, eventId?: string): Promise<void> {
+    const owner = await this.eventRepo.findBySlug(slug);
+    if (owner && owner.id !== eventId) throw new ConflictException('Slug already in use');
   }
 
   private assertValidPeriod(eventDate?: Date, endDate?: Date): void {
