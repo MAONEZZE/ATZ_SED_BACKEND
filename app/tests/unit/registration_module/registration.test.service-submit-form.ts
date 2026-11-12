@@ -274,48 +274,19 @@ describe('RegistrationService.submitForm — Pipedrive', () => {
     expect(pipedrive.send).toHaveBeenCalled();
   });
 
-  // A data do evento vai no payload em ISO — o n8n a usa no negócio do Pipedrive.
-  it('sends the event date in the payload', async () => {
-    const { service, pipedrive } = make({ existing: null, sendToPipedrive: true });
-
-    await service.submitForm('tech-day', 'inscricao', '11912345678', { nome: 'Maria' });
-
-    expect(pipedrive.send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        event: {
-          id: 'evt-1',
-          slug: 'tech-day',
-          title: 'Tech Day',
-          eventDate: '2026-09-10T18:30:00.000Z',
-        },
-      }),
-    );
-  });
-
-  // O nome do contato sai da resposta cujo label cita "nome"/"name": o
-  // formulário é livre, então não há campo fixo de onde tirá-lo.
-  it('sends the answer whose label mentions "nome" as the contact name', async () => {
-    const { service, pipedrive } = make({ existing: null, sendToPipedrive: true });
-
-    await service.submitForm('tech-day', 'inscricao', '11912345678', { nome: 'Maria' });
-
-    expect(pipedrive.send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        contact: expect.objectContaining({ name: 'Maria' }),
-      }),
-    );
-  });
-
-  it('omits the contact name when no label mentions nome/name', async () => {
+  it('sends the flat payload to the CRM', async () => {
     const { service, pipedrive } = make({ sendToPipedrive: true });
 
-    await service.submitForm('tech-day', 'nps', '11999998888', { Nota: '9' });
+    await service.submitForm('tech-day', 'nps', '11999998888', { nome: 'Maria', Nota: '9' });
 
-    expect(pipedrive.send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        contact: expect.objectContaining({ name: undefined }),
-      }),
-    );
+    expect(pipedrive.send).toHaveBeenCalledWith({
+      nome: 'João',
+      telefone: '5511999998888',
+      email: 'joao@test.com',
+      titulo_evento: 'Tech Day',
+      data_inicio_evento: '2026-09-10T18:30:00.000Z',
+      respostas: { nome: 'Maria', Nota: '9' },
+    });
   });
 
   // Caso que o antigo gate `!existing` bloqueava: quem já era inscrito também

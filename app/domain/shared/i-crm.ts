@@ -1,12 +1,14 @@
 export const CRM_PORT = Symbol('CRM_PORT');
 
 export interface CrmPayload {
-  /** `eventDate` em ISO 8601 (UTC); ausente quando o evento nao tem data definida. */
-  event: { id: string; slug: string; title: string; eventDate?: string };
-  form: 'registration';
-  /** `name` vem da resposta cujo label cita "nome"/"name"; ausente se o formulário não tem esse campo. */
-  contact: { name?: string; email: string; phone: string; linkedin?: string; instagram?: string };
-  answers: Record<string, unknown>;
+  nome: string | null;
+  telefone: string | null;
+  email: string | null;
+  titulo_evento: string;
+  /** `event.eventDate` em ISO 8601 (UTC); null quando o evento não tem data. */
+  data_inicio_evento: string | null;
+  /** Respostas da submissão com o label do campo como chave. */
+  respostas: Record<string, unknown>;
 }
 
 /**
