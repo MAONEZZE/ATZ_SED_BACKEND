@@ -259,9 +259,9 @@ export class RegistrationService {
     await this.formResponses.setPipedriveStatus(response.id, 'pending');
     void this.pipedrive
       .send({
-        nome: reg.name,
-        telefone: reg.phone,
-        email: reg.email,
+        nome: reg.name || null,
+        telefone: reg.phone || null,
+        email: reg.email || null,
         titulo_evento: event.title,
         data_inicio_evento: event.eventDate?.toISOString() ?? null,
         respostas: hydratedAnswers,

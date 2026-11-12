@@ -40,6 +40,7 @@ function make(overrides?: {
   sendToPipedrive?: boolean;
   responsePipedriveStatus?: string | null;
   anonymous?: boolean;
+  eventDate?: Date | null;
 }) {
   const regRepo = {
     findByEventAndContact: jest
@@ -53,6 +54,7 @@ function make(overrides?: {
       ...event,
       status: overrides?.eventStatus ?? 'published',
       capacity: overrides?.capacity ?? null,
+      eventDate: overrides && 'eventDate' in overrides ? overrides.eventDate : event.eventDate,
     }),
     findById: jest.fn(),
   };
@@ -286,6 +288,25 @@ describe('RegistrationService.submitForm — Pipedrive', () => {
       titulo_evento: 'Tech Day',
       data_inicio_evento: '2026-09-10T18:30:00.000Z',
       respostas: { nome: 'Maria', Nota: '9' },
+    });
+  });
+
+  it('sends null for missing contact data and event date', async () => {
+    const { service, pipedrive } = make({
+      sendToPipedrive: true,
+      existing: { ...existingReg, name: '', email: '', phone: '' },
+      eventDate: null,
+    });
+
+    await service.submitForm('tech-day', 'nps', '11999998888', { Nota: '9' });
+
+    expect(pipedrive.send).toHaveBeenCalledWith({
+      nome: null,
+      telefone: null,
+      email: null,
+      titulo_evento: 'Tech Day',
+      data_inicio_evento: null,
+      respostas: { Nota: '9' },
     });
   });
 
