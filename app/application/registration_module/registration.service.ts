@@ -256,32 +256,15 @@ export class RegistrationService {
     // Contrato externo inalterado: o Pipedrive continua recebendo por label.
     const hydratedAnswers = hydrateAnswerLabels(fields, answers);
 
-    // O nome do contato sai da primeira resposta cujo label cita "nome"/"name"
-    // — o formulário é livre, então o label é o único sinal disponível.
-    let contactName: string | undefined;
-    for (const [label, value] of Object.entries(hydratedAnswers)) {
-      const normalized = label.toLowerCase();
-      if (
-        typeof value === 'string' &&
-        (normalized.includes('nome') || normalized.includes('name'))
-      ) {
-        contactName = value;
-        break;
-      }
-    }
-
     await this.formResponses.setPipedriveStatus(response.id, 'pending');
     void this.pipedrive
       .send({
-        event: {
-          id: event.id,
-          slug: event.slug,
-          title: event.title,
-          eventDate: event.eventDate?.toISOString(),
-        },
-        form: 'registration',
-        contact: { name: contactName, email: reg.email, phone: reg.phone },
-        answers: hydratedAnswers,
+        nome: reg.name || null,
+        telefone: reg.phone || null,
+        email: reg.email || null,
+        titulo_evento: event.title,
+        data_inicio_evento: event.eventDate?.toISOString() ?? null,
+        respostas: hydratedAnswers,
       })
       .then(() => this.formResponses.setPipedriveStatus(response.id, 'sent'))
       .catch((err) => {
