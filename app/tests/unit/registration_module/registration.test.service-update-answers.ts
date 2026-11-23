@@ -197,4 +197,30 @@ describe('RegistrationService.updateAnswers', () => {
 
     expect(formResponses.mergeAnswers).not.toHaveBeenCalled();
   });
+
+  it('syncs the name from the name-type field, ignoring other labels that contain "nome"', async () => {
+    const { service, regRepo } = makeService();
+    const fields: FormFieldLike[] = [
+      {
+        id: 'resp-id',
+        label: 'Nome do responsável',
+        type: 'text',
+        required: false,
+        isFixed: false,
+      },
+      { id: 'aluno-id', label: 'Nome completo', type: 'name', required: false, isFixed: false },
+    ];
+
+    await service.updateAnswers(
+      'reg-1',
+      'evt-1',
+      { 'Nome do responsável': 'Nome_Teste_1', 'Nome completo': 'Nome_Teste_2' },
+      fields,
+    );
+
+    expect(regRepo.updateAnswers).toHaveBeenCalledWith(
+      'reg-1',
+      expect.objectContaining({ name: 'Nome_Teste_2' }),
+    );
+  });
 });

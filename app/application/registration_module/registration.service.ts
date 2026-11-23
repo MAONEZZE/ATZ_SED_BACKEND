@@ -522,7 +522,7 @@ export class RegistrationService {
       phone?: string;
     } = { answers: mergedAnswers };
 
-    const name = this.extractString(mergedAnswers, formFields, ['nome', 'name']);
+    const name = this.extractName(mergedAnswers, formFields);
     const email = this.extractByFieldType(mergedAnswers, formFields, 'email', ['email']);
     const phone = this.extractByFieldType(mergedAnswers, formFields, 'phone', [
       'telefone',
