@@ -451,4 +451,33 @@ describe('RegistrationService.submitForm — nome do inscrito', () => {
 
     expect(regRepo.create).toHaveBeenCalledWith(expect.objectContaining({ name: 'Nome_Teste_2' }));
   });
+
+  it('leaves the name empty when no field is name-type and no label is exactly "Nome"', async () => {
+    const { service, regRepo } = make({
+      existing: null,
+      fields: [
+        {
+          id: 'resp-id',
+          label: 'Nome do responsável',
+          type: 'text',
+          required: false,
+          isFixed: false,
+        },
+        {
+          id: 'empresa-id',
+          label: 'Nome da empresa',
+          type: 'text',
+          required: false,
+          isFixed: false,
+        },
+      ],
+    });
+
+    await service.submitForm('tech-day', 'inscricao', '11912345678', {
+      'Nome do responsável': 'Nome_Teste_1',
+      'Nome da empresa': 'Nome_Teste_2',
+    });
+
+    expect(regRepo.create).toHaveBeenCalledWith(expect.objectContaining({ name: '' }));
+  });
 });
