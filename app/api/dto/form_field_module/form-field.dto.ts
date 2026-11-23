@@ -6,6 +6,7 @@ const FORM_FIELD_TYPES = [
   'textarea',
   'email',
   'phone',
+  'name',
   'select',
   'multiselect',
   'checkbox',
