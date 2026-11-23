@@ -41,6 +41,7 @@ function make(overrides?: {
   responsePipedriveStatus?: string | null;
   anonymous?: boolean;
   eventDate?: Date | null;
+  fields?: Array<{ id: string; label: string; type: string; required: boolean; isFixed: boolean }>;
 }) {
   const regRepo = {
     findByEventAndContact: jest
@@ -78,11 +79,13 @@ function make(overrides?: {
     setPipedriveStatus: jest.fn().mockResolvedValue(undefined),
   };
   const formFields = {
-    listValidationFields: jest.fn().mockResolvedValue([
-      { id: NOTA_FIELD_ID, label: 'Nota', type: 'text', required: false, isFixed: false },
-      { id: NOME_FIELD_ID, label: 'nome', type: 'text', required: false, isFixed: false },
-      { id: OPCAO_FIELD_ID, label: 'opcao', type: 'text', required: false, isFixed: false },
-    ]),
+    listValidationFields: jest.fn().mockResolvedValue(
+      overrides?.fields ?? [
+        { id: NOTA_FIELD_ID, label: 'Nota', type: 'text', required: false, isFixed: false },
+        { id: NOME_FIELD_ID, label: 'nome', type: 'text', required: false, isFixed: false },
+        { id: OPCAO_FIELD_ID, label: 'opcao', type: 'text', required: false, isFixed: false },
+      ],
+    ),
   };
   const formDocuments = {
     finalizeAnswers: jest.fn().mockImplementation((a) => Promise.resolve(a)),
@@ -422,5 +425,59 @@ describe('RegistrationService.submitForm — formulário anônimo', () => {
     expect(first.created).toBe(true);
     expect(second.created).toBe(true);
     expect(formResponses.upsert).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('RegistrationService.submitForm — nome do inscrito', () => {
+  it('uses the name-type field as the registration name even when other labels contain "nome"', async () => {
+    const { service, regRepo } = make({
+      existing: null,
+      fields: [
+        {
+          id: 'resp-id',
+          label: 'Nome do responsável',
+          type: 'text',
+          required: false,
+          isFixed: false,
+        },
+        { id: 'aluno-id', label: 'Nome completo', type: 'name', required: false, isFixed: false },
+      ],
+    });
+
+    await service.submitForm('tech-day', 'inscricao', '11912345678', {
+      'Nome do responsável': 'Nome_Teste_1',
+      'Nome completo': 'Nome_Teste_2',
+    });
+
+    expect(regRepo.create).toHaveBeenCalledWith(expect.objectContaining({ name: 'Nome_Teste_2' }));
+  });
+
+  it('leaves the name empty when no field is name-type and no label is exactly "Nome"', async () => {
+    const { service, regRepo } = make({
+      existing: null,
+      fields: [
+        {
+          id: 'resp-id',
+          label: 'Nome do responsável',
+          type: 'text',
+          required: false,
+          isFixed: false,
+        },
+        {
+          id: 'empresa-id',
+          label: 'Nome da empresa',
+          type: 'text',
+          required: false,
+          isFixed: false,
+        },
+      ],
+    });
+
+    await service.submitForm('tech-day', 'inscricao', '11912345678', {
+      'Nome do responsável': 'Nome_Teste_1',
+      'Nome da empresa': 'Nome_Teste_2',
+    });
+
+    expect(regRepo.create).toHaveBeenCalledWith(expect.objectContaining({ name: '' }));
   });
 });

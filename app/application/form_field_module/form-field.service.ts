@@ -19,6 +19,14 @@ import {
   AutomationRepositoryPort,
 } from '@domain/automation_module/i-repository-automation';
 
+/** Tipos que só podem aparecer uma vez por formulário, com a mensagem do 400. */
+const SINGLE_PER_FORM: Record<string, (existingLabel: string) => string> = {
+  on_date_automation_field: (label) =>
+    `Este formulário já tem um campo de data para automação ("${label}"). Só é permitido um por formulário.`,
+  name: (label) =>
+    `Este formulário já tem um campo Nome ("${label}"). Só é permitido um por formulário.`,
+};
+
 export interface CreateFormFieldInput {
   label: string;
   type: string;
@@ -77,7 +85,7 @@ export class FormFieldService {
     // O formulário é escolhido explicitamente: sem os 3 tipos fixos não existe
     // mais "o form padrão" para materializar na hora.
     const form = await this.formsService.findOne(input.formId, eventId);
-    await this.assertSingleAutomationDateField(form.id, input.type);
+    await this.assertSingleFieldPerForm(form.id, input.type);
     this.assertDocumentOptions(input.type, input.options);
     const field = await this.repo.create({
       formId: form.id,
@@ -100,7 +108,7 @@ export class FormFieldService {
       this.warnIfTypeChangeIncoherent(field, input);
     }
     this.assertDocumentOptions(input.type ?? field.type, input.options ?? field.options);
-    await this.assertSingleAutomationDateField(field.formId, input.type, id);
+    await this.assertSingleFieldPerForm(field.formId, input.type, id);
 
     const updated = await this.repo.update(id, {
       ...(input.label !== undefined && { label: input.label }),
@@ -182,18 +190,17 @@ export class FormFieldService {
    * documentada: dois POSTs simultâneos no mesmo formulário podem criar 2
    * campos. Ação de painel administrativo; o `orderBy: createdAt asc` do repo
    * garante que o sweeper sempre escolha o mesmo campo se a corrida vazar.
+   * `name` também é único por formulário porque é ele que define `Registration.name`.
    */
-  private async assertSingleAutomationDateField(
+  private async assertSingleFieldPerForm(
     formId: string,
     type?: string,
     excludeId?: string,
   ): Promise<void> {
-    if (type !== 'on_date_automation_field') return; // custo zero nos outros tipos
+    if (!type || !(type in SINGLE_PER_FORM)) return; // custo zero nos outros tipos
     const existing = await this.repo.findByFormAndType(formId, type, excludeId);
     if (existing) {
-      throw new BadRequestException(
-        `Este formulário já tem um campo de data para automação ("${existing.label}"). Só é permitido um por formulário.`,
-      );
+      throw new BadRequestException(SINGLE_PER_FORM[type](existing.label));
     }
   }
 

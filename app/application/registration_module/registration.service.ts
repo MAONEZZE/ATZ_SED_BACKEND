@@ -217,7 +217,7 @@ export class RegistrationService {
     const reg = await this.regRepo.create({
       eventId: event.id,
       answers,
-      name: this.extractString(answers, fields, ['nome', 'name']),
+      name: this.extractName(answers, fields),
       email: this.extractByFieldType(answers, fields, 'email', ['email']),
       phone,
       imageAuthorization: imageAuthorization === true,
@@ -522,7 +522,7 @@ export class RegistrationService {
       phone?: string;
     } = { answers: mergedAnswers };
 
-    const name = this.extractString(mergedAnswers, formFields, ['nome', 'name']);
+    const name = this.extractName(mergedAnswers, formFields);
     const email = this.extractByFieldType(mergedAnswers, formFields, 'email', ['email']);
     const phone = this.extractByFieldType(mergedAnswers, formFields, 'phone', [
       'telefone',
@@ -584,6 +584,27 @@ export class RegistrationService {
       if (!fields) return reg;
       return this.cloneWithAnswers(reg, hydrateAnswerLabels(fields, reg.answers));
     });
+  }
+
+  /**
+   * Nome do inscrito: 1º o campo de tipo `name`; senão um label exatamente
+   * "nome"/"name"; senão vazio. Nunca "label contém nome" — com dois campos
+   * assim ("Nome do responsável", "Nome da empresa") o errado virava o nome.
+   */
+  private extractName(answers: Record<string, unknown>, fields: AnswerFieldMeta[]): string {
+    const typed = fields.find((f) => f.type === 'name');
+    if (typed) {
+      const val = answers[typed.id];
+      if (typeof val === 'string' && val.trim()) return val.trim();
+    }
+    for (const key of ['nome', 'name']) {
+      const field = fields.find((f) => f.label.trim().toLowerCase() === key);
+      if (field) {
+        const val = answers[field.id];
+        if (typeof val === 'string' && val.trim()) return val.trim();
+      }
+    }
+    return '';
   }
 
   /**

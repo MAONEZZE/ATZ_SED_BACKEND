@@ -64,6 +64,8 @@ enum FieldType {
   textarea
   email
   phone
+  /// Nome do inscrito. No máximo 1 por formulário; tem prioridade sobre o label na hora de preencher Registration.name.
+  name
   select
   multiselect
   checkbox
